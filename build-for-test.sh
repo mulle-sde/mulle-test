@@ -3,9 +3,16 @@
 set -e
 
 cd ..
-   mulle-bootstrap build  -c Debug -k "$@"
+if [ -d .bootstrap ]
+then
+   mulle-bootstrap build -c Debug -k "$@"
+fi
 
-cd build
+if [ -f "CMakeLists.txt" ]
+then
+   cd build
    cmake -DCMAKE_OSX_SYSROOT=macosx -DCMAKE_INSTALL_PREFIX="`pwd`/.." -DCMAKE_BUILD_TYPE=Debug ..
    make install
-
+else
+   echo "No CMakeLists.txt file found. So only dependencies have been built." >&2
+fi

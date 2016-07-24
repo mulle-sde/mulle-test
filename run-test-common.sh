@@ -133,9 +133,16 @@ fi
 #        ./mulle-objc-runtime
 #
 
-# cmake
-lib="`ls -1 "../lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
 DEPENDENCIES_INCLUDE="../dependencies/include"
+
+if [ ! -z "${LIB_PATH}" ]
+then
+   lib="`ls -1 "${LIB_PATH}/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+else
+   # cmake
+   lib="`ls -1 "../lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+fi
+
 
 if [ ! -f "${lib}" ]
 then
@@ -336,6 +343,7 @@ LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}:${DEBUGGER_LIBRARY_PATH}\" ${DEBUGGER} ${a_
 run()
 {
    local m_source
+   local ext
    local root
    local stdin
    local stdout
@@ -344,10 +352,11 @@ run()
 
    m_source="$1"
    root="$2"
-   stdin="$3"
-   stdout="$4"
-   stderr="$5"
-   ccdiag="$6"
+   ext="$3"
+   stdin="$4"
+   stdout="$5"
+   stderr="$6"
+   ccdiag="$7"
 
    local output
    local errput
@@ -356,21 +365,21 @@ run()
    local match
 
    random=`mktemp -t "${LIBRARY_SHORTNAME}.XXXX"`
-   output="$random.stdout"
-   errput="$random.stderr"
-   errors="`basename "${m_source}" "${SOURCE_EXTENSION}"`.errors"
+   output="${random}.stdout"
+   errput="${random}.stderr"
+   errors="`basename "${m_source}" "${ext}"`.errors"
 
    local owd
 
    owd=`pwd`
-   pretty_source=`relpath "$owd"/"$m_source" "$root"`
+   pretty_source=`relpath "${owd}"/"${m_source}" "${root}"`
 
    if [ "$VERBOSE" = "yes" ]
    then
-      echo "$pretty_source" >&2
+      echo "${pretty_source}" >&2
    fi
 
-   a_out="${owd}/`basename "$m_source" "${SOURCE_EXTENSION}"`.exe"
+   a_out="${owd}/`basename "${m_source}" "${ext}"`.exe"
 
    RUNS=`expr "$RUNS" + 1`
 
@@ -510,9 +519,11 @@ run_test()
 {
    local m_source
    local root
+   local ext
 
-   m_source="$1${SOURCE_EXTENSION}"
+   m_source="$1$3"
    root="$2"
+   ext="$3"
 
    local stdin
    local stdout
@@ -575,7 +586,7 @@ run_test()
       ccdiag="-"
    fi
 
-   run "$m_source" "$root" "$stdin" "$stdout" "$stderr" "$ccdiag"
+   run "$m_source" "$root" "$ext" "$stdin" "$stdout" "$stderr" "$ccdiag"
 }
 
 
@@ -598,11 +609,16 @@ scan_current_directory()
          scan_current_directory "$root"
          cd "$dir"
       else
-         filename=`basename "$i" "${SOURCE_EXTENSION}"`
-         if [ "$filename" != "$i" ]
-         then
-            run_test "$filename" "$root"
-         fi
+         for ext in ${SOURCE_EXTENSION}
+         do
+            filename=`basename "$i" "${ext}"`
+            if [ "$filename" != "$i" ]
+            then
+               run_test "${filename}" "${root}" "${ext}"
+               break
+            fi
+         done
+
       fi
    done
 }
@@ -659,9 +675,21 @@ else
        dirname="."
     fi
     file=`basename "$TEST"`
-    filename=`basename "$file" "${SOURCE_EXTENSION}"`
 
-    if [ "$file" = "$filename" ]
+    found=no
+
+    for ext in ${SOURCE_EXTENSION}
+    do
+       filename=`basename "${file}" "${ext}"`
+
+       if [ "${file}" != "${filename}" ]
+       then
+         found=yes
+         break
+       fi
+    done
+
+    if [ "${found}" = "no" ]
     then
        echo "error: source file must have ${SOURCE_EXTENSION} extension" >&2
        exit 1
@@ -675,7 +703,7 @@ else
 
     old="`pwd -P`"
     cd "${dirname}" || exit 1
-    run_test "$filename" "${old}"
+    run_test "$filename" "${old}" "${ext}"
     rval=$?
     cd "${old}" || exit 1
     exit $rval
