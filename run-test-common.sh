@@ -8,62 +8,6 @@
 
 set -m
 
-
-case `uname` in
-   Darwin)
-      SHLIB_PREFIX="lib"
-      SHLIB_EXTENSION=".dylib"
-      ;;
-
-   Linux)
-      SHLIB_PREFIX="lib"
-      SHLIB_EXTENSION=".so"
-      LDFLAGS="-ldl -lpthread"
-      ;;
-
-   *)
-      SHLIB_PREFIX="lib"
-      SHLIB_EXTENSION=".so"
-      ;;
-esac
-
-
-LIBRARY_FILENAME="${SHLIB_PREFIX}${LIBRARY_SHORTNAME}${STANDALONE_SUFFIX}${SHLIB_EXTENSION}"
-
-
-if [ -z "${DEBUGGER}" ]
-then
-   DEBUGGER=lldb
-fi
-
-DEBUGGER="`which "${DEBUGGER}"`"
-
-if [ -z "${DEBUGGER_LIBRARY_PATH}" ]
-then
-   DEBUGGER_LIBRARY_PATH="`dirname "${DEBUGGER}"`/../lib"
-fi
-
-
-# check if running a single test or all
-DEFAULTCFLAGS="-w -O0 -g"
-
-executable=`basename "$0"`
-executable=`basename "$executable" .sh`
-
-if [ "`basename "$executable"`" = "run-all-tests" ]
-then
-   TEST=""
-   VERBOSE=yes
-   if [ "$1" = "-q" ]
-   then
-      VERBOSE=no
-      shift
-   fi
-else
-   TEST="$1"
-   [ -z $# ] || shift
-fi
-
 #
 # this is system wide, not so great
 # and also not trapped...
@@ -112,76 +56,6 @@ trace_ignore()
    return 0
 }
 
-
-RESTORE_CRASHDUMP=`suppress_crashdumping`
-trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
-
-if [ -z "${CFLAGS}" ]
-then
-   CFLAGS="${DEFAULTCFLAGS}"
-fi
-
-# find runtime and headers
-#
-# this is more or less an ugly hack, that should work
-# if
-#    a) you used mulle-clang-install
-# or
-#    b) have a setup like mine
-#
-#        ./mulle-clang-install/tests
-#        ./mulle-objc-runtime
-#
-
-DEPENDENCIES_INCLUDE="../dependencies/include"
-
-if [ ! -z "${LIB_PATH}" ]
-then
-   lib="`ls -1 "${LIB_PATH}/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-else
-   # cmake
-   lib="`ls -1 "../lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-fi
-
-
-if [ ! -f "${lib}" ]
-then
-   # xcode
-   lib="`ls -1 "../build/Products/Debug/${LIBRARY_FILENAME}" | tail -1 2> /dev/null`"
-fi
-
-LIBRARY="${1:-${lib}}"
-[ -z $# ] || shift
-
-if [ -z "${LIBRARY}" ]
-then
-   echo "${LIBRARY_FILENAME} can not be found" >&2
-   exit 1
-fi
-
-
-LIBRARY_INCLUDE="`dirname "${LIBRARY}"`"
-if [ -d "${LIBRARY_INCLUDE}/usr/local/include" ]
-then
-   # xcode
-   LIBRARY_INCLUDE="${LIBRARY_INCLUDE}/usr/local/include"
-else
-   if [ -d "${LIBRARY_INCLUDE}/include" ]
-   then
-      # xcode2
-      LIBRARY_INCLUDE="${LIBRARY_INCLUDE}/include"
-   else
-      # cmake
-      LIBRARY_INCLUDE="`dirname "${LIBRARY_INCLUDE}"`/include"
-   fi
-fi
-
-
-DIR=${1:-`pwd`}
-shift
-
-HAVE_WARNED="no"
-RUNS=0
 
 search_plist()
 {
@@ -232,6 +106,7 @@ absolute_path_if_relative()
       ;;
    esac
 }
+
 
 
 maybe_show_diagnostics()
@@ -312,16 +187,24 @@ fail_test()
    m_source="$1"
    a_out="$2"
    stdin="$3"
+   ext="$4"
 
    echo "DEBUG: " >&2
    echo "rebuilding with -O0 and debug symbols..." >&2
-   $MULLE_CLANG -O0 -g -o "${a_out}.debug" \
-      -fobjc-runtime=mulle \
-      "-I${LIBRARY_INCLUDE}" \
-      "-I${DEPENDENCIES_INCLUDE}" \
-      ${LDFLAGS} \
-      "${LIBRARY}" \
-      "${m_source}" > "$errput" 2>&1
+
+   if [ "${ext}" = "Makefile" ]
+   then
+      CFLAGS="${CFLAGS} -O0 -g -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE}" \
+      LDFLAGS="${LDFLAGS} ${LIBRARY}" \
+      OUTPUT="${a_out}.debug" make -B
+   else
+      ${CC} -O0 -g -o "${a_out}.debug" \
+         "-I${LIBRARY_INCLUDE}" \
+         "-I${DEPENDENCIES_INCLUDE}" \
+         ${LDFLAGS} \
+         "${LIBRARY}" \
+         "${m_source}" > "$errput" 2>&1
+   fi
 
    echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
 MULLE_OBJC_TEST_ALLOCATOR=1 \
@@ -331,6 +214,7 @@ MALLOC_FILL_SPACE=1 \
 DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
 DYLD_FALLBACK_LIBRARY_PATH=\"${DYLD_FALLBACK_LIBRARY_PATH}\" \
 LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}:${DEBUGGER_LIBRARY_PATH}\" ${DEBUGGER} ${a_out}.debug" >&2
+
    if [ "${stdin}" != "/dev/null" ]
    then
       echo "run < ${stdin}" >&2
@@ -379,8 +263,6 @@ run()
       echo "${pretty_source}" >&2
    fi
 
-   a_out="${owd}/`basename "${m_source}" "${ext}"`.exe"
-
    RUNS=`expr "$RUNS" + 1`
 
    # plz2shutthefuckup bash
@@ -391,18 +273,21 @@ run()
 
    local rval
 
-   if [ -z "${CC}" ]
+   if [ "${ext}" = "Makefile" ]
    then
-      $MULLE_CLANG ${CFLAGS} -o "${a_out}" \
-      -fobjc-runtime=mulle \
+      a_out="${owd}/${m_source}.exe"
+      CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE}" \
+      LDFLAGS="${LDFLAGS} ${LIBRARY}" \
+      OUTPUT="${a_out}" make -B
+      rval=$?
+   else
+      a_out="${owd}/`basename "${m_source}" "${ext}"`.exe"
+      ${CC} ${CFLAGS} -o "${a_out}" \
       "-I${LIBRARY_INCLUDE}" \
       "-I${DEPENDENCIES_INCLUDE}" \
       "${LIBRARY}" \
       ${LDFLAGS} \
       "${m_source}" > "$errput" 2>&1
-      rval=$?
-   else
-      "${CC}" ${CFLAGS} -o "${a_out}" ${LDFLAGS} -framework Foundation "${m_source}" > "$errput" 2>&1
       rval=$?
    fi
 
@@ -442,7 +327,7 @@ MallocCheckHeapEach=1 \
          echo "TEST CRASHED: \"$pretty_source\" (${a_out}, ${errput})" >&2
          maybe_show_diagnostics "$errput" >&2
 
-         fail_test "${m_source}" "${a_out}" "${stdin}"
+         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
       else
          search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"$pretty_source\" ($errput)" \
                             "$errput" "$errors"
@@ -451,14 +336,14 @@ MallocCheckHeapEach=1 \
             return 0
          fi
          maybe_show_diagnostics "$errput" >&2
-         fail_test "${m_source}" "${a_out}" "${stdin}"
+         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
       fi
    else
       if [ -f "$errors" ]
       then
          echo "TEST FAILED TO CRASH: \"$pretty_source\" (${a_out})" >&2
          maybe_show_diagnostics "$errput" >&2
-         fail_test "${m_source}" "${a_out}" "${stdin}"
+         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
       fi
    fi
 
@@ -484,7 +369,7 @@ MallocCheckHeapEach=1 \
          maybe_show_diagnostics "$errput" >&2
          maybe_show_output "$output"
 
-         fail_test "${m_source}" "${a_out}" "${stdin}"
+         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
       fi
    else
       contents="`head -2 "$output"`" 2> /dev/null
@@ -495,7 +380,7 @@ MallocCheckHeapEach=1 \
          maybe_show_diagnostics "$errput" >&2
          maybe_show_output "$output"
 
-         fail_test "${m_source}" "${a_out}" "${stdin}"
+         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
       fi
    fi
 
@@ -509,7 +394,7 @@ MallocCheckHeapEach=1 \
          diff "$stderr" "$errput" >&2
 
          maybe_show_diagnostics "$errput"
-         fail_test "${m_source}" "${a_out}" "${stdin}"
+         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
       fi
    fi
 }
@@ -520,8 +405,9 @@ run_test()
    local m_source
    local root
    local ext
+   local makefile
 
-   m_source="$1$3"
+   m_source="$1"
    root="$2"
    ext="$3"
 
@@ -586,6 +472,13 @@ run_test()
       ccdiag="-"
    fi
 
+   if [ -z "${m_source}" ]
+   then
+      m_source="`basename "${PWD}"`"
+   else
+      m_source="${m_source}${ext}"
+   fi
+
    run "$m_source" "$root" "$ext" "$stdin" "$stdout" "$stderr" "$ccdiag"
 }
 
@@ -599,6 +492,13 @@ scan_current_directory()
    local i
    local filename
    local dir
+
+   if [ -f Makefile ]
+   then
+      set -x
+      run_test "" "$root" "Makefile"
+      return 0
+   fi
 
    for i in [^_]*
    do
@@ -626,17 +526,149 @@ scan_current_directory()
 
 test_binary()
 {
-   "$MULLE_CLANG" > /dev/null 2>&1
+   "$1" > /dev/null 2>&1
    code=$?
 
    if [ $code -eq 127 ]
    then
-      echo "mulle-clang can not be found" >&2
+      echo "$1 can not be found" >&2
       exit 1
    fi
 
-   echo "using ${MULLE_CLANG} to test" >&2
+   echo "using ${1} for tests" >&2
 }
+
+
+#####################################################################
+# main
+#
+
+case `uname` in
+   Darwin)
+      SHLIB_PREFIX="lib"
+      SHLIB_EXTENSION=".dylib"
+      LDFLAGS="-framework Foundation"  ## harmles and sometimes useful
+      ;;
+
+   Linux)
+      SHLIB_PREFIX="lib"
+      SHLIB_EXTENSION=".so"
+      LDFLAGS="-ldl -lpthread"
+      ;;
+
+   *)
+      SHLIB_PREFIX="lib"
+      SHLIB_EXTENSION=".so"
+      ;;
+esac
+
+
+LIBRARY_FILENAME="${SHLIB_PREFIX}${LIBRARY_SHORTNAME}${STANDALONE_SUFFIX}${SHLIB_EXTENSION}"
+
+
+if [ -z "${DEBUGGER}" ]
+then
+   DEBUGGER=lldb
+fi
+
+DEBUGGER="`which "${DEBUGGER}"`"
+
+if [ -z "${DEBUGGER_LIBRARY_PATH}" ]
+then
+   DEBUGGER_LIBRARY_PATH="`dirname "${DEBUGGER}"`/../lib"
+fi
+
+
+# check if running a single test or all
+
+executable=`basename "$0"`
+executable=`basename "$executable" .sh`
+
+if [ "`basename "$executable"`" = "run-all-tests" ]
+then
+   TEST=""
+   VERBOSE=yes
+   if [ "$1" = "-q" ]
+   then
+      VERBOSE=no
+      shift
+   fi
+else
+   TEST="$1"
+   [ -z $# ] || shift
+fi
+
+
+
+RESTORE_CRASHDUMP=`suppress_crashdumping`
+trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
+
+if [ -z "${CFLAGS}" ]
+then
+   CFLAGS="${DEFAULTCFLAGS}"
+fi
+
+# find runtime and headers
+#
+# this is more or less an ugly hack, that should work
+# if
+#    a) you used mulle-clang-install
+# or
+#    b) have a setup like mine
+#
+#        ./mulle-clang-install/tests
+#        ./mulle-objc-runtime
+#
+
+DEPENDENCIES_INCLUDE="../dependencies/include"
+
+if [ ! -z "${LIB_PATH}" ]
+then
+   lib="`ls -1 "${LIB_PATH}/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+else
+   # cmake
+   lib="`ls -1 "../lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+fi
+
+
+if [ ! -f "${lib}" ]
+then
+   # xcode
+   lib="`ls -1 "../build/Products/Debug/${LIBRARY_FILENAME}" | tail -1 2> /dev/null`"
+fi
+
+LIBRARY="${1:-${lib}}"
+[ -z $# ] || shift
+
+if [ -z "${LIBRARY}" ]
+then
+   echo "${LIBRARY_FILENAME} can not be found" >&2
+   exit 1
+fi
+
+
+LIBRARY_INCLUDE="`dirname "${LIBRARY}"`"
+if [ -d "${LIBRARY_INCLUDE}/usr/local/include" ]
+then
+   # xcode
+   LIBRARY_INCLUDE="${LIBRARY_INCLUDE}/usr/local/include"
+else
+   if [ -d "${LIBRARY_INCLUDE}/include" ]
+   then
+      # xcode2
+      LIBRARY_INCLUDE="${LIBRARY_INCLUDE}/include"
+   else
+      # cmake
+      LIBRARY_INCLUDE="`dirname "${LIBRARY_INCLUDE}"`/include"
+   fi
+fi
+
+
+DIR=${1:-`pwd`}
+shift
+
+HAVE_WARNED="no"
+RUNS=0
 
 
 LIBRARY="`absolute_path_if_relative "$LIBRARY"`"
@@ -651,9 +683,13 @@ LD_LIBRARY_PATH="`dirname "${LIBRARY}"`" ; export LD_LIBRARY_PATH
 
 if [ -z "${CC}" ]
 then
-   MULLE_CLANG="`absolute_path_if_relative "mulle-clang"`"
-   test_binary "$MULLE_CLANG"
+   echo "CC for C compiler not defined" >&2
+   exit 1
 fi
+
+
+CC="`absolute_path_if_relative "${CC}"`"
+test_binary "$CC"
 
 
 if [ "$TEST" = "" ]
