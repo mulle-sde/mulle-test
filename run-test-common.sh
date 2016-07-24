@@ -223,7 +223,6 @@ LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}:${DEBUGGER_LIBRARY_PATH}\" ${DEBUGGER} ${a_
 }
 
 
-
 run()
 {
    local m_source
@@ -495,7 +494,6 @@ scan_current_directory()
 
    if [ -f Makefile ]
    then
-      set -x
       run_test "" "$root" "Makefile"
       return 0
    fi
@@ -597,7 +595,6 @@ else
    TEST="$1"
    [ -z $# ] || shift
 fi
-
 
 
 RESTORE_CRASHDUMP=`suppress_crashdumping`
