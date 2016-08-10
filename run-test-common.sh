@@ -89,9 +89,40 @@ search_plist()
 }
 
 
-relpath()
+# ----
+# stolen from: https://stackoverflow.com/questions/2564634/convert-absolute-path-into-relative-path-given-a-current-directory-using-bash
+# because the python dependency irked me
+#
+_relative_path_between()
 {
-   python -c "import os.path; print os.path.relpath('$1', '$2')"
+    [ $# -ge 1 ] && [ $# -le 2 ] || return 1
+    current="${2:+"$1"}"
+    target="${2:-"$1"}"
+    [ "$target" != . ] || target=/
+    target="/${target##/}"
+    [ "$current" != . ] || current=/
+    current="${current:="/"}"
+    current="/${current##/}"
+    appendix="${target##/}"
+    relative=''
+    while appendix="${target#"$current"/}"
+        [ "$current" != '/' ] && [ "$appendix" = "$target" ]; do
+        if [ "$current" = "$appendix" ]; then
+            relative="${relative:-.}"
+            echo "${relative#/}"
+            return 0
+        fi
+        current="${current%/*}"
+        relative="$relative${relative:+/}.."
+    done
+    relative="$relative${relative:+${appendix:+/}}${appendix#/}"
+    echo "$relative"
+}
+
+
+relative_path_between()
+{
+   _relative_path_between "$2" "$1"
 }
 
 
@@ -180,11 +211,11 @@ search_for_strings()
 
 fail_test()
 {
-   local m_source
+   local sourcefile
    local a_out
    local stdin
 
-   m_source="$1"
+   sourcefile="$1"
    a_out="$2"
    stdin="$3"
    ext="$4"
@@ -194,16 +225,17 @@ fail_test()
 
    if [ "${ext}" = "Makefile" ]
    then
-      CFLAGS="${CFLAGS} -O0 -g -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE}" \
-      LDFLAGS="${LDFLAGS} ${LIBRARY}" \
+      CFLAGS="${CFLAGS} -O0 -g -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
+      LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
       OUTPUT="${a_out}.debug" make -B
    else
       ${CC} -O0 -g -o "${a_out}.debug" \
          "-I${LIBRARY_INCLUDE}" \
          "-I${DEPENDENCIES_INCLUDE}" \
+         "-I${ADDICTIONS_INCLUDE}" \
          ${LDFLAGS} \
-         "${LIBRARY}" \
-         "${m_source}" > "$errput" 2>&1
+         "${LIBRARY_PATH}" \
+         "${sourcefile}" > "$errput" 2>&1
    fi
 
    echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
@@ -225,7 +257,7 @@ LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}:${DEBUGGER_LIBRARY_PATH}\" ${DEBUGGER} ${a_
 
 run()
 {
-   local m_source
+   local sourcefile
    local ext
    local root
    local stdin
@@ -233,7 +265,7 @@ run()
    local stderr
    local ccdiag
 
-   m_source="$1"
+   sourcefile="$1"
    root="$2"
    ext="$3"
    stdin="$4"
@@ -250,12 +282,12 @@ run()
    random=`mktemp -t "${LIBRARY_SHORTNAME}.XXXX"`
    output="${random}.stdout"
    errput="${random}.stderr"
-   errors="`basename "${m_source}" "${ext}"`.errors"
+   errors="`basename "${sourcefile}" "${ext}"`.errors"
 
    local owd
 
    owd=`pwd`
-   pretty_source=`relpath "${owd}"/"${m_source}" "${root}"`
+   pretty_source=`relative_path_between "${owd}"/"${sourcefile}" "${root}"`
 
    if [ "$VERBOSE" = "yes" ]
    then
@@ -274,19 +306,20 @@ run()
 
    if [ "${ext}" = "Makefile" ]
    then
-      a_out="${owd}/${m_source}.exe"
-      CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE}" \
-      LDFLAGS="${LDFLAGS} ${LIBRARY}" \
+      a_out="${owd}/${sourcefile}.exe"
+      CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
+      LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
       OUTPUT="${a_out}" make -B
       rval=$?
    else
-      a_out="${owd}/`basename "${m_source}" "${ext}"`.exe"
+      a_out="${owd}/`basename "${sourcefile}" "${ext}"`.exe"
       ${CC} ${CFLAGS} -o "${a_out}" \
       "-I${LIBRARY_INCLUDE}" \
       "-I${DEPENDENCIES_INCLUDE}" \
-      "${LIBRARY}" \
+      "-I${ADDICTIONS_INCLUDE}" \
+      "${LIBRARY_PATH}" \
       ${LDFLAGS} \
-      "${m_source}" > "$errput" 2>&1
+      "${sourcefile}" > "$errput" 2>&1
       rval=$?
    fi
 
@@ -326,7 +359,7 @@ MallocCheckHeapEach=1 \
          echo "TEST CRASHED: \"$pretty_source\" (${a_out}, ${errput})" >&2
          maybe_show_diagnostics "$errput" >&2
 
-         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
+         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
       else
          search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"$pretty_source\" ($errput)" \
                             "$errput" "$errors"
@@ -335,14 +368,14 @@ MallocCheckHeapEach=1 \
             return 0
          fi
          maybe_show_diagnostics "$errput" >&2
-         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
+         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
       fi
    else
       if [ -f "$errors" ]
       then
          echo "TEST FAILED TO CRASH: \"$pretty_source\" (${a_out})" >&2
          maybe_show_diagnostics "$errput" >&2
-         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
+         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
       fi
    fi
 
@@ -368,7 +401,7 @@ MallocCheckHeapEach=1 \
          maybe_show_diagnostics "$errput" >&2
          maybe_show_output "$output"
 
-         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
+         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
       fi
    else
       contents="`head -2 "$output"`" 2> /dev/null
@@ -379,7 +412,7 @@ MallocCheckHeapEach=1 \
          maybe_show_diagnostics "$errput" >&2
          maybe_show_output "$output"
 
-         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
+         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
       fi
    fi
 
@@ -393,7 +426,7 @@ MallocCheckHeapEach=1 \
          diff "$stderr" "$errput" >&2
 
          maybe_show_diagnostics "$errput"
-         fail_test "${m_source}" "${a_out}" "${stdin}" "${ext}"
+         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
       fi
    fi
 }
@@ -401,12 +434,12 @@ MallocCheckHeapEach=1 \
 
 run_test()
 {
-   local m_source
+   local sourcefile
    local root
    local ext
    local makefile
 
-   m_source="$1"
+   sourcefile="$1"
    root="$2"
    ext="$3"
 
@@ -471,14 +504,14 @@ run_test()
       ccdiag="-"
    fi
 
-   if [ -z "${m_source}" ]
+   if [ -z "${sourcefile}" ]
    then
-      m_source="`basename "${PWD}"`"
+      sourcefile="`basename "${PWD}"`"
    else
-      m_source="${m_source}${ext}"
+      sourcefile="${sourcefile}${ext}"
    fi
 
-   run "$m_source" "$root" "$ext" "$stdin" "$stdout" "$stderr" "$ccdiag"
+   run "$sourcefile" "$root" "$ext" "$stdin" "$stdout" "$stderr" "$ccdiag"
 }
 
 
@@ -561,9 +594,6 @@ case `uname` in
 esac
 
 
-LIBRARY_FILENAME="${SHLIB_PREFIX}${LIBRARY_SHORTNAME}${STANDALONE_SUFFIX}${SHLIB_EXTENSION}"
-
-
 if [ -z "${DEBUGGER}" ]
 then
    DEBUGGER=lldb
@@ -617,48 +647,49 @@ fi
 #        ./mulle-objc-runtime
 #
 
+LIBRARY_FILENAME="${SHLIB_PREFIX}${LIBRARY_SHORTNAME}${STANDALONE_SUFFIX}${SHLIB_EXTENSION}"
 DEPENDENCIES_INCLUDE="../dependencies/include"
+ADDICTIONS_INCLUDE="../addictions/include"
 
 if [ ! -z "${LIB_PATH}" ]
 then
    lib="`ls -1 "${LIB_PATH}/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-else
-   # cmake
-   lib="`ls -1 "../lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
 fi
 
 
 if [ ! -f "${lib}" ]
 then
-   # xcode
-   lib="`ls -1 "../build/Products/Debug/${LIBRARY_FILENAME}" | tail -1 2> /dev/null`"
+   lib="`ls -1 "./lib/${LIBRARY_FILENAME}" | tail -1 2> /dev/null`"
 fi
 
-LIBRARY="${1:-${lib}}"
+if [ ! -f "${lib}" ]
+then
+   lib="`ls -1 "./build/Products/Debug/${LIBRARY_FILENAME}" | tail -1 2> /dev/null`"
+fi
+
+LIBRARY_PATH="${1:-${lib}}"
 [ -z $# ] || shift
 
-if [ -z "${LIBRARY}" ]
+if [ -z "${LIBRARY_PATH}" ]
 then
    echo "${LIBRARY_FILENAME} can not be found" >&2
    exit 1
 fi
 
+#
+# figure out where the headers are
+#
+LIBRARY_DIR="`dirname "${LIBRARY_PATH}"`"
+LIBRARY_ROOT="`dirname "${LIBRARY_DIR}"`"
 
-LIBRARY_INCLUDE="`dirname "${LIBRARY}"`"
-if [ -d "${LIBRARY_INCLUDE}/usr/local/include" ]
+
+if [ -d "${LIBRARY_ROOT}/usr/local/include" ]
 then
-   # xcode
    LIBRARY_INCLUDE="${LIBRARY_INCLUDE}/usr/local/include"
 else
-   if [ -d "${LIBRARY_INCLUDE}/include" ]
-   then
-      # xcode2
-      LIBRARY_INCLUDE="${LIBRARY_INCLUDE}/include"
-   else
-      # cmake
-      LIBRARY_INCLUDE="`dirname "${LIBRARY_INCLUDE}"`/include"
-   fi
+   LIBRARY_INCLUDE="${LIBRARY_ROOT}/include"
 fi
+
 
 
 DIR=${1:-`pwd`}
@@ -668,14 +699,16 @@ HAVE_WARNED="no"
 RUNS=0
 
 
-LIBRARY="`absolute_path_if_relative "$LIBRARY"`"
+LIBRARY_PATH="`absolute_path_if_relative "$LIBRARY_PATH"`"
 LIBRARY_INCLUDE="`absolute_path_if_relative "$LIBRARY_INCLUDE"`"
 DEPENDENCIES_INCLUDE="`absolute_path_if_relative "$DEPENDENCIES_INCLUDE"`"
+ADDICTIONS_INCLUDE="`absolute_path_if_relative "$ADDICTIONS_INCLUDE"`"
 
+LIBRARY_DIR="`dirname ${LIBRARY_PATH}`"
 # OS X
-DYLD_FALLBACK_LIBRARY_PATH="`dirname "${LIBRARY}"`" ; export DYLD_FALLBACK_LIBRARY_PATH
+DYLD_FALLBACK_LIBRARY_PATH="${LIBRARY_DIR}" ; export DYLD_FALLBACK_LIBRARY_PATH
 # Linux
-LD_LIBRARY_PATH="`dirname "${LIBRARY}"`" ; export LD_LIBRARY_PATH
+LD_LIBRARY_PATH="${LIBRARY_DIR}" ; export LD_LIBRARY_PATH
 
 
 if [ -z "${CC}" ]
