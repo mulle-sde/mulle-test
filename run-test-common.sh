@@ -126,18 +126,16 @@ relative_path_between()
 }
 
 
-
 absolute_path_if_relative()
 {
    case "$1" in
-      .*)  echo "`pwd`/$1"
+      .*) echo "`pwd`/$1"
       ;;
 
       *) echo "$1"
       ;;
    esac
 }
-
 
 
 maybe_show_diagnostics()
@@ -289,7 +287,7 @@ run()
    owd=`pwd`
    pretty_source=`relative_path_between "${owd}"/"${sourcefile}" "${root}"`
 
-   if [ "$VERBOSE" = "yes" ]
+   if [ "$MULLE_TEST_VERBOSE" = "yes" ]
    then
       echo "${pretty_source}" >&2
    fi
@@ -531,26 +529,32 @@ scan_current_directory()
       return 0
    fi
 
-   for i in [^_]*
+   for i in *
    do
-      if [ -d "$i" ]
-      then
-         dir=`pwd`
-         cd "$i"
-         scan_current_directory "$root"
-         cd "$dir"
-      else
-         for ext in ${SOURCE_EXTENSION}
-         do
-            filename=`basename "$i" "${ext}"`
-            if [ "$filename" != "$i" ]
-            then
-               run_test "${filename}" "${root}" "${ext}"
-               break
-            fi
-         done
+      case "${i}" in
+         _*|build|include|lib|bin|tmp|etc|share)
+            ;;
 
-      fi
+         *)
+            if [ -d "$i" ]
+            then
+               dir=`pwd`
+               cd "$i"
+               scan_current_directory "$root"
+               cd "$dir"
+            else
+               for ext in ${SOURCE_EXTENSION}
+               do
+                  filename=`basename "$i" "${ext}"`
+                  if [ "$filename" != "$i" ]
+                  then
+                     run_test "${filename}" "${root}" "${ext}"
+                     break
+                  fi
+               done
+            fi
+            ;;
+      esac
    done
 }
 
@@ -573,23 +577,27 @@ test_binary()
 #####################################################################
 # main
 #
+# if you really want to you can also specify the SHLIB_EXTENSION as
+# .a, and then pass in the link dependencies as LDFLAGS. But is i
+# easier, than a shared library ?
+#
 
 case `uname` in
    Darwin)
-      SHLIB_PREFIX="lib"
-      SHLIB_EXTENSION=".dylib"
+      SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
+      SHLIB_EXTENSION="${SHLIB_EXTENSION:-.dylib}"
       LDFLAGS="-framework Foundation"  ## harmles and sometimes useful
       ;;
 
    Linux)
-      SHLIB_PREFIX="lib"
-      SHLIB_EXTENSION=".so"
+      SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
+      SHLIB_EXTENSION="${SHLIB_EXTENSION:-.so}"
       LDFLAGS="-ldl -lpthread"
       ;;
 
    *)
-      SHLIB_PREFIX="lib"
-      SHLIB_EXTENSION=".so"
+      SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
+      SHLIB_EXTENSION="${SHLIB_EXTENSION:-.so}"
       ;;
 esac
 
@@ -615,10 +623,10 @@ executable=`basename "$executable" .sh`
 if [ "`basename "$executable"`" = "run-all-tests" ]
 then
    TEST=""
-   VERBOSE=yes
+   MULLE_TEST_VERBOSE=yes
    if [ "$1" = "-q" ]
    then
-      VERBOSE=no
+      MULLE_TEST_VERBOSE=no
       shift
    fi
 else
@@ -659,26 +667,35 @@ fi
 
 if [ ! -f "${lib}" ]
 then
-   lib="`ls -1 "./lib/${LIBRARY_FILENAME}" | tail -1 2> /dev/null`"
+   lib="`ls -1 "./lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
 fi
 
 if [ ! -f "${lib}" ]
 then
-   lib="`ls -1 "./build/Products/Debug/${LIBRARY_FILENAME}" | tail -1 2> /dev/null`"
+   lib="`ls -1 "./build/Products/Debug/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
 fi
 
 LIBRARY_PATH="${1:-${lib}}"
 [ -z $# ] || shift
 
+
 if [ -z "${LIBRARY_PATH}" ]
 then
-   echo "${LIBRARY_FILENAME} can not be found" >&2
+   cat <<EOF >&2
+error: ${LIBRARY_FILENAME} can not be found.
+
+   Maybe you haven't run ./build-for-test.sh yet ?
+
+   You commonly need a shared library target in your CMakeLists.txt that links
+   in all the platform dependencies for your platform.
+EOF
    exit 1
 fi
 
 #
 # figure out where the headers are
 #
+LIBRARY_FILENAME="`basename "${LIBRARY_PATH}"`"
 LIBRARY_DIR="`dirname "${LIBRARY_PATH}"`"
 LIBRARY_ROOT="`dirname "${LIBRARY_DIR}"`"
 
