@@ -304,6 +304,13 @@ run()
 
    if [ "${ext}" = "Makefile" ]
    then
+      if [ ! -z "${VERBOSE}" ]
+      then
+         echo CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
+         LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
+         OUTPUT="${a_out}" make -B
+      fi
+
       a_out="${owd}/${sourcefile}.exe"
       CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
       LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
@@ -311,6 +318,18 @@ run()
       rval=$?
    else
       a_out="${owd}/`basename "${sourcefile}" "${ext}"`.exe"
+
+      if [ ! -z "${VERBOSE}" ]
+      then
+         echo ${CC} ${CFLAGS} -o "${a_out}" \
+         "-I${LIBRARY_INCLUDE}" \
+         "-I${DEPENDENCIES_INCLUDE}" \
+         "-I${ADDICTIONS_INCLUDE}" \
+         "${LIBRARY_PATH}" \
+         ${LDFLAGS} \
+         "${sourcefile}"
+      fi
+
       ${CC} ${CFLAGS} -o "${a_out}" \
       "-I${LIBRARY_INCLUDE}" \
       "-I${DEPENDENCIES_INCLUDE}" \
@@ -706,7 +725,6 @@ then
 else
    LIBRARY_INCLUDE="${LIBRARY_ROOT}/include"
 fi
-
 
 
 DIR=${1:-`pwd`}
