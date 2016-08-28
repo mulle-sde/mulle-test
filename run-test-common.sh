@@ -126,7 +126,6 @@ relative_path_between()
 }
 
 
-
 absolute_path_if_relative()
 {
    case "$1" in
@@ -137,7 +136,6 @@ absolute_path_if_relative()
       ;;
    esac
 }
-
 
 
 maybe_show_diagnostics()
@@ -573,23 +571,27 @@ test_binary()
 #####################################################################
 # main
 #
+# if you really want to you can also specify the SHLIB_EXTENSION as
+# .a, and then pass in the link dependencies as LDFLAGS. But is i
+# easier, than a shared library ?
+#
 
 case `uname` in
    Darwin)
-      SHLIB_PREFIX="lib"
-      SHLIB_EXTENSION=".dylib"
+      SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
+      SHLIB_EXTENSION="${SHLIB_EXTENSION:-.dylib}"
       LDFLAGS="-framework Foundation"  ## harmles and sometimes useful
       ;;
 
    Linux)
-      SHLIB_PREFIX="lib"
-      SHLIB_EXTENSION=".so"
+      SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
+      SHLIB_EXTENSION="${SHLIB_EXTENSION:-.so}"
       LDFLAGS="-ldl -lpthread"
       ;;
 
    *)
-      SHLIB_PREFIX="lib"
-      SHLIB_EXTENSION=".so"
+      SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
+      SHLIB_EXTENSION="${SHLIB_EXTENSION:-.so}"
       ;;
 esac
 
@@ -659,12 +661,12 @@ fi
 
 if [ ! -f "${lib}" ]
 then
-   lib="`ls -1 "./lib/${LIBRARY_FILENAME}" | tail -1 2> /dev/null`"
+   lib="`ls -1 "./lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
 fi
 
 if [ ! -f "${lib}" ]
 then
-   lib="`ls -1 "./build/Products/Debug/${LIBRARY_FILENAME}" | tail -1 2> /dev/null`"
+   lib="`ls -1 "./build/Products/Debug/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
 fi
 
 LIBRARY_PATH="${1:-${lib}}"
@@ -672,8 +674,13 @@ LIBRARY_PATH="${1:-${lib}}"
 
 if [ -z "${LIBRARY_PATH}" ]
 then
-   echo "${LIBRARY_FILENAME} can not be found" >&2
-   exit 1
+   cat <<EOF >&2
+${LIBRARY_FILENAME} can not be found
+Maybe you haven't run ./build-for-test.sh yet ?
+
+You commonly need a shared library target in your CMakeLists.txt that links
+in all the platform dependencies for your platform.
+EOF
 fi
 
 #

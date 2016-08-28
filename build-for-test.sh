@@ -20,7 +20,7 @@ set -e
 usage()
 {
    cat <<EOF >&2
-usage: build-for-test.sh [-f]
+usage: build-for-test.sh [-dj]
 
    -d         :  rebuild parent depedencies
    -j         :  number of cores parameter for make (${CORES})
