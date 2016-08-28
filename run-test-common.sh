@@ -129,7 +129,7 @@ relative_path_between()
 absolute_path_if_relative()
 {
    case "$1" in
-      .*)  echo "`pwd`/$1"
+      .*) echo "`pwd`/$1"
       ;;
 
       *) echo "$1"
@@ -287,7 +287,7 @@ run()
    owd=`pwd`
    pretty_source=`relative_path_between "${owd}"/"${sourcefile}" "${root}"`
 
-   if [ "$VERBOSE" = "yes" ]
+   if [ "$MULLE_TEST_VERBOSE" = "yes" ]
    then
       echo "${pretty_source}" >&2
    fi
@@ -304,6 +304,13 @@ run()
 
    if [ "${ext}" = "Makefile" ]
    then
+      if [ ! -z "${VERBOSE}" ]
+      then
+         echo CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
+         LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
+         OUTPUT="${a_out}" make -B
+      fi
+
       a_out="${owd}/${sourcefile}.exe"
       CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
       LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
@@ -311,6 +318,18 @@ run()
       rval=$?
    else
       a_out="${owd}/`basename "${sourcefile}" "${ext}"`.exe"
+
+      if [ ! -z "${VERBOSE}" ]
+      then
+         echo ${CC} ${CFLAGS} -o "${a_out}" \
+         "-I${LIBRARY_INCLUDE}" \
+         "-I${DEPENDENCIES_INCLUDE}" \
+         "-I${ADDICTIONS_INCLUDE}" \
+         "${LIBRARY_PATH}" \
+         ${LDFLAGS} \
+         "${sourcefile}"
+      fi
+
       ${CC} ${CFLAGS} -o "${a_out}" \
       "-I${LIBRARY_INCLUDE}" \
       "-I${DEPENDENCIES_INCLUDE}" \
@@ -529,26 +548,32 @@ scan_current_directory()
       return 0
    fi
 
-   for i in [^_]*
+   for i in *
    do
-      if [ -d "$i" ]
-      then
-         dir=`pwd`
-         cd "$i"
-         scan_current_directory "$root"
-         cd "$dir"
-      else
-         for ext in ${SOURCE_EXTENSION}
-         do
-            filename=`basename "$i" "${ext}"`
-            if [ "$filename" != "$i" ]
-            then
-               run_test "${filename}" "${root}" "${ext}"
-               break
-            fi
-         done
+      case "${i}" in
+         _*|build|include|lib|bin|tmp|etc|share)
+            ;;
 
-      fi
+         *)
+            if [ -d "$i" ]
+            then
+               dir=`pwd`
+               cd "$i"
+               scan_current_directory "$root"
+               cd "$dir"
+            else
+               for ext in ${SOURCE_EXTENSION}
+               do
+                  filename=`basename "$i" "${ext}"`
+                  if [ "$filename" != "$i" ]
+                  then
+                     run_test "${filename}" "${root}" "${ext}"
+                     break
+                  fi
+               done
+            fi
+            ;;
+      esac
    done
 }
 
@@ -617,10 +642,10 @@ executable=`basename "$executable" .sh`
 if [ "`basename "$executable"`" = "run-all-tests" ]
 then
    TEST=""
-   VERBOSE=yes
+   MULLE_TEST_VERBOSE=yes
    if [ "$1" = "-q" ]
    then
-      VERBOSE=no
+      MULLE_TEST_VERBOSE=no
       shift
    fi
 else
@@ -672,20 +697,24 @@ fi
 LIBRARY_PATH="${1:-${lib}}"
 [ -z $# ] || shift
 
+
 if [ -z "${LIBRARY_PATH}" ]
 then
    cat <<EOF >&2
-${LIBRARY_FILENAME} can not be found
-Maybe you haven't run ./build-for-test.sh yet ?
+error: ${LIBRARY_FILENAME} can not be found.
 
-You commonly need a shared library target in your CMakeLists.txt that links
-in all the platform dependencies for your platform.
+   Maybe you haven't run ./build-for-test.sh yet ?
+
+   You commonly need a shared library target in your CMakeLists.txt that links
+   in all the platform dependencies for your platform.
 EOF
+   exit 1
 fi
 
 #
 # figure out where the headers are
 #
+LIBRARY_FILENAME="`basename "${LIBRARY_PATH}"`"
 LIBRARY_DIR="`dirname "${LIBRARY_PATH}"`"
 LIBRARY_ROOT="`dirname "${LIBRARY_DIR}"`"
 
@@ -696,7 +725,6 @@ then
 else
    LIBRARY_INCLUDE="${LIBRARY_ROOT}/include"
 fi
-
 
 
 DIR=${1:-`pwd`}

@@ -15,15 +15,13 @@
 #   project/tests/build
 #
 
-set -e
-
 usage()
 {
    cat <<EOF >&2
 usage: build-for-test.sh [-dj]
 
-   -d         :  rebuild parent depedencies
-   -j         :  number of cores parameter for make (${CORES})
+   -d   : rebuild parent depedencies
+   -j   : number of cores parameter for make (${CORES})
 EOF
 }
 
@@ -94,9 +92,9 @@ then
    mkdir "${BUILD_DIR}" 2> /dev/null
 fi
 
-cd "${BUILD_DIR}"
+cd "${BUILD_DIR}" || exit 1
 cmake "-DCMAKE_OSX_SYSROOT=${OSX_SYSROOT}" \
       "-DCMAKE_INSTALL_PREFIX=${prefix}" \
       "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}" \
-      ../..
+      ../.. || exit 1
 make install
