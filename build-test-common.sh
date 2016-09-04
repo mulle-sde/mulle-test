@@ -23,51 +23,49 @@ usage: build-for-test.sh [-dj]
    -d   : rebuild parent depedencies
    -j   : number of cores parameter for make (${CORES})
 EOF
+   exit 1
 }
 
 
 CORES="${CORES:-2}"
 
 
-while :
+while [ $# -ne 0 ]
 do
-   if [ "$1" = "-h" -o "$1" = "--help" ]
-   then
-      usage >&2
-      exit 1
-   fi
+   case "$1" in
+      -h|--help)
+         usage
+      ;;
 
-   if [ "$1" = "-d" ]
-   then
-      REBUILD="YES"
-      [ $# -eq 0 ] || shift
-      continue
-   fi
+      -d)
+         REBUILD="YES"
+      ;;
 
-   if [ "$1" = "-j" ]
-   then
-      if [ $# -eq 0 ]
-      then
-         fail "core count missing"
-      fi
-      shift
+      -j)
+         shift
+         [ $# -eq 0 ] && usage
 
-      CORES="$1"
-      [ $# -eq 0 ] || shift
-      continue
-   fi
+         CORES="$1"
+      ;;
 
-   break
+      -*)
+         usage
+      ;;
+
+      *)
+         break
+      ;;
+   esac
+
+   shift
 done
 
 
 BUILD_DIR="${BUILD_DIR:-build}"
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
 OSX_SYSROOT="${OSX_SYSROOT:-macosx}"
-if [ -z "${BUILD_OPTIONS}" ]
-then
-   BUILD_OPTIONS="-c Debug -k"
-fi
+BUILD_OPTIONS="${BUILD_OPTIONS:--c Debug -k}"
+prefix="`pwd -P`"
 
 if [ "${REBUILD}" = "YES" -a -d ../.bootstrap ]
 then
@@ -78,8 +76,6 @@ then
    ( cd .. ; mulle-bootstrap build ${BUILD_OPTIONS} "$@" )
 fi
 
-
-prefix="`pwd -P`"
 
 if [ ! -f "../CMakeLists.txt" ]
 then
@@ -93,8 +89,21 @@ then
 fi
 
 cd "${BUILD_DIR}" || exit 1
+
+
+if [ ! -z "${CC}" ]
+then
+   CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_C_COMPILER=${CC}"
+fi
+
+if [ ! -z "${CXX}" ]
+then
+   CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_CXX_COMPILER=${CXX}"
+fi
+
 cmake "-DCMAKE_OSX_SYSROOT=${OSX_SYSROOT}" \
       "-DCMAKE_INSTALL_PREFIX=${prefix}" \
       "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}" \
+      ${CMAKE_FLAGS} \
       ../.. || exit 1
 make install
