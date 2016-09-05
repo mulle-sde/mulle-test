@@ -232,7 +232,9 @@ fail_test()
          "${sourcefile}" > "$errput" 2>&1
    fi
 
-   echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
+   case "`uname`" in
+      Darwin)
+         echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
 MULLE_OBJC_TEST_ALLOCATOR=1 \
 MULLE_TEST_ALLOCATOR_TRACE=2 \
 MallocStackLogging=1 \
@@ -240,12 +242,148 @@ MALLOC_FILL_SPACE=1 \
 DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
 DYLD_FALLBACK_LIBRARY_PATH=\"${DYLD_FALLBACK_LIBRARY_PATH}\" \
 LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}:${DEBUGGER_LIBRARY_PATH}\" ${DEBUGGER} ${a_out}.debug" >&2
+         if [ "${stdin}" != "/dev/null" ]
+         then
+            echo "run < ${stdin}" >&2
+         fi
+      ;;
+   esac
 
-   if [ "${stdin}" != "/dev/null" ]
-   then
-      echo "run < ${stdin}" >&2
-   fi
    exit 1
+}
+
+
+run_makefile()
+{
+   local srcfile
+   local owd
+   local a_out
+
+   srcfile="$1"
+   owd="$2"
+   a_out="$3"
+
+   if [ ! -z "${VERBOSE}" ]
+   then
+      echo CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
+      LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
+      OUTPUT="${a_out}" ${MAKE} -B
+   fi
+
+   CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
+   LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
+   OUTPUT="${a_out}" ${MAKE} -B
+}
+
+
+run_gcc_compiler()
+{
+   local srcfile
+   local owd
+   local a_out
+   local errput
+
+   srcfile="$1"
+   owd="$2"
+   a_out="$3"
+   errput="$4"
+
+   if [ ! -z "${VERBOSE}" ]
+   then
+      echo ${CC} ${CFLAGS} -o "${a_out}" \
+      "-I${LIBRARY_INCLUDE}" \
+      "-I${DEPENDENCIES_INCLUDE}" \
+      "-I${ADDICTIONS_INCLUDE}" \
+      "${sourcefile}" \
+      "${LIBRARY_PATH}" \
+      ${LDFLAGS}
+   fi
+
+   ${CC} ${CFLAGS} -o "${a_out}" \
+   "-I${LIBRARY_INCLUDE}" \
+   "-I${DEPENDENCIES_INCLUDE}" \
+   "-I${ADDICTIONS_INCLUDE}" \
+   "${sourcefile}" \
+   "${LIBRARY_PATH}" \
+   ${LDFLAGS}  > "$errput" 2>&1
+}
+
+
+run_cl_compiler()
+{
+   local srcfile
+   local owd
+   local a_out
+   local errput
+
+   srcfile="$1"
+   owd="$2"
+   a_out="$3"
+   errput="$4"
+
+   local l_include
+   local l_path
+   local d_include
+   local a_include
+
+   l_include="`mingw_demangle_path "${LIBRARY_INCLUDE}"`"
+   l_path="`mingw_demangle_path "${LIBRARY_PATH}"`"
+   d_include="`mingw_demangle_path "${DEPENDENCIES_INCLUDE}"`"
+   a_include="`mingw_demangle_path "${ADDICTIONS_INCLUDE}"`"
+   a_out="`mingw_demangle_path "${a_out}"`"
+
+   if [ ! -z "${VERBOSE}" ]
+   then
+      echo ${CC} ${CFLAGS} "/Fe${a_out}" \
+      "/I ${l_include}" \
+      "/I ${d_include}" \
+      "/I ${a_include}" \
+      "${sourcefile}" \
+      "${l_path}" \
+      ${LDFLAGS}      
+   fi
+
+   ${CC} ${CFLAGS} "/Fe${a_out}" \
+   "/I ${l_include}" \
+   "/I ${d_include}" \
+   "/I ${a_include}" \
+   "${sourcefile}" \
+   "${l_path}" \
+   ${LDFLAGS} > "$errput" 2>&1
+}
+
+
+run_compiler()
+{
+   case "${CC}" in
+      cl|cl.exe|*-cl|*-cl.exe)
+         run_gcc_compiler "$@"  #mingw magic
+      ;;
+
+      *)
+         run_gcc_compiler "$@"
+      ;;
+   esac
+}
+
+
+run_a_out()
+{
+   case "`uname`" in
+      Darwin)
+         MULLE_OBJC_TEST_ALLOCATOR=1 \
+MallocStackLogging=1 \
+MallocScribble=1 \
+MallocPreScribble=1 \
+MallocGuardEdges=1 \
+MallocCheckHeapEach=1 \
+         "${a_out}"
+      ;;
+
+      *)
+          MULLE_OBJC_TEST_ALLOCATOR=1 "${a_out}"
+      ;;
+   esac
 }
 
 
@@ -300,39 +438,12 @@ run()
 
    if [ "${ext}" = "Makefile" ]
    then
-      if [ ! -z "${VERBOSE}" ]
-      then
-         echo CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
-         LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
-         OUTPUT="${a_out}" make -B
-      fi
-
       a_out="${owd}/${sourcefile}.exe"
-      CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
-      LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
-      OUTPUT="${a_out}" make -B
+      run_makefile "${srcfile}" "${owd}" "${a_out}"
       rval=$?
    else
       a_out="${owd}/`basename "${sourcefile}" "${ext}"`.exe"
-
-      if [ ! -z "${VERBOSE}" ]
-      then
-         echo ${CC} ${CFLAGS} -o "${a_out}" \
-         "-I${LIBRARY_INCLUDE}" \
-         "-I${DEPENDENCIES_INCLUDE}" \
-         "-I${ADDICTIONS_INCLUDE}" \
-         "${LIBRARY_PATH}" \
-         ${LDFLAGS} \
-         "${sourcefile}"
-      fi
-
-      ${CC} ${CFLAGS} -o "${a_out}" \
-      "-I${LIBRARY_INCLUDE}" \
-      "-I${DEPENDENCIES_INCLUDE}" \
-      "-I${ADDICTIONS_INCLUDE}" \
-      "${LIBRARY_PATH}" \
-      ${LDFLAGS} \
-      "${sourcefile}" > "$errput" 2>&1
+      run_compiler "${srcfile}" "${owd}" "${a_out}" "${errput}"
       rval=$?
    fi
 
@@ -355,14 +466,8 @@ run()
       fi
    fi
 
-   MULLE_OBJC_TEST_ALLOCATOR=1 \
-MallocStackLogging=1 \
-MallocScribble=1 \
-MallocPreScribble=1 \
-MallocGuardEdges=1 \
-MallocCheckHeapEach=1 \
-\
-   "${a_out}" < "$stdin" > "$output" 2> "$errput"
+
+   run_a_out "${a_out}" < "$stdin" | ${CRLFCAT} > "$output" 2> "$errput"
    rval=$?
 
    if [ $rval -ne 0 ]
@@ -596,28 +701,62 @@ test_binary()
 # .a, and then pass in the link dependencies as LDFLAGS. But is i
 # easier, than a shared library ?
 #
+usage()
+{
+   exit 1
+}
+#
+# simple option handling
+#
+while [ $# -ne 0 ]
+do
+   case "$1" in
+      -v|--verbose)
+         VERBOSE=YES
+      ;;
+
+      -t|--trace)
+         set -x
+      ;;
+
+      -*)
+         echo "unknown option \"$1\"" >&2
+         usage
+      ;;
+
+      *)
+         break
+      ;;
+   esac
+
+   shift
+done
 
 case `uname` in
    MINGW*)
       SHLIB_PREFIX="${SHLIB_PREFIX}"
       SHLIB_EXTENSION="${SHLIB_EXTENSION:-.lib}" # link with extension
+      CRLFCAT="dos2unix"
       ;;
 
    Darwin)
       SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
       SHLIB_EXTENSION="${SHLIB_EXTENSION:-.dylib}"
       LDFLAGS="-framework Foundation"  ## harmles and sometimes useful
+      CRLFCAT="cat"
       ;;
 
    Linux)
       SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
       SHLIB_EXTENSION="${SHLIB_EXTENSION:-.so}"
       LDFLAGS="-ldl -lpthread"
+      CRLFCAT="cat"
       ;;
 
    *)
       SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
       SHLIB_EXTENSION="${SHLIB_EXTENSION:-.so}"
+      CRLFCAT="cat"
       ;;
 esac
 
@@ -627,7 +766,7 @@ then
    DEBUGGER=lldb
 fi
 
-DEBUGGER="`which "${DEBUGGER}"`"
+DEBUGGER="`which "${DEBUGGER}" 2> /dev/null`"
 
 if [ -z "${DEBUGGER_LIBRARY_PATH}" ]
 then
@@ -741,10 +880,22 @@ DEPENDENCIES_INCLUDE="`absolute_path_if_relative "$DEPENDENCIES_INCLUDE"`"
 ADDICTIONS_INCLUDE="`absolute_path_if_relative "$ADDICTIONS_INCLUDE"`"
 
 LIBRARY_DIR="`dirname ${LIBRARY_PATH}`"
-# OS X
-DYLD_FALLBACK_LIBRARY_PATH="${LIBRARY_DIR}" ; export DYLD_FALLBACK_LIBRARY_PATH
-# Linux
-LD_LIBRARY_PATH="${LIBRARY_DIR}" ; export LD_LIBRARY_PATH
+
+case "`uname`" in
+   Darwin)
+      DYLD_FALLBACK_LIBRARY_PATH="${LIBRARY_DIR}" 
+      export DYLD_FALLBACK_LIBRARY_PATH
+   ;;
+
+   Linux)
+      LD_LIBRARY_PATH="${LIBRARY_DIR}" 
+      export LD_LIBRARY_PATH
+   ;;
+
+   MINGW*)
+      PATH="${PATH}:${LIBRARY_DIR}"
+   ;;
+esac
 
 
 if [ -z "${CC}" ]
