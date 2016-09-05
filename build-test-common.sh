@@ -18,7 +18,7 @@
 usage()
 {
    cat <<EOF >&2
-usage: build-for-test.sh [-dj]
+usage: build-test.sh [-dj]
 
    -d   : rebuild parent depedencies
    -j   : number of cores parameter for make (${CORES})
@@ -27,8 +27,26 @@ EOF
 }
 
 
-CORES="${CORES:-2}"
+mingw_mangle_compiler_exe()
+{
+   local compiler
 
+   compiler="$1"
+   case "${compiler}" in
+      mulle-clang|clang)
+         compiler="${compiler}-cl.exe"
+      ;;
+
+      *)
+         compiler="cl.exe"
+         log_fluff "Using default compiler cl"
+      ;;
+   esac
+   echo "${compiler}"
+}
+
+
+CORES="${CORES:-2}"
 
 while [ $# -ne 0 ]
 do
@@ -60,12 +78,28 @@ do
    shift
 done
 
-
 BUILD_DIR="${BUILD_DIR:-build}"
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
 OSX_SYSROOT="${OSX_SYSROOT:-macosx}"
 BUILD_OPTIONS="${BUILD_OPTIONS:--c Debug -k}"
 prefix="`pwd -P`"
+
+case "`uname`" in
+   MINGW*)
+      CMAKE="${CMAKE:-mulle-mingw-cmake}"
+      MAKE="${MAKE:-mulle-mingw-make}"
+      CMAKE_GENERATOR="MinGW Makefiles"
+      CC="`mingw_mangle_compiler_exe "${CC}"`"
+      CXX="`mingw_mangle_compiler_exe "${CXX}"`"
+      CMAKE_FLAGS="${CMAKE_FLAGS} -DMULLE_C_COMPILER_ID=MSVC"
+   ;;
+
+   *)
+      CMAKE="${CMAKE:-cmake}"
+      MAKE="${MAKE:-make}"
+      CMAKE_GENERATOR="Unix Makefiles"
+   ::
+esac
 
 if [ "${REBUILD}" = "YES" -a -d ../.bootstrap ]
 then
@@ -101,9 +135,9 @@ then
    CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_CXX_COMPILER=${CXX}"
 fi
 
-cmake "-DCMAKE_OSX_SYSROOT=${OSX_SYSROOT}" \
+${CMAKE} -G "${CMAKE_GENERATOR}" "-DCMAKE_OSX_SYSROOT=${OSX_SYSROOT}" \
       "-DCMAKE_INSTALL_PREFIX=${prefix}" \
       "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}" \
       ${CMAKE_FLAGS} \
       ../.. || exit 1
-make install
+${MAKE} ${MAKE_FLAGS} VERBOSE=1 install

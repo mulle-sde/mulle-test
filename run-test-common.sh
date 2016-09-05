@@ -21,8 +21,6 @@ suppress_crashdumping()
          restore="`defaults read com.apple.CrashReporter DialogType 2> /dev/null`"
          defaults write com.apple.CrashReporter DialogType none
          ;;
-      Linux)
-         ;;
    esac
 
    echo "${restore}"
@@ -43,8 +41,6 @@ restore_crashdumping()
          else
             defaults write com.apple.CrashReporter DialogType "${restore}"
          fi
-         ;;
-      Linux)
          ;;
    esac
 }
@@ -602,6 +598,11 @@ test_binary()
 #
 
 case `uname` in
+   MINGW*)
+      SHLIB_PREFIX="${SHLIB_PREFIX}"
+      SHLIB_EXTENSION="${SHLIB_EXTENSION:-.lib}" # link with extension
+      ;;
+
    Darwin)
       SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
       SHLIB_EXTENSION="${SHLIB_EXTENSION:-.dylib}"
