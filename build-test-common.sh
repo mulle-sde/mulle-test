@@ -78,28 +78,15 @@ do
    shift
 done
 
+
+BUILD_RELATIVE_DEPENDENCIES_DIR="${BUILD_RELATIVE_DEPENDENCIES_DIR:-../../dependencies}"
+
 BUILD_DIR="${BUILD_DIR:-build}"
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
 OSX_SYSROOT="${OSX_SYSROOT:-macosx}"
 BUILD_OPTIONS="${BUILD_OPTIONS:--c Debug -k}"
 prefix="`pwd -P`"
 
-case "`uname`" in
-   MINGW*)
-      CMAKE="${CMAKE:-mulle-mingw-cmake}"
-      MAKE="${MAKE:-mulle-mingw-make}"
-      CMAKE_GENERATOR="MinGW Makefiles"
-      CC="`mingw_mangle_compiler_exe "${CC}"`"
-      CXX="`mingw_mangle_compiler_exe "${CXX}"`"
-      CMAKE_FLAGS="${CMAKE_FLAGS} -DMULLE_C_COMPILER_ID=MSVC"
-   ;;
-
-   *)
-      CMAKE="${CMAKE:-cmake}"
-      MAKE="${MAKE:-make}"
-      CMAKE_GENERATOR="Unix Makefiles"
-   ::
-esac
 
 if [ "${REBUILD}" = "YES" -a -d ../.bootstrap ]
 then
@@ -117,13 +104,41 @@ then
    exit 0
 fi
 
-if [ ! -d "${BUILD_DIR}" ]
-then
-   mkdir "${BUILD_DIR}" 2> /dev/null
-fi
+case "`uname`" in
+   MINGW*)
+      CC="`mingw_mangle_compiler_exe "${CC}"`"
+      CXX="`mingw_mangle_compiler_exe "${CXX}"`"
+      CMAKE="${CMAKE:-cmake}"
+      if [ -z "${CC}" ]
+      then
+         MAKE="${MAKE:-nmake}"
+      fi
 
-cd "${BUILD_DIR}" || exit 1
+      case "${MAKE}" in
+         nmake)
+            CMAKE_GENERATOR="NMake Makefiles"
+         ;;
 
+         make|ming32-make|"")
+            CMAKE="mulle-mingw-cmake.sh"
+            MAKE="mulle-mingw-make.sh"
+            CMAKE_GENERATOR="MinGW Makefiles"
+            CC="${CC:-cl}"
+            CXX="${CXX:-cl}"
+         ;;
+
+         *)
+            CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
+         ;;
+      esac
+   ;;
+
+   *)
+      CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
+      CMAKE="${CMAKE:-cmake}"
+      MAKE="${MAKE:-make}"
+   ;;
+esac
 
 if [ ! -z "${CC}" ]
 then
@@ -135,9 +150,21 @@ then
    CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_CXX_COMPILER=${CXX}"
 fi
 
-${CMAKE} -G "${CMAKE_GENERATOR}" "-DCMAKE_OSX_SYSROOT=${OSX_SYSROOT}" \
+
+if [ ! -d "${BUILD_DIR}" ]
+then
+   mkdir "${BUILD_DIR}" 2> /dev/null
+fi
+
+cd "${BUILD_DIR}" || exit 1
+
+${CMAKE} -G "${CMAKE_GENERATOR}" \
+      "-DCMAKE_OSX_SYSROOT=${OSX_SYSROOT}" \
       "-DCMAKE_INSTALL_PREFIX=${prefix}" \
+      "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}" \
+      "-DBUILD_RELATIVE_DEPENDENCIES_DIR=${BUILD_RELATIVE_DEPENDENCIES_DIR}" \
       "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}" \
       ${CMAKE_FLAGS} \
       ../.. || exit 1
-${MAKE} ${MAKE_FLAGS} VERBOSE=1 install
+
+${MAKE} ${MAKE_FLAGS}  install
