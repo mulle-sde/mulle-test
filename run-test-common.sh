@@ -340,7 +340,7 @@ run_cl_compiler()
       "/I ${a_include}" \
       "${sourcefile}" \
       "${l_path}" \
-      ${LDFLAGS}      
+      ${LDFLAGS}
    fi
 
    ${CC} ${CFLAGS} "/Fe${a_out}" \
@@ -421,7 +421,7 @@ run()
    owd=`pwd`
    pretty_source=`relative_path_between "${owd}"/"${sourcefile}" "${root}"`
 
-   if [ "$MULLE_TEST_VERBOSE" = "yes" ]
+   if [ "$MULLE_TEST_VERBOSE" = "YES" ]
    then
       echo "${pretty_source}" >&2
    fi
@@ -467,7 +467,7 @@ run()
    fi
 
 
-   run_a_out "${a_out}" < "$stdin" | ${CRLFCAT} > "$output" 2> "$errput"
+   run_a_out "${a_out}" < "$stdin" 2> "$errput" | ${CRLFCAT} > "$output"
    rval=$?
 
    if [ $rval -ne 0 ]
@@ -715,6 +715,10 @@ do
          VERBOSE=YES
       ;;
 
+      -q)
+         MULLE_TEST_VERBOSE=NO
+      ;;
+
       -t|--trace)
          set -x
       ;;
@@ -782,12 +786,7 @@ executable=`basename "$executable" .sh`
 if [ "`basename "$executable"`" = "run-all-tests" ]
 then
    TEST=""
-   MULLE_TEST_VERBOSE=yes
-   if [ "$1" = "-q" ]
-   then
-      MULLE_TEST_VERBOSE=no
-      shift
-   fi
+   MULLE_TEST_VERBOSE="${MULLE_TEST_VERBOSE:-YES}"
 else
    TEST="$1"
    [ -z $# ] || shift
@@ -883,12 +882,12 @@ LIBRARY_DIR="`dirname ${LIBRARY_PATH}`"
 
 case "`uname`" in
    Darwin)
-      DYLD_FALLBACK_LIBRARY_PATH="${LIBRARY_DIR}" 
+      DYLD_FALLBACK_LIBRARY_PATH="${LIBRARY_DIR}"
       export DYLD_FALLBACK_LIBRARY_PATH
    ;;
 
    Linux)
-      LD_LIBRARY_PATH="${LIBRARY_DIR}" 
+      LD_LIBRARY_PATH="${LIBRARY_DIR}"
       export LD_LIBRARY_PATH
    ;;
 
