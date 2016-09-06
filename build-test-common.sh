@@ -33,13 +33,21 @@ mingw_mangle_compiler_exe()
 
    compiler="$1"
    case "${compiler}" in
+      mulle-clang-cl.exe)
+      	:
+      ;;
+
+      clang.exe)
+      	compiler="clang-cl.exe"
+      ;;
+
       mulle-clang|clang)
          compiler="${compiler}-cl.exe"
       ;;
 
       *)
          compiler="cl.exe"
-         log_fluff "Using default compiler cl"
+         echo "Using default compiler cl" >&2
       ;;
    esac
    echo "${compiler}"
