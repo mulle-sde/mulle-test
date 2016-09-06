@@ -28,6 +28,7 @@ case "`uname`" in
       CC="`mingw_mangle_compiler_exe "${CC}"`"
       CXX="`mingw_mangle_compiler_exe "${CXX}"`"
       CMAKE="${CMAKE:-cmake}"
+
       if [ -z "${CC}" ]
       then
          MAKE="${MAKE:-nmake}"
@@ -56,6 +57,8 @@ case "`uname`" in
       CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
       CMAKE="${CMAKE:-cmake}"
       MAKE="${MAKE:-make}"
+      CC="${CC:-cc}"
+      CXX="${CXX:-c++}"
    ;;
 esac
 
