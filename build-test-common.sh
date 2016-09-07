@@ -27,33 +27,6 @@ EOF
 }
 
 
-mingw_mangle_compiler_exe()
-{
-   local compiler
-
-   compiler="$1"
-   case "${compiler}" in
-      mulle-clang-cl.exe)
-      	:
-      ;;
-
-      clang.exe)
-      	compiler="clang-cl.exe"
-      ;;
-
-      mulle-clang|clang)
-         compiler="${compiler}-cl.exe"
-      ;;
-
-      *)
-         compiler="cl.exe"
-         echo "Using default compiler cl" >&2
-      ;;
-   esac
-   echo "${compiler}"
-}
-
-
 CORES="${CORES:-2}"
 
 while [ $# -ne 0 ]
@@ -65,6 +38,10 @@ do
 
       -d)
          REBUILD="YES"
+      ;;
+
+      -t)
+         set -x
       ;;
 
       -j)
@@ -93,7 +70,7 @@ BUILD_DIR="${BUILD_DIR:-build}"
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
 OSX_SYSROOT="${OSX_SYSROOT:-macosx}"
 BUILD_OPTIONS="${BUILD_OPTIONS:--c Debug -k}"
-prefix="`pwd -P`"
+INSTALL_PREFIX="`pwd -P`"
 
 
 if [ "${REBUILD}" = "YES" -a -d ../.bootstrap ]
@@ -111,42 +88,6 @@ then
    echo "No CMakeLists.txt file found. So only dependencies may have been built." >&2
    exit 0
 fi
-
-case "`uname`" in
-   MINGW*)
-      CC="`mingw_mangle_compiler_exe "${CC}"`"
-      CXX="`mingw_mangle_compiler_exe "${CXX}"`"
-      CMAKE="${CMAKE:-cmake}"
-      if [ -z "${CC}" ]
-      then
-         MAKE="${MAKE:-nmake}"
-      fi
-
-      case "${MAKE}" in
-         nmake)
-            CMAKE_GENERATOR="NMake Makefiles"
-         ;;
-
-         make|ming32-make|"")
-            CMAKE="mulle-mingw-cmake.sh"
-            MAKE="mulle-mingw-make.sh"
-            CMAKE_GENERATOR="MinGW Makefiles"
-            CC="${CC:-cl}"
-            CXX="${CXX:-cl}"
-         ;;
-
-         *)
-            CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
-         ;;
-      esac
-   ;;
-
-   *)
-      CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
-      CMAKE="${CMAKE:-cmake}"
-      MAKE="${MAKE:-make}"
-   ;;
-esac
 
 if [ ! -z "${CC}" ]
 then
@@ -168,7 +109,7 @@ cd "${BUILD_DIR}" || exit 1
 
 ${CMAKE} -G "${CMAKE_GENERATOR}" \
       "-DCMAKE_OSX_SYSROOT=${OSX_SYSROOT}" \
-      "-DCMAKE_INSTALL_PREFIX=${prefix}" \
+      "-DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX}" \
       "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}" \
       "-DBUILD_RELATIVE_DEPENDENCIES_DIR=${BUILD_RELATIVE_DEPENDENCIES_DIR}" \
       "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}" \

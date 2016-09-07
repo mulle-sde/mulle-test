@@ -14,9 +14,13 @@ mingw_mangle_compiler_exe()
          compiler="${compiler}-cl.exe"
       ;;
 
+      mulle-clang-*|clang-*)
+         :
+      ;;
+
       *)
          compiler="cl.exe"
-         echo "Using default compiler cl" >&2
+         echo "Using default compiler cl for $2" >&2
       ;;
    esac
    echo "${compiler}"
@@ -25,8 +29,8 @@ mingw_mangle_compiler_exe()
 
 case "`uname`" in
    MINGW*)
-      CC="`mingw_mangle_compiler_exe "${CC}"`"
-      CXX="`mingw_mangle_compiler_exe "${CXX}"`"
+      CC="`mingw_mangle_compiler_exe "${CC}" "CC"`"
+      CXX="`mingw_mangle_compiler_exe "${CXX}" "CXX"`"
       CMAKE="${CMAKE:-cmake}"
 
       if [ -z "${CC}" ]
