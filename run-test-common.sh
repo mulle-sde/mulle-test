@@ -53,86 +53,9 @@ trace_ignore()
 }
 
 
-search_plist()
-{
-   local plist
-   local root
-
-   dir=`dirname "$1"`
-   plist=`basename "$1"`
-   root="$2"
-
-   while :
-   do
-      if [ -f "$dir"/"$plist" ]
-      then
-         echo "$dir/$plist"
-         break
-      fi
-
-      if [ "$dir" = "$root" ]
-      then
-         break
-      fi
-
-      next=`dirname "$dir"`
-      if [ "$next" = "$dir" ]
-      then
-         break
-      fi
-      dir="$next"
-   done
-}
-
-
-# ----
-# stolen from: https://stackoverflow.com/questions/2564634/convert-absolute-path-into-relative-path-given-a-current-directory-using-bash
-# because the python dependency irked me
 #
-_relative_path_between()
-{
-    [ $# -ge 1 ] && [ $# -le 2 ] || return 1
-    current="${2:+"$1"}"
-    target="${2:-"$1"}"
-    [ "$target" != . ] || target=/
-    target="/${target##/}"
-    [ "$current" != . ] || current=/
-    current="${current:="/"}"
-    current="/${current##/}"
-    appendix="${target##/}"
-    relative=''
-    while appendix="${target#"$current"/}"
-        [ "$current" != '/' ] && [ "$appendix" = "$target" ]; do
-        if [ "$current" = "$appendix" ]; then
-            relative="${relative:-.}"
-            echo "${relative#/}"
-            return 0
-        fi
-        current="${current%/*}"
-        relative="$relative${relative:+/}.."
-    done
-    relative="$relative${relative:+${appendix:+/}}${appendix#/}"
-    echo "$relative"
-}
-
-
-relative_path_between()
-{
-   _relative_path_between "$2" "$1"
-}
-
-
-absolute_path_if_relative()
-{
-   case "$1" in
-      .*) echo "`pwd`/$1"
-      ;;
-
-      *) echo "$1"
-      ;;
-   esac
-}
-
+#
+#
 
 maybe_show_diagnostics()
 {
@@ -679,18 +602,16 @@ scan_current_directory()
 }
 
 
-test_binary()
+assert_binary()
 {
-   "$1" > /dev/null 2>&1
-   code=$?
+   local bin
 
-   if [ $code -eq 127 ]
+   bin="`which_binary "$1"`"
+   if [ -z "$bin" ]
    then
       echo "$1 can not be found" >&2
       exit 1
    fi
-
-   echo "using ${1} for tests" >&2
 }
 
 
@@ -705,6 +626,7 @@ usage()
 {
    exit 1
 }
+
 #
 # simple option handling
 #
@@ -735,34 +657,6 @@ do
 
    shift
 done
-
-case `uname` in
-   MINGW*)
-      SHLIB_PREFIX="${SHLIB_PREFIX}"
-      SHLIB_EXTENSION="${SHLIB_EXTENSION:-.lib}" # link with extension
-      CRLFCAT="dos2unix"
-      ;;
-
-   Darwin)
-      SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
-      SHLIB_EXTENSION="${SHLIB_EXTENSION:-.dylib}"
-      LDFLAGS="-framework Foundation"  ## harmles and sometimes useful
-      CRLFCAT="cat"
-      ;;
-
-   Linux)
-      SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
-      SHLIB_EXTENSION="${SHLIB_EXTENSION:-.so}"
-      LDFLAGS="-ldl -lpthread"
-      CRLFCAT="cat"
-      ;;
-
-   *)
-      SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
-      SHLIB_EXTENSION="${SHLIB_EXTENSION:-.so}"
-      CRLFCAT="cat"
-      ;;
-esac
 
 
 if [ -z "${DEBUGGER}" ]
@@ -873,10 +767,10 @@ HAVE_WARNED="no"
 RUNS=0
 
 
-LIBRARY_PATH="`absolute_path_if_relative "$LIBRARY_PATH"`"
-LIBRARY_INCLUDE="`absolute_path_if_relative "$LIBRARY_INCLUDE"`"
-DEPENDENCIES_INCLUDE="`absolute_path_if_relative "$DEPENDENCIES_INCLUDE"`"
-ADDICTIONS_INCLUDE="`absolute_path_if_relative "$ADDICTIONS_INCLUDE"`"
+LIBRARY_PATH="`absolutepath "$LIBRARY_PATH"`"
+LIBRARY_INCLUDE="`absolutepath "$LIBRARY_INCLUDE"`"
+DEPENDENCIES_INCLUDE="`absolutepath "$DEPENDENCIES_INCLUDE"`"
+ADDICTIONS_INCLUDE="`absolutepath "$ADDICTIONS_INCLUDE"`"
 
 LIBRARY_DIR="`dirname ${LIBRARY_PATH}`"
 
@@ -904,8 +798,8 @@ then
 fi
 
 
-CC="`absolute_path_if_relative "${CC}"`"
-test_binary "$CC"
+CC="`which_binary "${CC}"`"
+assert_binary "$CC"
 
 
 if [ "$TEST" = "" ]
