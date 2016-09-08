@@ -87,8 +87,6 @@ assert_version()
 
 setup_bootstrap()
 {
-   set -x
-
    BOOTSTRAP_LIBEXECPATH="`mulle-bootstrap library-path | head -1`"
    if [ -z "${BOOTSTRAP_LIBEXECPATH}" ]
    then
@@ -156,6 +154,16 @@ setup_tooling()
          MAKE="${MAKE:-make}"
          CC="${CC:-cc}"
          CXX="${CXX:-c++}"
+      ;;
+   esac
+
+   case "${CC}" in
+      *-cl|*-cl.exe|cl.exe|cl)
+         CFLAGS="${DEFAULT_CL_CFLAGS}"
+      ;;
+
+      *)      
+         CFLAGS="${DEFAULT_GCC_CFLAGS}"
       ;;
    esac
 }

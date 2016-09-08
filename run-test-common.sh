@@ -146,7 +146,7 @@ fail_test()
       LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
       OUTPUT="${a_out}.debug" make -B
    else
-      ${CC} -O0 -g -o "${a_out}.debug" \
+      "${CC}" -O0 -g -o "${a_out}.debug" \
          "-I${LIBRARY_INCLUDE}" \
          "-I${DEPENDENCIES_INCLUDE}" \
          "-I${ADDICTIONS_INCLUDE}" \
@@ -182,17 +182,26 @@ run_makefile()
    local owd
    local a_out
 
+   case "${UNAME}" in
+      mingw)
+         log_error "Can't do Makefile test on MINGW (yet?) ($2)"
+         return
+      ;;
+   esac
+
    srcfile="$1"
    owd="$2"
    a_out="$3"
 
    if [ ! -z "${VERBOSE}" ]
    then
-      echo CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
+      echo CC="${CC}" \
+      CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
       LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
       OUTPUT="${a_out}" ${MAKE} -B
    fi
 
+   CC="${CC}" \
    CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
    LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
    OUTPUT="${a_out}" ${MAKE} -B
@@ -213,7 +222,7 @@ run_gcc_compiler()
 
    if [ ! -z "${VERBOSE}" ]
    then
-      echo ${CC} ${CFLAGS} -o "${a_out}" \
+      echo "${CC}" ${CFLAGS} -o "${a_out}" \
       "-I${LIBRARY_INCLUDE}" \
       "-I${DEPENDENCIES_INCLUDE}" \
       "-I${ADDICTIONS_INCLUDE}" \
@@ -222,7 +231,7 @@ run_gcc_compiler()
       ${LDFLAGS}
    fi
 
-   ${CC} ${CFLAGS} -o "${a_out}" \
+   "${CC}" ${CFLAGS} -o "${a_out}" \
    "-I${LIBRARY_INCLUDE}" \
    "-I${DEPENDENCIES_INCLUDE}" \
    "-I${ADDICTIONS_INCLUDE}" \
@@ -257,7 +266,7 @@ run_cl_compiler()
 
    if [ ! -z "${VERBOSE}" ]
    then
-      echo ${CC} ${CFLAGS} "/Fe${a_out}" \
+      echo "${CC}" ${CFLAGS} "/Fe${a_out}" \
       "/I ${l_include}" \
       "/I ${d_include}" \
       "/I ${a_include}" \
@@ -266,7 +275,7 @@ run_cl_compiler()
       ${LDFLAGS}
    fi
 
-   ${CC} ${CFLAGS} "/Fe${a_out}" \
+   "${CC}" ${CFLAGS} "/Fe${a_out}" \
    "/I ${l_include}" \
    "/I ${d_include}" \
    "/I ${a_include}" \
@@ -365,7 +374,7 @@ run()
       run_makefile "${srcfile}" "${owd}" "${a_out}"
       rval=$?
    else
-      a_out="${owd}/`basename "${sourcefile}" "${ext}"`.exe"
+      a_out="${owd}/`basename -- "${sourcefile}" "${ext}"`.exe"
       run_compiler "${srcfile}" "${owd}" "${a_out}" "${errput}"
       rval=$?
    fi
@@ -774,19 +783,20 @@ ADDICTIONS_INCLUDE="`absolutepath "$ADDICTIONS_INCLUDE"`"
 
 LIBRARY_DIR="`dirname ${LIBRARY_PATH}`"
 
-case "`uname`" in
-   Darwin)
+case "${UNAME}" in
+   darwin)
       DYLD_FALLBACK_LIBRARY_PATH="${LIBRARY_DIR}"
       export DYLD_FALLBACK_LIBRARY_PATH
    ;;
 
-   Linux)
+   linux)
       LD_LIBRARY_PATH="${LIBRARY_DIR}"
       export LD_LIBRARY_PATH
    ;;
 
-   MINGW*)
+   mingw*)
       PATH="${PATH}:${LIBRARY_DIR}"
+      export PATH
    ;;
 esac
 
@@ -798,8 +808,8 @@ then
 fi
 
 
-CC="`which_binary "${CC}"`"
-assert_binary "$CC"
+CCPATH="`which_binary "${CC}"`"
+assert_binary "$CCPATH"
 
 
 if [ "$TEST" = "" ]

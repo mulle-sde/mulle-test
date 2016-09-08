@@ -44,6 +44,10 @@ do
          set -x
       ;;
 
+      -v)
+      	MAKE_FLAGS="${MAKE_FLAGS} VERBOSE=1"
+      ;;
+
       -j)
          shift
          [ $# -eq 0 ] && usage
