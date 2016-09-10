@@ -33,8 +33,8 @@ restore_crashdumping()
 
    restore="$1"
 
-   case `uname` in
-      Darwin)
+   case "${UNAME}" in
+      darwin)
          if [ -z "${restore}" ]
          then
             defaults delete com.apple.CrashReporter DialogType
@@ -64,11 +64,11 @@ maybe_show_diagnostics()
    errput="$1"
 
    local contents
-   contents="`head -2 "$errput"`" 2> /dev/null
+   contents="`head -2 "${errput}"`" 2> /dev/null
    if [ "${contents}" != "" ]
    then
       echo "DIAGNOSTICS:" >&2
-      cat  "$errput"
+      cat "${errput}" >&2
    fi
 }
 
@@ -80,12 +80,12 @@ maybe_show_output()
    output="$1"
 
    local contents
-   contents="`head -2 "$output"`" 2> /dev/null
+   contents="`head -2 "${output}"`" 2> /dev/null
    if [ "${contents}" != "" ]
    then
       echo "--------------------------------------------------------------" >&2
       echo "OUTPUT:" >&2
-      cat  "$output"
+      cat  "${output}"
    fi
 }
 
@@ -109,7 +109,7 @@ search_for_strings()
    do
       if [ ! -z "$expect" ]
       then
-         match=`grep "$expect" "$errput"`
+         match=`grep "$expect" "${errput}"`
          if [ "$match" = "" ]
          then
             if [ $fail -eq 0 ]
@@ -126,37 +126,32 @@ search_for_strings()
 }
 
 
-fail_test()
+fail_test_generic()
 {
    local sourcefile
    local a_out
    local stdin
+   local ext
 
    sourcefile="$1"
    a_out="$2"
    stdin="$3"
    ext="$4"
 
-   echo "DEBUG: " >&2
-   echo "rebuilding with -O0 and debug symbols..." >&2
+   exit 1
+}
 
-   if [ "${ext}" = "Makefile" ]
-   then
-      CFLAGS="${CFLAGS} -O0 -g -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
-      LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
-      OUTPUT="${a_out}.debug" make -B
-   else
-      "${CC}" -O0 -g -o "${a_out}.debug" \
-         "-I${LIBRARY_INCLUDE}" \
-         "-I${DEPENDENCIES_INCLUDE}" \
-         "-I${ADDICTIONS_INCLUDE}" \
-         ${LDFLAGS} \
-         "${LIBRARY_PATH}" \
-         "${sourcefile}" > "$errput" 2>&1
-   fi
 
-   case "`uname`" in
-      Darwin)
+suggest_debugger_commandline()
+{
+   local a_out
+   local stdin
+
+   a_out="$1"
+   stdin="$2"
+
+   case "${UNAME}" in
+      darwin)
          echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
 MULLE_OBJC_TEST_ALLOCATOR=1 \
 MULLE_TEST_ALLOCATOR_TRACE=2 \
@@ -171,12 +166,63 @@ LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}:${DEBUGGER_LIBRARY_PATH}\" ${DEBUGGER} ${a_
          fi
       ;;
    esac
+}
+
+
+fail_test_makefile()
+{
+   local sourcefile
+   local a_out
+   local stdin
+   local ext
+
+   sourcefile="$1"
+   a_out="$2"
+   stdin="$3"
+   ext="$4"
+
+   echo "DEBUG: " >&2
+   echo "rebuilding with -O0 and debug symbols..." >&2
+
+   exekutor CFLAGS="${CFLAGS} ${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
+   LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
+   OUTPUT="${a_out}.debug" make -B
+
+   suggest_debugger_commandline "${a_out}" "${stdin}"
+   exit 1
+}
+
+
+fail_test_c()
+{
+   local sourcefile
+   local a_out
+   local stdin
+   local ext
+
+   sourcefile="$1"
+   a_out="$2"
+   stdin="$3"
+   ext="$4"
+
+   echo "DEBUG: " >&2
+   echo "rebuilding with -O0 and debug symbols..." >&2
+
+   exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out}.debug" \
+      "-I${LIBRARY_INCLUDE}" \
+      "-I${DEPENDENCIES_INCLUDE}" \
+      "-I${ADDICTIONS_INCLUDE}" \
+      ${LDFLAGS} \
+      "${LIBRARY_PATH}" \
+      "${sourcefile}" > "${errput}" 2>&1
+
+   suggest_debugger_commandline "${a_out}" "${stdin}"
 
    exit 1
 }
 
 
-run_makefile()
+run_makefile_test()
 {
    local srcfile
    local owd
@@ -193,15 +239,7 @@ run_makefile()
    owd="$2"
    a_out="$3"
 
-   if [ ! -z "${VERBOSE}" ]
-   then
-      echo CC="${CC}" \
-      CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
-      LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
-      OUTPUT="${a_out}" ${MAKE} -B
-   fi
-
-   CC="${CC}" \
+   exekutor CC="${CC}" \
    CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
    LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
    OUTPUT="${a_out}" ${MAKE} -B
@@ -220,24 +258,13 @@ run_gcc_compiler()
    a_out="$3"
    errput="$4"
 
-   if [ ! -z "${VERBOSE}" ]
-   then
-      echo "${CC}" ${CFLAGS} -o "${a_out}" \
-      "-I${LIBRARY_INCLUDE}" \
-      "-I${DEPENDENCIES_INCLUDE}" \
-      "-I${ADDICTIONS_INCLUDE}" \
-      "${sourcefile}" \
-      "${LIBRARY_PATH}" \
-      ${LDFLAGS}
-   fi
-
-   "${CC}" ${CFLAGS} -o "${a_out}" \
+   exekutor "${CC}" ${CFLAGS} -o "${a_out}" \
    "-I${LIBRARY_INCLUDE}" \
    "-I${DEPENDENCIES_INCLUDE}" \
    "-I${ADDICTIONS_INCLUDE}" \
    "${sourcefile}" \
    "${LIBRARY_PATH}" \
-   ${LDFLAGS}  > "$errput" 2>&1
+   ${LDFLAGS}  > "${errput}" 2>&1
 }
 
 
@@ -264,24 +291,13 @@ run_cl_compiler()
    a_include="`mingw_demangle_path "${ADDICTIONS_INCLUDE}"`"
    a_out="`mingw_demangle_path "${a_out}"`"
 
-   if [ ! -z "${VERBOSE}" ]
-   then
-      echo "${CC}" ${CFLAGS} "/Fe${a_out}" \
-      "/I ${l_include}" \
-      "/I ${d_include}" \
-      "/I ${a_include}" \
-      "${sourcefile}" \
-      "${l_path}" \
-      ${LDFLAGS}
-   fi
-
-   "${CC}" ${CFLAGS} "/Fe${a_out}" \
+   exekutor "${CC}" ${CFLAGS} "/Fe${a_out}" \
    "/I ${l_include}" \
    "/I ${d_include}" \
    "/I ${a_include}" \
    "${sourcefile}" \
    "${l_path}" \
-   ${LDFLAGS} > "$errput" 2>&1
+   ${LDFLAGS} > "${errput}" 2>&1
 }
 
 
@@ -319,7 +335,161 @@ MallocCheckHeapEach=1 \
 }
 
 
-run()
+check_compiler_output()
+{
+   local ccdiag
+   local errput
+   local pretty_source
+   local rval
+
+   ccdiag="$1"
+   errput="$2"
+   rval="$3"
+   pretty_source="$4"
+
+   if [ ${rval} -ne 0 ]
+   then
+      if [ "${ccdiag}" = "-" ]
+      then
+         echo "COMPILER ERRORS: \"${pretty_source}\"" >&2
+         maybe_show_diagnostics "${errput}"
+         exit 1
+      else
+         search_for_strings "COMPILER FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
+                            "${errput}" "$ccdiag"
+         if [ $? -ne 0 ]
+         then
+            return 0
+         fi
+         maybe_show_diagnostics "${errput}"
+         exit 1
+      fi
+   fi
+
+}
+
+
+_check_test_output()
+{
+   local a_out
+   local ext
+   local stdout
+   local errput
+   local output
+   local errors
+   local rval
+   local pretty_source
+
+   stdout="$1"
+   stderr="$2"
+   errors="$3"
+   output="$4"
+   errput="$5"
+   rval="$6"
+   pretty_source="$7"
+   a_out="$8"
+   ext="$9"
+
+   if [ ${rval} -ne 0 ]
+   then
+      if [ ! -f "${errors}" ]
+      then
+         echo "TEST CRASHED: \"${pretty_source}\" (${a_out}, ${errput})" >&2
+         maybe_show_diagnostics "${errput}"
+         return 1
+      fi
+      search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
+                         "${errput}" "${errors}"
+      if [ $? -ne 0 ]
+      then
+         # OK!
+         return 0
+      fi
+      return 1
+   fi
+
+   if [ -f "${errors}" ]
+   then
+      echo "TEST FAILED TO CRASH: \"${pretty_source}\" (${a_out})" >&2
+      return 1
+   fi
+
+   if [ "${stdout}" != "-" ]
+   then
+      local result
+
+      result=`diff -q "${stdout}" "${output}"`
+      if [ "${result}" != "" ]
+      then
+         white=`diff -q -w "${stdout}" "${output}"`
+         if [ "$white" != "" ]
+         then
+            echo "FAILED: \"${pretty_source}\" produced unexpected output" >&2
+            echo "DIFF: (${output} vs. ${stdout})" >&2
+            diff -y "${output}" "${stdout}" >&2
+         else
+            echo "FAILED: \"${pretty_source}\" produced different whitespace output" >&2
+            echo "DIFF: (${stdout} vs. ${output})" >&2
+            od -a "${output}" > "${output}.actual.hex"
+            od -a "${stdout}" > "${output}.expect.hex"
+            diff -y "${output}.expect.hex" "${output}.actual.hex" >&2
+         fi
+
+         return 2
+      fi
+   else
+      local contents
+
+      contents="`head -2 "${output}"`" 2> /dev/null
+      if [ "${contents}" != "" ]
+      then
+         echo "WARNING: \"${pretty_source}\" produced unexpected output (${output})" >&2
+         return 2
+      fi
+   fi
+
+   if [ "${stderr}" != "-" ]
+   then
+      result=`diff "${stderr}" "${errput}"`
+      if [ "${result}" != "" ]
+      then
+         echo "WARNING: \"${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
+         echo "" >&2
+         diff "${stderr}" "${errput}" >&2
+         return 1
+      fi
+   fi
+}
+
+
+check_test_output()
+{
+   local errput
+   local output
+
+   output="$3"
+   errput="$4"
+
+   local rval
+
+   _check_test_output "$@"
+   rval=$?
+
+   if [ $rval -ne 0 ]
+   then
+      maybe_show_diagnostics "${errput}"
+   fi
+
+   if [ ${rval} -gt 1 ]
+   then
+      maybe_show_output "${output}"
+   fi
+
+   return $rval
+}
+
+
+run_test_common_preamble()
 {
    local sourcefile
    local ext
@@ -379,105 +549,17 @@ run()
       rval=$?
    fi
 
-   if [ $rval -ne 0 ]
-   then
-      if [ "$ccdiag" = "-" ]
-      then
-         echo "COMPILER ERRORS: \"$pretty_source\"" >&2
-         maybe_show_diagnostics "$errput"
-         exit 1
-      else
-         search_for_strings "COMPILER FAILED TO PRODUCE ERRORS: \"$pretty_source\" ($errput)" \
-                            "$errput" "$ccdiag"
-         if [ $? -ne 0 ]
-         then
-            return 0
-         fi
-         maybe_show_diagnostics "$errput" >&2
-         exit 1
-      fi
-   fi
+   check_compiler_output "${ccdiag}" "${errput}" "${rval}" "${pretty_source}"
 
-
-   run_a_out "${a_out}" < "$stdin" 2> "$errput" | ${CRLFCAT} > "$output"
+   run_a_out "${a_out}" < "${stdin}" 2> "${errput}" | ${CRLFCAT} > "${output}"
    rval=$?
 
-   if [ $rval -ne 0 ]
+   check_test_output  "${stdout}" "${errors}" "${output}" "${errput}" "${rval}" "${pretty_source}" "${a_out}" "${ext}"
+   rval=$?
+
+   if [ "${rval}" -ne 0 ]
    then
-      if [ ! -f "$errors" ]
-      then
-         echo "TEST CRASHED: \"$pretty_source\" (${a_out}, ${errput})" >&2
-         maybe_show_diagnostics "$errput" >&2
-
-         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
-      else
-         search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"$pretty_source\" ($errput)" \
-                            "$errput" "$errors"
-         if [ $? -ne 0 ]
-         then
-            return 0
-         fi
-         maybe_show_diagnostics "$errput" >&2
-         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
-      fi
-   else
-      if [ -f "$errors" ]
-      then
-         echo "TEST FAILED TO CRASH: \"$pretty_source\" (${a_out})" >&2
-         maybe_show_diagnostics "$errput" >&2
-         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
-      fi
-   fi
-
-   if [ "$stdout" != "-" ]
-   then
-      result=`diff -q "$stdout" "$output"`
-      if [ "$result" != "" ]
-      then
-         white=`diff -q -w "$stdout" "$output"`
-         if [ "$white" != "" ]
-         then
-            echo "FAILED: \"$pretty_source\" produced unexpected output" >&2
-            echo "DIFF: ($output vs. $stdout)" >&2
-            diff -y "$output" "$stdout" >&2
-         else
-            echo "FAILED: \"$pretty_source\" produced different whitespace output" >&2
-            echo "DIFF: ($stdout vs. $output)" >&2
-            od -a "$output" > "$output.actual.hex"
-            od -a "$stdout" > "$output.expect.hex"
-            diff -y "$output.expect.hex" "$output.actual.hex" >&2
-         fi
-
-         maybe_show_diagnostics "$errput" >&2
-         maybe_show_output "$output"
-
-         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
-      fi
-   else
-      contents="`head -2 "$output"`" 2> /dev/null
-      if [ "${contents}" != "" ]
-      then
-         echo "WARNING: \"$pretty_source\" produced unexpected output ($output)" >&2
-
-         maybe_show_diagnostics "$errput" >&2
-         maybe_show_output "$output"
-
-         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
-      fi
-   fi
-
-   if [ "$stderr" != "-" ]
-   then
-      result=`diff "$stderr" "$errput"`
-      if [ "$result" != "" ]
-      then
-         echo "WARNING: \"$pretty_source\" produced unexpected diagnostics ($errput)" >&2
-         echo "" >&2
-         diff "$stderr" "$errput" >&2
-
-         maybe_show_diagnostics "$errput"
-         fail_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
-      fi
+      fail_c_test "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
    fi
 }
 
@@ -499,43 +581,43 @@ run_test()
    local plist
 
    stdin="$1.stdin"
-   if [ ! -f "$stdin" ]
+   if [ ! -f "${stdin}" ]
    then
       stdin="provide/$1.stdin"
    fi
-   if [ ! -f "$stdin" ]
+   if [ ! -f "${stdin}" ]
    then
       stdin="default.stdin"
    fi
-   if [ ! -f "$stdin" ]
+   if [ ! -f "${stdin}" ]
    then
       stdin="/dev/null"
    fi
 
    stdout="$1.stdout"
-   if [ ! -f "$stdout" ]
+   if [ ! -f "${stdout}" ]
    then
       stdout="expect/$1.stdout"
    fi
-   if [ ! -f "$stdout" ]
+   if [ ! -f "${stdout}" ]
    then
       stdout="default.stdout"
    fi
-   if [ ! -f "$stdout" ]
+   if [ ! -f "${stdout}" ]
    then
       stdout="-"
    fi
 
    stderr="$1.stderr"
-   if [ ! -f "$stderr" ]
+   if [ ! -f "${stderr}" ]
    then
       stderr="expect/$1.stderr"
    fi
-   if [ ! -f "$stderr" ]
+   if [ ! -f "${stderr}" ]
    then
       stderr="default.stderr"
    fi
-   if [ ! -f "$stderr" ]
+   if [ ! -f "${stderr}" ]
    then
       stderr="-"
    fi
@@ -561,7 +643,23 @@ run_test()
       sourcefile="${sourcefile}${ext}"
    fi
 
-   run "$sourcefile" "$root" "$ext" "$stdin" "$stdout" "$stderr" "$ccdiag"
+   case "${ext}" in
+      Makefile)
+         run_makefile_test "$sourcefile" "$root" "$ext" "${stdin}" "${stdout}" "${stderr}" "$ccdiag"
+         ;;
+
+      .m|.aam)
+         run_m_test "$sourcefile" "$root" "$ext" "${stdin}" "${stdout}" "${stderr}" "$ccdiag"
+         ;;
+
+      .c)
+         run_c_test "$sourcefile" "$root" "$ext" "${stdin}" "${stdout}" "${stderr}" "$ccdiag"
+         ;;
+
+      .cxx|.cpp)
+         run_cpp_test "$sourcefile" "$root" "$ext" "${stdin}" "${stdout}" "${stderr}" "$ccdiag"
+         ;;
+   esac
 }
 
 
@@ -633,188 +731,29 @@ assert_binary()
 #
 usage()
 {
+   cat <<EOF >&2
+usage:
+   run-test.sh [options] [tests]
+
+   Options:
+         -q  : quiet
+         -t  : shell trace
+         -v  : verbose
+
+   tests specify source test file
+EOF
    exit 1
 }
 
-#
-# simple option handling
-#
-while [ $# -ne 0 ]
-do
-   case "$1" in
-      -v|--verbose)
-         VERBOSE=YES
-      ;;
 
-      -q)
-         MULLE_TEST_VERBOSE=NO
-      ;;
+run_all_tests()
+{
+   local directory
 
-      -t|--trace)
-         set -x
-      ;;
+   directory=${1:-`pwd`}
+   [ $# -ne 0 ] && shift
 
-      -*)
-         echo "unknown option \"$1\"" >&2
-         usage
-      ;;
-
-      *)
-         break
-      ;;
-   esac
-
-   shift
-done
-
-
-if [ -z "${DEBUGGER}" ]
-then
-   DEBUGGER=lldb
-fi
-
-DEBUGGER="`which "${DEBUGGER}" 2> /dev/null`"
-
-if [ -z "${DEBUGGER_LIBRARY_PATH}" ]
-then
-   DEBUGGER_LIBRARY_PATH="`dirname "${DEBUGGER}"`/../lib"
-fi
-
-
-# check if running a single test or all
-
-executable=`basename "$0"`
-executable=`basename "$executable" .sh`
-
-if [ "`basename "$executable"`" = "run-all-tests" ]
-then
-   TEST=""
-   MULLE_TEST_VERBOSE="${MULLE_TEST_VERBOSE:-YES}"
-else
-   TEST="$1"
-   [ -z $# ] || shift
-fi
-
-
-RESTORE_CRASHDUMP=`suppress_crashdumping`
-trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
-
-if [ -z "${CFLAGS}" ]
-then
-   CFLAGS="${DEFAULTCFLAGS}"
-fi
-
-# find runtime and headers
-#
-# this is more or less an ugly hack, that should work
-# if
-#    a) you used mulle-clang-install
-# or
-#    b) have a setup like mine
-#
-#        ./mulle-clang-install/tests
-#        ./mulle-objc-runtime
-#
-
-LIBRARY_FILENAME="${SHLIB_PREFIX}${LIBRARY_SHORTNAME}${STANDALONE_SUFFIX}${SHLIB_EXTENSION}"
-DEPENDENCIES_INCLUDE="../dependencies/include"
-ADDICTIONS_INCLUDE="../addictions/include"
-
-if [ ! -z "${LIB_PATH}" ]
-then
-   lib="`ls -1 "${LIB_PATH}/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-fi
-
-
-if [ ! -f "${lib}" ]
-then
-   lib="`ls -1 "./lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-fi
-
-if [ ! -f "${lib}" ]
-then
-   lib="`ls -1 "./build/Products/Debug/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-fi
-
-LIBRARY_PATH="${1:-${lib}}"
-[ -z $# ] || shift
-
-
-if [ -z "${LIBRARY_PATH}" ]
-then
-   cat <<EOF >&2
-error: ${LIBRARY_FILENAME} can not be found.
-
-   Maybe you haven't run ./build-for-test.sh yet ?
-
-   You commonly need a shared library target in your CMakeLists.txt that links
-   in all the platform dependencies for your platform.
-EOF
-   exit 1
-fi
-
-#
-# figure out where the headers are
-#
-LIBRARY_FILENAME="`basename "${LIBRARY_PATH}"`"
-LIBRARY_DIR="`dirname "${LIBRARY_PATH}"`"
-LIBRARY_ROOT="`dirname "${LIBRARY_DIR}"`"
-
-
-if [ -d "${LIBRARY_ROOT}/usr/local/include" ]
-then
-   LIBRARY_INCLUDE="${LIBRARY_INCLUDE}/usr/local/include"
-else
-   LIBRARY_INCLUDE="${LIBRARY_ROOT}/include"
-fi
-
-
-DIR=${1:-`pwd`}
-shift
-
-HAVE_WARNED="no"
-RUNS=0
-
-
-LIBRARY_PATH="`absolutepath "$LIBRARY_PATH"`"
-LIBRARY_INCLUDE="`absolutepath "$LIBRARY_INCLUDE"`"
-DEPENDENCIES_INCLUDE="`absolutepath "$DEPENDENCIES_INCLUDE"`"
-ADDICTIONS_INCLUDE="`absolutepath "$ADDICTIONS_INCLUDE"`"
-
-LIBRARY_DIR="`dirname ${LIBRARY_PATH}`"
-
-case "${UNAME}" in
-   darwin)
-      DYLD_FALLBACK_LIBRARY_PATH="${LIBRARY_DIR}"
-      export DYLD_FALLBACK_LIBRARY_PATH
-   ;;
-
-   linux)
-      LD_LIBRARY_PATH="${LIBRARY_DIR}"
-      export LD_LIBRARY_PATH
-   ;;
-
-   mingw*)
-      PATH="${PATH}:${LIBRARY_DIR}"
-      export PATH
-   ;;
-esac
-
-
-if [ -z "${CC}" ]
-then
-   echo "CC for C compiler not defined" >&2
-   exit 1
-fi
-
-
-CCPATH="`which_binary "${CC}"`"
-assert_binary "$CCPATH"
-
-
-if [ "$TEST" = "" ]
-then
-   cd "${DIR}"
+   cd "${directory}"
    scan_current_directory "`pwd -P`"
 
    if [ "$RUNS" -ne 0 ]
@@ -824,44 +763,230 @@ then
       echo "no tests found" >&2
       exit 1
    fi
-else
-    dirname=`dirname "$TEST"`
-    if [ "$dirname" = "" ]
-    then
-       dirname="."
-    fi
-    file=`basename "$TEST"`
+}
 
-    found=no
 
-    for ext in ${SOURCE_EXTENSION}
-    do
-       filename=`basename "${file}" "${ext}"`
+run_argument_tests()
+{
+   local directory
+   local found
+   local filename
+   local name
+   local old
+   local ext
 
-       if [ "${file}" != "${filename}" ]
-       then
-         found=yes
-         break
-       fi
-    done
+   directory=`dirname "$TEST"`
+   filename=`basename "$TEST"`
+   found="NO"
 
-    if [ "${found}" = "no" ]
-    then
-       echo "error: source file must have ${SOURCE_EXTENSION} extension" >&2
-       exit 1
-    fi
+   if [ ! -f "${TEST}" ]
+   then
+      echo "error: source file not found" >&2
+      exit 1
+   fi
 
-    if [ ! -f "$TEST" ]
-    then
-       echo "error: source file not found" >&2
-       exit 1
-    fi
+   for ext in ${SOURCE_EXTENSION}
+   do
+      name=`basename "${filename}" "${ext}"`
 
-    old="`pwd -P`"
-    cd "${dirname}" || exit 1
-    run_test "$filename" "${old}" "${ext}"
-    rval=$?
-    cd "${old}" || exit 1
-    exit $rval
-fi
+      if [ "${name}" != "${filename}" ]
+      then
+        found="YES"
+        break
+      fi
+   done
 
+   if [ "${found}" = "NO" ]
+   then
+      echo "error: source file must have ${SOURCE_EXTENSION} extension" >&2
+      exit 1
+   fi
+
+   old="`pwd -P`"
+
+      cd "${directory}" || exit 1
+      run_test "${filename}" "${old}" "${ext}"
+      rval=$?
+
+   cd "${old}" || exit 1
+   exit ${rval}
+}
+
+
+main()
+{
+   # check if running a single test or all
+
+   executable=`basename "$0"`
+   executable=`basename "$executable" .sh`
+
+   if [ "`basename "$executable"`" = "run-all-tests" ]
+   then
+      TEST=""
+      MULLE_TEST_VERBOSE="${MULLE_TEST_VERBOSE:-YES}"
+   else
+      TEST="$1"
+      [ $# -ne 0 ] && shift
+   fi
+
+   #
+   # simple option handling
+   #
+   while [ $# -ne 0 ]
+   do
+      case "$1" in
+         -v|--verbose)
+            VERBOSE=YES
+         ;;
+
+         -q)
+            MULLE_TEST_VERBOSE="NO"
+         ;;
+
+         -t|--trace)
+            set -x
+         ;;
+
+         -*)
+            echo "unknown option \"$1\"" >&2
+            usage
+         ;;
+
+         *)
+            break
+         ;;
+      esac
+
+      shift
+   done
+
+
+   if [ -z "${DEBUGGER}" ]
+   then
+      DEBUGGER=lldb
+   fi
+
+   DEBUGGER="`which "${DEBUGGER}" 2> /dev/null`"
+
+   if [ -z "${DEBUGGER_LIBRARY_PATH}" ]
+   then
+      DEBUGGER_LIBRARY_PATH="`dirname "${DEBUGGER}"`/../lib"
+   fi
+
+
+   RESTORE_CRASHDUMP=`suppress_crashdumping`
+   trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
+
+   # find runtime and headers
+   #
+   # this is more or less an ugly hack, that should work
+   # if
+   #    a) you used mulle-clang-install
+   # or
+   #    b) have a setup like mine
+   #
+   #        ./mulle-clang-install/tests
+   #        ./mulle-objc-runtime
+   #
+
+   LIBRARY_FILENAME="${SHLIB_PREFIX}${LIBRARY_SHORTNAME}${STANDALONE_SUFFIX}${SHLIB_EXTENSION}"
+   DEPENDENCIES_INCLUDE="../dependencies/include"
+   ADDICTIONS_INCLUDE="../addictions/include"
+
+   if [ ! -z "${LIB_PATH}" ]
+   then
+      lib="`ls -1 "${LIB_PATH}/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+   fi
+
+
+   if [ ! -f "${lib}" ]
+   then
+      lib="`ls -1 "./lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+   fi
+
+   if [ ! -f "${lib}" ]
+   then
+      lib="`ls -1 "./build/Products/Debug/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+   fi
+
+   LIBRARY_PATH="${1:-${lib}}"
+   [ -z $# ] || shift
+
+
+   if [ -z "${LIBRARY_PATH}" ]
+   then
+      log_error "error: ${LIBRARY_FILENAME} can not be found."
+
+      log_info "Maybe you haven't run ./build-test.sh yet ?
+
+      You commonly need a shared library target in your CMakeLists.txt that
+      links in all the platform dependencies for your platform."
+      exit 1
+   fi
+
+   #
+   # figure out where the headers are
+   #
+   LIBRARY_FILENAME="`basename "${LIBRARY_PATH}"`"
+   LIBRARY_DIR="`dirname "${LIBRARY_PATH}"`"
+   LIBRARY_ROOT="`dirname "${LIBRARY_DIR}"`"
+
+   if [ -d "${LIBRARY_ROOT}/usr/local/include" ]
+   then
+      LIBRARY_INCLUDE="${LIBRARY_INCLUDE}/usr/local/include"
+   else
+      LIBRARY_INCLUDE="${LIBRARY_ROOT}/include"
+   fi
+
+   LIBRARY_PATH="`absolutepath "$LIBRARY_PATH"`"
+   LIBRARY_INCLUDE="`absolutepath "$LIBRARY_INCLUDE"`"
+   DEPENDENCIES_INCLUDE="`absolutepath "$DEPENDENCIES_INCLUDE"`"
+   ADDICTIONS_INCLUDE="`absolutepath "$ADDICTIONS_INCLUDE"`"
+
+   LIBRARY_DIR="`dirname ${LIBRARY_PATH}`"
+
+   case "${UNAME}" in
+      darwin)
+         DYLD_FALLBACK_LIBRARY_PATH="${LIBRARY_DIR}"
+         export DYLD_FALLBACK_LIBRARY_PATH
+      ;;
+
+      linux)
+         LD_LIBRARY_PATH="${LIBRARY_DIR}"
+         export LD_LIBRARY_PATH
+      ;;
+
+      mingw*)
+         PATH="${PATH}:${LIBRARY_DIR}"
+         export PATH
+      ;;
+   esac
+
+
+   if [ -z "${CC}" ]
+   then
+      echo "CC for C compiler not defined" >&2
+      exit 1
+   fi
+
+   CCPATH="`which_binary "${CC}"`"
+   assert_binary "$CCPATH"
+
+   if [ -z "${CFLAGS}" ]
+   then
+      CFLAGS="${DEFAULTCFLAGS}"
+   fi
+
+
+   HAVE_WARNED="NO"
+   RUNS=0
+
+   if [ "$TEST" = "" ]
+   then
+      run_all_tests "$@"
+   else
+      run_argument_tests "$@"
+   fi
+}
+
+main "$@"
