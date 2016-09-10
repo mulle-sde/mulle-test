@@ -162,7 +162,7 @@ setup_tooling()
          CFLAGS="${DEFAULT_CL_CFLAGS}"
       ;;
 
-      *)      
+      *)
          CFLAGS="${DEFAULT_GCC_CFLAGS}"
       ;;
    esac
