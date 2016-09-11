@@ -212,8 +212,8 @@ fail_test_c()
 
    if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
    then
-      log_info "DEBUG: " >&2
-      log_info "rebuilding with -O0 and debug symbols..." >&2
+      log_info "DEBUG: "
+      log_info "rebuilding with -O0 and debug symbols..."
 
       exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out}.debug" \
          "-I${LIBRARY_INCLUDE}" \
@@ -880,6 +880,13 @@ run_named_test()
    directory=`dirname "$1"`
    filename=`basename "$1"`
    found="NO"
+
+   if [ -d "${1}" ]
+   then
+      cd "${1}"
+      scan_current_directory "`pwd -P`"
+      return
+   fi
 
    if [ ! -f "${1}" ]
    then
