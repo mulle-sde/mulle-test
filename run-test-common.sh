@@ -980,6 +980,21 @@ main()
 
       if [ ! -f "${LIBRARY_PATH}" ]
       then
+         LIBRARY_PATH="`ls -1 "../lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+      fi
+
+      if [ ! -f "${LIBRARY_PATH}" ]
+      then
+         LIBRARY_PATH="`ls -1 "../dependencies/lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+      fi
+
+      if [ ! -f "${LIBRARY_PATH}" ]
+      then
+         LIBRARY_PATH="`ls -1 "../addictions/lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+      fi
+
+      if [ ! -f "${LIBRARY_PATH}" ]
+      then
          LIBRARY_PATH="`ls -1 "./build/Products/Debug/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
       fi
    fi
