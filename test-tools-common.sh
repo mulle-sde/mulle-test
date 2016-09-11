@@ -160,10 +160,14 @@ setup_tooling()
    case "${CC}" in
       *-cl|*-cl.exe|cl.exe|cl)
          CFLAGS="${DEFAULT_CL_CFLAGS}"
+         DEBUG_CFLAGS="${DEBUG_CL_CFLAGS}"
+         RELEASE_CFLAGS="${RELEASE_CL_CFLAGS}"
       ;;
 
-      *)      
+      *)
          CFLAGS="${DEFAULT_GCC_CFLAGS}"
+         DEBUG_CFLAGS="${DEBUG_GCC_CFLAGS}"
+         RELEASE_CFLAGS="${RELEASE_GCC_CFLAGS}"
       ;;
    esac
 }
@@ -173,6 +177,7 @@ setup_environment()
 {
    case "${UNAME}" in
       mingw)
+         MULLE_LOG_DEVICE="/dev/stdout"
          SHLIB_PREFIX="${SHLIB_PREFIX}"
          SHLIB_EXTENSION="${SHLIB_EXTENSION:-.lib}" # link with extension
          CRLFCAT="dos2unix"
