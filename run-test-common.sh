@@ -138,7 +138,10 @@ fail_test_generic()
    stdin="$3"
    ext="$4"
 
-   exit 1
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
+   then
+      exit 1
+   fi
 }
 
 
@@ -181,15 +184,18 @@ fail_test_makefile()
    stdin="$3"
    ext="$4"
 
-   echo "DEBUG: " >&2
-   echo "rebuilding with -O0 and debug symbols..." >&2
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
+   then
+      echo "DEBUG: " >&2
+      echo "rebuilding with -O0 and debug symbols..." >&2
 
-   exekutor CFLAGS="${CFLAGS} ${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
-   LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
-   OUTPUT="${a_out}.debug" make -B
+      exekutor CFLAGS="${CFLAGS} ${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
+      LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
+      OUTPUT="${a_out}.debug" make -B
 
-   suggest_debugger_commandline "${a_out}" "${stdin}"
-   exit 1
+      suggest_debugger_commandline "${a_out}" "${stdin}"
+      exit 1
+   fi
 }
 
 
@@ -205,20 +211,23 @@ fail_test_c()
    stdin="$3"
    ext="$4"
 
-   echo "DEBUG: " >&2
-   echo "rebuilding with -O0 and debug symbols..." >&2
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
+   then
+      echo "DEBUG: " >&2
+      echo "rebuilding with -O0 and debug symbols..." >&2
 
-   exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out}.debug" \
-      "-I${LIBRARY_INCLUDE}" \
-      "-I${DEPENDENCIES_INCLUDE}" \
-      "-I${ADDICTIONS_INCLUDE}" \
-      ${LDFLAGS} \
-      "${LIBRARY_PATH}" \
-      "${sourcefile}" > "${errput}" 2>&1
+      exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out}.debug" \
+         "-I${LIBRARY_INCLUDE}" \
+         "-I${DEPENDENCIES_INCLUDE}" \
+         "-I${ADDICTIONS_INCLUDE}" \
+         ${LDFLAGS} \
+         "${LIBRARY_PATH}" \
+         "${sourcefile}" > "${errput}" 2>&1
 
-   suggest_debugger_commandline "${a_out}" "${stdin}"
+      suggest_debugger_commandline "${a_out}" "${stdin}"
 
-   exit 1
+      exit 1
+   fi
 }
 
 
@@ -317,6 +326,16 @@ run_compiler()
 
 run_a_out()
 {
+   local a_out
+
+   a_out="$1"
+
+   if [ ! -x "${a_out}" ]
+   then
+      log_error "Compiler unexpectedly did not produce ${a_out}"
+      return 1
+   fi
+
    case "${UNAME}" in
       darwin)
          MULLE_OBJC_TEST_ALLOCATOR=1 \
@@ -329,7 +348,7 @@ MallocCheckHeapEach=1 \
       ;;
 
       *)
-          MULLE_OBJC_TEST_ALLOCATOR=1 "${a_out}"
+         MULLE_OBJC_TEST_ALLOCATOR=1 "${a_out}"
       ;;
    esac
 }
@@ -347,25 +366,31 @@ check_compiler_output()
    rval="$3"
    pretty_source="$4"
 
-   if [ ${rval} -ne 0 ]
+   if [ ${rval} -eq 0 ]
    then
-      if [ "${ccdiag}" = "-" ]
+      return 0
+   fi
+
+   if [ "${ccdiag}" = "-" ]
+   then
+      echo "COMPILER ERRORS: \"${pretty_source}\"" >&2
+   else
+      search_for_strings "COMPILER FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
+                         "${errput}" "${ccdiag}"
+      if [ $? -ne 0 ]
       then
-         echo "COMPILER ERRORS: \"${pretty_source}\"" >&2
-         maybe_show_diagnostics "${errput}"
-         exit 1
-      else
-         search_for_strings "COMPILER FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
-                            "${errput}" "${ccdiag}"
-         if [ $? -ne 0 ]
-         then
-            return 0
-         fi
-         maybe_show_diagnostics "${errput}"
-         exit 1
+         return 0
       fi
    fi
 
+   FAILS=`expr "$FAILS" + 1`
+
+   maybe_show_diagnostics "${errput}"
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
+   then         
+      exit 1
+   fi
+   return 1
 }
 
 
@@ -395,7 +420,6 @@ _check_test_output()
       if [ ! -f "${errors}" ]
       then
          echo "TEST CRASHED: \"${pretty_source}\" (${a_out}, ${errput})" >&2
-         maybe_show_diagnostics "${errput}"
          return 1
       fi
       search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
@@ -477,6 +501,7 @@ check_test_output()
 
    if [ $rval -ne 0 ]
    then
+      FAILS=`expr "$FAILS" + 1`
       maybe_show_diagnostics "${errput}"
    fi
 
@@ -520,9 +545,17 @@ __preamble()
    owd="`pwd -P`"
    pretty_source=`relative_path_between "${owd}"/"${sourcefile}" "${root}"`
 
-   if [ "$MULLE_TEST_VERBOSE" = "YES" ]
+   if [ "${MULLE_TEST_VERBOSE}" = "YES" ]
    then
-      echo "${pretty_source}" >&2
+      case "${UNAME}" in
+         mingw)
+            echo "${pretty_source}"
+         ;;
+
+         *) 
+            echo "${pretty_source}" >&2
+         ;;
+      esac
    fi
 }
 
@@ -568,6 +601,12 @@ run_common_test()
    rval=$?
 
    check_compiler_output "${ccdiag}" "${errput}" "${rval}" "${pretty_source}"
+   rval=$?
+
+   if [ $rval -ne 0 ]
+   then
+      return $rval
+   fi
 
    run_a_out "${a_out}" < "${stdin}" 2> "${errput}" | ${CRLFCAT} > "${output}"
    rval=$?
@@ -587,6 +626,7 @@ run_common_test()
    then
       "${FAIL_TEST}" "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
    fi
+   return $rval
 }
 
 
@@ -823,7 +863,6 @@ EOF
 }
 
 
-
 run_named_test()
 {
    local directory
@@ -883,7 +922,12 @@ run_all_tests()
 
    if [ "$RUNS" -ne 0 ]
    then
-      echo "All tests ($RUNS) passed successfully"
+      if [ "${FAILS}" -eq 0 ]
+      then
+         echo "All tests ($RUNS) passed successfully" >&2
+      else
+         echo "$FAILS tests out of $RUNS failed" >&2
+      fi
    else
       echo "no tests found" >&2
       exit 1
@@ -900,7 +944,6 @@ main()
 
    if [ "`basename "$executable"`" = "run-all-tests" ]
    then
-      RUN_ALL="YES"
       MULLE_TEST_VERBOSE="${MULLE_TEST_VERBOSE:-YES}"
    fi
 
@@ -911,7 +954,7 @@ main()
    do
       case "$1" in
          -v|--verbose)
-            VERBOSE="YES"
+            MULLE_TEST_VERBOSE="YES"
          ;;
 
          -V)
@@ -924,6 +967,10 @@ main()
 
          -q)
             MULLE_TEST_VERBOSE="NO"
+         ;;
+
+         -f)
+            MULLE_TEST_IGNORE_FAILURE="YES"
          ;;
 
          -t|--trace)
@@ -980,7 +1027,17 @@ main()
 
       if [ ! -f "${LIBRARY_PATH}" ]
       then
+         LIBRARY_PATH="`ls -1 "../lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+      fi
+
+      if [ ! -f "${LIBRARY_PATH}" ]
+      then
          LIBRARY_PATH="`ls -1 "./build/Products/Debug/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
+      fi
+
+      if [ ! -f "${LIBRARY_PATH}" ]
+      then
+         LIBRARY_PATH="`ls -1 "../build/Products/Debug/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
       fi
    fi
 
@@ -1052,14 +1109,12 @@ should be installed into \"./lib\" (and headers into \"./include\")"
 
    HAVE_WARNED="NO"
    RUNS=0
+   FAILS=0
 
-   if [ "$RUN_ALL" = "YES" ]
+   if [ $# -eq 0 ]
    then
       run_all_tests "$@"
    else
-
-      [ $# -eq 0 ] && usage
-
       while [ $# -ne 0 ]
       do
          run_named_test "$1"
