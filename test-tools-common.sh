@@ -177,6 +177,7 @@ setup_environment()
 {
    case "${UNAME}" in
       mingw)
+         MULLE_LOG_DEVICE="/dev/stdout"
          SHLIB_PREFIX="${SHLIB_PREFIX}"
          SHLIB_EXTENSION="${SHLIB_EXTENSION:-.lib}" # link with extension
          CRLFCAT="dos2unix"

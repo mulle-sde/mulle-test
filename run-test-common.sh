@@ -121,7 +121,7 @@ search_for_strings()
       fi
    done < "$strings"
 
-   [ $fail -eq 1 ]
+   return $fail
 }
 
 
@@ -376,9 +376,9 @@ check_compiler_output()
    else
       search_for_strings "COMPILER FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
                          "${errput}" "${ccdiag}"
-      if [ $? -ne 0 ]
+      if [ $? -eq 0 ]
       then
-         return 0
+         return 3
       fi
    fi
 
@@ -418,22 +418,23 @@ _check_test_output()
    then
       if [ ! -f "${errors}" ]
       then
-         log_error "TEST CRASHED: \"${pretty_source}\" (${a_out}, ${errput})" >&2
+         log_error "TEST CRASHED: \"${pretty_source}\" (${a_out}, ${errput})" 
          return 1
       fi
+
       search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
                          "${errput}" "${errors}"
-      if [ $? -ne 0 ]
+      if [ $? -eq 0 ]
       then
          # OK!
-         return 0
+         return 3  # but don't run a_out
       fi
       return 1
    fi
 
    if [ -f "${errors}" ]
    then
-      log_error "TEST FAILED TO CRASH: \"${pretty_source}\" (${a_out})" >&2
+      log_error "TEST FAILED TO CRASH: \"${pretty_source}\" (${a_out})" 
       return 1
    fi
 
@@ -447,12 +448,12 @@ _check_test_output()
          white=`diff -q -w "${stdout}" "${output}"`
          if [ "$white" != "" ]
          then
-            log_error "FAILED: \"${pretty_source}\" produced unexpected output" >&2
-            log_info  "DIFF: (${output} vs. ${stdout})" >&2
+            log_error "FAILED: \"${pretty_source}\" produced unexpected output" 
+            log_info  "DIFF: (${output} vs. ${stdout})" 
             diff -y "${output}" "${stdout}" >&2
          else
-            log_error "FAILED: \"${pretty_source}\" produced different whitespace output" >&2
-            log_info  "DIFF: (${stdout} vs. ${output})" >&2
+            log_error "FAILED: \"${pretty_source}\" produced different whitespace output" 
+            log_info  "DIFF: (${stdout} vs. ${output})" 
             od -a "${output}" > "${output}.actual.hex"
             od -a "${stdout}" > "${output}.expect.hex"
             diff -y "${output}.expect.hex" "${output}.actual.hex" >&2
@@ -595,6 +596,10 @@ run_common_test()
 
    if [ $rval -ne 0 ]
    then
+      if [ $rval -eq 3 ]
+      then
+         return 0
+      fi
       return $rval
    fi
 
@@ -934,24 +939,10 @@ run_all_tests()
 
 main()
 {
-   # check if running a single test or all
-
-   executable=`basename "$0"`
-   executable=`basename "$executable" .sh`
-
-   if [ "`basename "$executable"`" = "run-all-tests" ]
-   then
-      MULLE_TEST_VERBOSE="${MULLE_TEST_VERBOSE:-YES}"
-   fi
-
-   #
-   # simple option handling
-   #
    while [ $# -ne 0 ]
    do
       case "$1" in
          -v|--verbose)
-            MULLE_TEST_VERBOSE="YES"
             MULLE_BOOTSTRAP_VERBOSE="YES"
          ;;
 
@@ -972,10 +963,6 @@ main()
 
          -n)
             MULLE_EXECUTOR_DRY_RUN="YES"
-         ;;
-
-         -q)
-            MULLE_TEST_VERBOSE="NO"
          ;;
 
          -f)
@@ -1132,6 +1119,7 @@ CMakeListst.txt of your project."
 
    if [ "$RUN_ALL" = "YES" -o $# -eq 0 ]
    then
+      MULLE_BOOTSTRAP_VERBOSE="${MULLE_BOOTSTRAP_VERBOSE:-YES}"
       run_all_tests "$@"
    else
       while [ $# -ne 0 ]
