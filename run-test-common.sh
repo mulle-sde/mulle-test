@@ -6,7 +6,7 @@
 #  Copyright (c) 2013 Mulle kybernetiK. All rights reserved.
 #  (was run-mulle-scion-test)
 
-set -m
+set -m # job control enable 
 
 #
 # this is system wide, not so great
@@ -347,7 +347,6 @@ MallocCheckHeapEach=1 \
       ;;
 
       *)
-         MULLE_OBJC_TEST_ALLOCATOR=1 "${a_out}"
          eval_exekutor MULLE_OBJC_TEST_ALLOCATOR=1 "${a_out}"
       ;;
    esac
