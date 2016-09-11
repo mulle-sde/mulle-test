@@ -67,7 +67,7 @@ maybe_show_diagnostics()
    contents="`head -2 "${errput}"`" 2> /dev/null
    if [ "${contents}" != "" ]
    then
-      echo "DIAGNOSTICS:" >&2
+      log_info "DIAGNOSTICS:" >&2
       cat "${errput}" >&2
    fi
 }
@@ -83,8 +83,7 @@ maybe_show_output()
    contents="`head -2 "${output}"`" 2> /dev/null
    if [ "${contents}" != "" ]
    then
-      echo "--------------------------------------------------------------" >&2
-      echo "OUTPUT:" >&2
+      log_info "OUTPUT:"
       cat  "${output}"
    fi
 }
@@ -114,7 +113,7 @@ search_for_strings()
          then
             if [ $fail -eq 0 ]
             then
-               echo "${banner}" >&2
+               log_error "${banner}" >&2
                fail=1
             fi
             echo "   $expect" >&2
@@ -186,10 +185,10 @@ fail_test_makefile()
 
    if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
    then
-      echo "DEBUG: " >&2
-      echo "rebuilding with -O0 and debug symbols..." >&2
+      log_info "DEBUG: " >&2
+      log_info "rebuilding with -O0 and debug symbols..." >&2
 
-      exekutor CFLAGS="${CFLAGS} ${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
+      eval_exekutor CFLAGS="${CFLAGS} ${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
       LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
       OUTPUT="${a_out}.debug" make -B
 
@@ -213,8 +212,8 @@ fail_test_c()
 
    if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
    then
-      echo "DEBUG: " >&2
-      echo "rebuilding with -O0 and debug symbols..." >&2
+      log_info "DEBUG: " >&2
+      log_info "rebuilding with -O0 and debug symbols..." >&2
 
       exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out}.debug" \
          "-I${LIBRARY_INCLUDE}" \
@@ -248,7 +247,7 @@ run_makefile_test()
    owd="$2"
    a_out="$3"
 
-   exekutor CC="${CC}" \
+   eval_exekutor CC="${CC}" \
    CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
    LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
    OUTPUT="${a_out}" ${MAKE} -B
@@ -338,7 +337,7 @@ run_a_out()
 
    case "${UNAME}" in
       darwin)
-         MULLE_OBJC_TEST_ALLOCATOR=1 \
+         eval_exekutor MULLE_OBJC_TEST_ALLOCATOR=1 \
 MallocStackLogging=1 \
 MallocScribble=1 \
 MallocPreScribble=1 \
@@ -349,6 +348,7 @@ MallocCheckHeapEach=1 \
 
       *)
          MULLE_OBJC_TEST_ALLOCATOR=1 "${a_out}"
+         eval_exekutor MULLE_OBJC_TEST_ALLOCATOR=1 "${a_out}"
       ;;
    esac
 }
@@ -373,7 +373,7 @@ check_compiler_output()
 
    if [ "${ccdiag}" = "-" ]
    then
-      echo "COMPILER ERRORS: \"${pretty_source}\"" >&2
+      log_error "COMPILER ERRORS: \"${pretty_source}\""
    else
       search_for_strings "COMPILER FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
                          "${errput}" "${ccdiag}"
@@ -387,7 +387,7 @@ check_compiler_output()
 
    maybe_show_diagnostics "${errput}"
    if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
-   then         
+   then
       exit 1
    fi
    return 1
@@ -419,7 +419,7 @@ _check_test_output()
    then
       if [ ! -f "${errors}" ]
       then
-         echo "TEST CRASHED: \"${pretty_source}\" (${a_out}, ${errput})" >&2
+         log_error "TEST CRASHED: \"${pretty_source}\" (${a_out}, ${errput})" >&2
          return 1
       fi
       search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
@@ -434,7 +434,7 @@ _check_test_output()
 
    if [ -f "${errors}" ]
    then
-      echo "TEST FAILED TO CRASH: \"${pretty_source}\" (${a_out})" >&2
+      log_error "TEST FAILED TO CRASH: \"${pretty_source}\" (${a_out})" >&2
       return 1
    fi
 
@@ -448,12 +448,12 @@ _check_test_output()
          white=`diff -q -w "${stdout}" "${output}"`
          if [ "$white" != "" ]
          then
-            echo "FAILED: \"${pretty_source}\" produced unexpected output" >&2
-            echo "DIFF: (${output} vs. ${stdout})" >&2
+            log_error "FAILED: \"${pretty_source}\" produced unexpected output" >&2
+            log_info  "DIFF: (${output} vs. ${stdout})" >&2
             diff -y "${output}" "${stdout}" >&2
          else
-            echo "FAILED: \"${pretty_source}\" produced different whitespace output" >&2
-            echo "DIFF: (${stdout} vs. ${output})" >&2
+            log_error "FAILED: \"${pretty_source}\" produced different whitespace output" >&2
+            log_info  "DIFF: (${stdout} vs. ${output})" >&2
             od -a "${output}" > "${output}.actual.hex"
             od -a "${stdout}" > "${output}.expect.hex"
             diff -y "${output}.expect.hex" "${output}.actual.hex" >&2
@@ -467,7 +467,7 @@ _check_test_output()
       contents="`head -2 "${output}"`" 2> /dev/null
       if [ "${contents}" != "" ]
       then
-         echo "WARNING: \"${pretty_source}\" produced unexpected output (${output})" >&2
+         log_warning "WARNING: \"${pretty_source}\" produced unexpected output (${output})" >&2
          return 2
       fi
    fi
@@ -477,7 +477,7 @@ _check_test_output()
       result=`diff "${stderr}" "${errput}"`
       if [ "${result}" != "" ]
       then
-         echo "WARNING: \"${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
+         log_warning "WARNING: \"${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
          echo "" >&2
          diff "${stderr}" "${errput}" >&2
          return 1
@@ -540,23 +540,13 @@ __preamble()
    random=`mktemp -t "${LIBRARY_SHORTNAME}.XXXX"`
    output="${random}.stdout"
    errput="${random}.stderr"
+   cc_errput="${random}.ccerr"
    errors="`basename "${sourcefile}" "${ext}"`.errors"
 
    owd="`pwd -P`"
    pretty_source=`relative_path_between "${owd}"/"${sourcefile}" "${root}"`
 
-   if [ "${MULLE_TEST_VERBOSE}" = "YES" ]
-   then
-      case "${UNAME}" in
-         mingw)
-            echo "${pretty_source}"
-         ;;
-
-         *) 
-            echo "${pretty_source}" >&2
-         ;;
-      esac
-   fi
+   log_verbose "${pretty_source}"
 }
 
 
@@ -581,6 +571,7 @@ run_common_test()
    ccdiag="$8"
 
    local output
+   local cc_errput
    local errput
    local random
    local fail
@@ -597,10 +588,10 @@ run_common_test()
 
    local rval
 
-   "${TEST_BUILDER}" "${srcfile}" "${owd}" "${a_out}" "${errput}"
+   "${TEST_BUILDER}" "${srcfile}" "${owd}" "${a_out}" "${cc_errput}"
    rval=$?
 
-   check_compiler_output "${ccdiag}" "${errput}" "${rval}" "${pretty_source}"
+   check_compiler_output "${ccdiag}" "${cc_errput}" "${rval}" "${pretty_source}"
    rval=$?
 
    if [ $rval -ne 0 ]
@@ -608,8 +599,12 @@ run_common_test()
       return $rval
    fi
 
-   run_a_out "${a_out}" < "${stdin}" 2> "${errput}" | ${CRLFCAT} > "${output}"
+   local capture
+
+   capture="`run_a_out "${a_out}" < "${stdin}" 2> "${errput}"`"
    rval=$?
+
+   echo "${capture}" | ${CRLFCAT} > "${output}"
 
    check_test_output  "${stdout}" \
                       "${stderr}" \
@@ -678,7 +673,6 @@ run_cpp_test()
 {
    log_error "$1: cpp testing is not available yet"
 }
-
 
 
 run_test()
@@ -788,7 +782,7 @@ scan_current_directory()
 
    local i
    local filename
-   local dir
+   local owd
 
    if [ -f Makefile ]
    then
@@ -796,19 +790,25 @@ scan_current_directory()
       return 0
    fi
 
-   for i in *
+   old="${IFS:- }"
+   IFS="
+"
+
+   for i in `ls -1`
    do
+      IFS="${old}"
+
       case "${i}" in
          _*|build|include|lib|bin|tmp|etc|share)
-            ;;
+         ;;
 
          *)
             if [ -d "${i}" ]
             then
-               dir="`pwd -P`"
+               owd="`pwd -P`"
                cd "${i}"
                scan_current_directory "${root}"
-               cd "${dir}"
+               cd "${owd}"
             else
                for ext in ${SOURCE_EXTENSION}
                do
@@ -820,9 +820,11 @@ scan_current_directory()
                   fi
                done
             fi
-            ;;
+         ;;
       esac
    done
+
+   IFS="${old}"
 }
 
 
@@ -833,8 +835,7 @@ assert_binary()
    bin="`which_binary "$1"`"
    if [ -z "$bin" ]
    then
-      echo "$1 can not be found" >&2
-      exit 1
+      fail "$1 can not be found"
    fi
 }
 
@@ -878,8 +879,7 @@ run_named_test()
 
    if [ ! -f "${1}" ]
    then
-      echo "error: source file not found" >&2
-      exit 1
+      fail "error: source file not found"
    fi
 
    for ext in ${SOURCE_EXTENSION}
@@ -895,8 +895,7 @@ run_named_test()
 
    if [ "${found}" = "NO" ]
    then
-      echo "error: source file must have ${SOURCE_EXTENSION} extension" >&2
-      exit 1
+      fail "error: source file must have ${SOURCE_EXTENSION} extension"
    fi
 
    old="`pwd -P`"
@@ -924,13 +923,12 @@ run_all_tests()
    then
       if [ "${FAILS}" -eq 0 ]
       then
-         echo "All tests ($RUNS) passed successfully" >&2
+         log_info "All tests ($RUNS) passed successfully" >&2
       else
-         echo "$FAILS tests out of $RUNS failed" >&2
+         log_error "$FAILS tests out of $RUNS failed" >&2
       fi
    else
-      echo "no tests found" >&2
-      exit 1
+      log_warning "No tests found"
    fi
 }
 
@@ -955,6 +953,18 @@ main()
       case "$1" in
          -v|--verbose)
             MULLE_TEST_VERBOSE="YES"
+            MULLE_BOOTSTRAP_VERBOSE="YES"
+         ;;
+
+         -vv)
+            MULLE_BOOTSTRAP_FLUFF="YES"
+            MULLE_BOOTSTRAP_VERBOSE="YES"
+         ;;
+
+         -vvv)
+            MULLE_BOOTSTRAP_FLUFF="YES"
+            MULLE_BOOTSTRAP_VERBOSE="YES"
+            MULLE_EXECUTOR_TRACE="YES"
          ;;
 
          -V)
@@ -973,12 +983,20 @@ main()
             MULLE_TEST_IGNORE_FAILURE="YES"
          ;;
 
+         --debug)
+            CFLAGS="${DEBUG_CFLAGS}"
+         ;;
+
+         --release)
+            CFLAGS="${RELEASE_CFLAGS}"
+         ;;
+
          -t|--trace)
             set -x
          ;;
 
          -*)
-            echo "unknown option \"$1\"" >&2
+            log_error "unknown option \"$1\""
             usage
          ;;
 
@@ -1049,7 +1067,10 @@ main()
 
 You commonly need a shared library target in your CMakeLists.txt that
 links in all the platform dependencies for your platform. This library
-should be installed into \"./lib\" (and headers into \"./include\")"
+should be installed into \"./lib\" (and headers into \"./include\").
+
+Conventinonally a \"build-test.sh\" script does this using the
+CMakeListst.txt of your project."
       exit 1
    fi
 
@@ -1094,8 +1115,7 @@ should be installed into \"./lib\" (and headers into \"./include\")"
 
    if [ -z "${CC}" ]
    then
-      echo "CC for C compiler not defined" >&2
-      exit 1
+      fail "CC for C compiler not defined"
    fi
 
    CCPATH="`which_binary "${CC}"`"
@@ -1111,7 +1131,7 @@ should be installed into \"./lib\" (and headers into \"./include\")"
    RUNS=0
    FAILS=0
 
-   if [ $# -eq 0 ]
+   if [ "$RUN_ALL" = "YES" -o $# -eq 0 ]
    then
       run_all_tests "$@"
    else

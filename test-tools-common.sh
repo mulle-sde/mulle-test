@@ -160,10 +160,14 @@ setup_tooling()
    case "${CC}" in
       *-cl|*-cl.exe|cl.exe|cl)
          CFLAGS="${DEFAULT_CL_CFLAGS}"
+         DEBUG_CFLAGS="${DEBUG_CL_CFLAGS}"
+         RELEASE_CFLAGS="${RELEASE_CL_CFLAGS}"
       ;;
 
       *)
          CFLAGS="${DEFAULT_GCC_CFLAGS}"
+         DEBUG_CFLAGS="${DEBUG_GCC_CFLAGS}"
+         RELEASE_CFLAGS="${RELEASE_GCC_CFLAGS}"
       ;;
    esac
 }
