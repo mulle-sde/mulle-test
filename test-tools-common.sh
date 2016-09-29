@@ -177,22 +177,41 @@ setup_environment()
 {
    case "${UNAME}" in
       mingw)
-         MULLE_LOG_DEVICE="/dev/stdout"
-         SHAREDLIB_PREFIX="${SHAREDLIB_PREFIX}"
+         SHAREDLIB_PREFIX=""
          SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.lib}" # link with extension
-         STATICLIB_PREFIX="${STATICLIB_PREFIX}"
+         STATICLIB_PREFIX=""
          STATICLIB_EXTENSION="${STATICLIB_EXTENSION:-.lib}" # link with extension
+         ;;
+
+      darwin)
+         SHAREDLIB_PREFIX="lib"
+         SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.dylib}" # link with extension
+         STATICLIB_PREFIX="lib"
+         STATICLIB_EXTENSION="${STATICLIB_EXTENSION:-.a}" # link with extension
+         ;;
+
+      *)
+         SHAREDLIB_PREFIX="lib"
+         SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.so}" # link with extension
+         STATICLIB_PREFIX="lib"
+         STATICLIB_EXTENSION="${STATICLIB_EXTENSION:-.a}" # link with extension
+      ;;
+   esac
+
+
+   case "${UNAME}" in
+      mingw)
+         MULLE_LOG_DEVICE="/dev/stdout"
          CRLFCAT="dos2unix"
          ;;
 
       darwin)
-         SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.dylib}"
          LDFLAGS="-framework Foundation"  ## harmles and sometimes useful
          CRLFCAT="cat"
          ;;
 
       linux)
-         LDFLAGS="-ldl -lpthread"
+         LDFLAGS="-ldl -lpthread"  # weak and lame
          CRLFCAT="cat"
          ;;
 
