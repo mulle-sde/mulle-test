@@ -847,7 +847,7 @@ assert_binary()
 #####################################################################
 # main
 #
-# if you really want to you can also specify the SHLIB_EXTENSION as
+# if you really want to you can also specify the LIB_EXTENSION as
 # .a, and then pass in the link dependencies as LDFLAGS. But is i
 # easier, than a shared library ?
 #
@@ -1020,7 +1020,7 @@ main()
 
    [ -z "${LIBRARY_SHORTNAME}" ] && fail "LIBRARY_SHORTNAME not set"
 
-   LIBRARY_FILENAME="${SHLIB_PREFIX}${LIBRARY_SHORTNAME}${STANDALONE_SUFFIX}${SHLIB_EXTENSION}"
+   LIBRARY_FILENAME="${LIB_PREFIX}${LIBRARY_SHORTNAME}${LIB_SUFFIX}${LIB_EXTENSION}"
    DEPENDENCIES_INCLUDE="../dependencies/include"
    ADDICTIONS_INCLUDE="../addictions/include"
 
@@ -1072,8 +1072,8 @@ You commonly need a shared library target in your CMakeLists.txt that
 links in all the platform dependencies for your platform. This library
 should be installed into \"./lib\" (and headers into \"./include\").
 
-Conventinonally a \"build-test.sh\" script does this using the
-CMakeListst.txt of your project."
+By convention a \"build-test.sh\" script does this using the
+\"CMakeLists.txt\" file of your project."
       exit 1
    fi
 

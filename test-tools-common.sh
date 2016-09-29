@@ -178,21 +178,20 @@ setup_environment()
    case "${UNAME}" in
       mingw)
          MULLE_LOG_DEVICE="/dev/stdout"
-         SHLIB_PREFIX="${SHLIB_PREFIX}"
-         SHLIB_EXTENSION="${SHLIB_EXTENSION:-.lib}" # link with extension
+         SHAREDLIB_PREFIX="${SHAREDLIB_PREFIX}"
+         SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.lib}" # link with extension
+         STATICLIB_PREFIX="${STATICLIB_PREFIX}"
+         STATICLIB_EXTENSION="${STATICLIB_EXTENSION:-.lib}" # link with extension
          CRLFCAT="dos2unix"
          ;;
 
       darwin)
-         SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
-         SHLIB_EXTENSION="${SHLIB_EXTENSION:-.dylib}"
+         SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.dylib}"
          LDFLAGS="-framework Foundation"  ## harmles and sometimes useful
          CRLFCAT="cat"
          ;;
 
       linux)
-         SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
-         SHLIB_EXTENSION="${SHLIB_EXTENSION:-.so}"
          LDFLAGS="-ldl -lpthread"
          CRLFCAT="cat"
          ;;
@@ -202,8 +201,6 @@ setup_environment()
       ;;
 
       *)
-         SHLIB_PREFIX="${SHLIB_PREFIX:-lib}"
-         SHLIB_EXTENSION="${SHLIB_EXTENSION:-.so}"
          CRLFCAT="cat"
          ;;
    esac
