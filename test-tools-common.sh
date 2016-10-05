@@ -159,13 +159,11 @@ setup_tooling()
 
    case "${CC}" in
       *-cl|*-cl.exe|cl.exe|cl)
-         CFLAGS="${DEFAULT_CL_CFLAGS}"
          DEBUG_CFLAGS="${DEBUG_CL_CFLAGS}"
          RELEASE_CFLAGS="${RELEASE_CL_CFLAGS}"
       ;;
 
       *)
-         CFLAGS="${DEFAULT_GCC_CFLAGS}"
          DEBUG_CFLAGS="${DEBUG_GCC_CFLAGS}"
          RELEASE_CFLAGS="${RELEASE_GCC_CFLAGS}"
       ;;
@@ -181,6 +179,8 @@ setup_environment()
          SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.lib}" # link with extension
          STATICLIB_PREFIX=""
          STATICLIB_EXTENSION="${STATICLIB_EXTENSION:-.lib}" # link with extension
+         EXE_EXTENSION=".exe"
+         DEBUG_EXE_EXTENSION=".debug.exe"
          ;;
 
       darwin)
@@ -188,6 +188,8 @@ setup_environment()
          SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.dylib}" # link with extension
          STATICLIB_PREFIX="lib"
          STATICLIB_EXTENSION="${STATICLIB_EXTENSION:-.a}" # link with extension
+         EXE_EXTENSION=""
+         DEBUG_EXE_EXTENSION=".debug"
          ;;
 
       *)
@@ -195,25 +197,27 @@ setup_environment()
          SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.so}" # link with extension
          STATICLIB_PREFIX="lib"
          STATICLIB_EXTENSION="${STATICLIB_EXTENSION:-.a}" # link with extension
+         EXE_EXTENSION=""
+         DEBUG_EXE_EXTENSION=".debug"
       ;;
    esac
 
 
    case "${UNAME}" in
       mingw)
-         MULLE_LOG_DEVICE="/dev/stdout"
+         MULLE_LOG_DEVICE="`tty`"
          CRLFCAT="dos2unix"
-         ;;
+      ;;
 
       darwin)
          LDFLAGS="-framework Foundation"  ## harmles and sometimes useful
          CRLFCAT="cat"
-         ;;
+      ;;
 
       linux)
          LDFLAGS="-ldl -lpthread"  # weak and lame
          CRLFCAT="cat"
-         ;;
+      ;;
 
       "")
          log_fail "UNAME not set"
@@ -221,7 +225,7 @@ setup_environment()
 
       *)
          CRLFCAT="cat"
-         ;;
+      ;;
    esac
  }
 

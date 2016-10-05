@@ -56,7 +56,6 @@ trace_ignore()
 #
 #
 #
-
 maybe_show_diagnostics()
 {
    local errput
@@ -108,7 +107,7 @@ search_for_strings()
    do
       if [ ! -z "$expect" ]
       then
-         match=`grep "$expect" "${errput}"`
+         match=`exekutor grep "$expect" "${errput}"`
          if [ "$match" = "" ]
          then
             if [ $fail -eq 0 ]
@@ -124,6 +123,89 @@ search_for_strings()
    return $fail
 }
 
+#
+# more specialized exekutors
+#
+#
+# also redirects error to output (for tests)
+#
+err_redirect_exekutor()
+{
+   local output
+
+   output="$1"
+   shift
+
+   if [ "${MULLE_EXECUTOR_DRY_RUN}" = "YES" -o "${MULLE_EXECUTOR_TRACE}" = "YES" ]
+   then
+      if [ -z "${MULLE_LOG_DEVICE}" ]
+      then
+         echo "==>" "$@" ">" "${output}" >&2
+      else
+         echo "==>" "$@" ">" "${output}" > "${MULLE_LOG_DEVICE}"
+      fi
+   fi
+
+   if [ "${MULLE_EXECUTOR_DRY_RUN}" != "YES" ]
+   then
+      "$@" > "${output}" 2>&1
+   fi
+}
+
+
+redirect_eval_exekutor()
+{
+   local output
+
+   output="$1"
+   shift
+
+   if [ "${MULLE_EXECUTOR_DRY_RUN}" = "YES" -o "${MULLE_EXECUTOR_TRACE}" = "YES" ]
+   then
+      if [ -z "${MULLE_LOG_DEVICE}" ]
+      then
+         echo "==>" "$@" ">" "${output}" >&2
+      else
+         echo "==>" "$@" ">" "${output}" > "${MULLE_LOG_DEVICE}"
+      fi
+   fi
+
+   if [ "${MULLE_EXECUTOR_DRY_RUN}" != "YES" ]
+   then
+      eval "$@" > "${output}"
+   fi
+}
+
+
+full_redirekt_eval_exekutor()
+{
+   local stdin
+   local stdout
+   local stderr
+
+   stdin="$1"
+   shift
+   stdout="$1"
+   shift
+   stderr="$1"
+   shift
+
+   if [ "${MULLE_EXECUTOR_DRY_RUN}" = "YES" -o "${MULLE_EXECUTOR_TRACE}" = "YES" ]
+   then
+      if [ -z "${MULLE_LOG_DEVICE}" ]
+      then
+         echo "==>" "$@" "<" "${stdin}" ">" "${stdout}" ">" "${stderr}" >&2
+      else
+         echo "==>" "$@" "<" "${stdin}" ">" "${stdout}" ">" "${stderr}" > "${MULLE_LOG_DEVICE}"
+      fi
+   fi
+
+   if [ "${MULLE_EXECUTOR_DRY_RUN}" != "YES" ]
+   then
+      eval "$@" < "${stdin}" > "${stdout}" 2> "${stderr}"
+   fi
+}
+
 
 fail_test_generic()
 {
@@ -133,7 +215,7 @@ fail_test_generic()
    local ext
 
    sourcefile="$1"
-   a_out="$2"
+   a_out_ext="$2"
    stdin="$3"
    ext="$4"
 
@@ -146,10 +228,10 @@ fail_test_generic()
 
 suggest_debugger_commandline()
 {
-   local a_out
+   local a_out_ext
    local stdin
 
-   a_out="$1"
+   a_out_ext="$1"
    stdin="$2"
 
    case "${UNAME}" in
@@ -161,7 +243,7 @@ MallocStackLogging=1 \
 MALLOC_FILL_SPACE=1 \
 DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
 DYLD_FALLBACK_LIBRARY_PATH=\"${DYLD_FALLBACK_LIBRARY_PATH}\" \
-LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}:${DEBUGGER_LIBRARY_PATH}\" ${DEBUGGER} ${a_out}.debug" >&2
+LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}:${DEBUGGER_LIBRARY_PATH}\" ${DEBUGGER} ${a_out_ext}" >&2
          if [ "${stdin}" != "/dev/null" ]
          then
             echo "run < ${stdin}" >&2
@@ -179,20 +261,20 @@ fail_test_makefile()
    local ext
 
    sourcefile="$1"
-   a_out="$2"
+   a_out_ext="$2"
    stdin="$3"
    ext="$4"
 
    if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
    then
       log_info "DEBUG: " >&2
-      log_info "rebuilding with -O0 and debug symbols..." >&2
+      log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
 
-      eval_exekutor CFLAGS="${CFLAGS} ${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
+      eval_exekutor CFLAGS="${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
       LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
-      OUTPUT="${a_out}.debug" make -B
+      OUTPUT="${a_out_ext}" make -B
 
-      suggest_debugger_commandline "${a_out}" "${stdin}"
+      suggest_debugger_commandline "${a_out_ext}" "${stdin}"
       exit 1
    fi
 }
@@ -206,24 +288,24 @@ fail_test_c()
    local ext
 
    sourcefile="$1"
-   a_out="$2"
+   a_out_ext="$2"
    stdin="$3"
    ext="$4"
 
    if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
    then
       log_info "DEBUG: "
-      log_info "rebuilding with -O0 and debug symbols..."
+      log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
 
-      exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out}.debug" \
+      exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out_ext}" \
          "-I${LIBRARY_INCLUDE}" \
          "-I${DEPENDENCIES_INCLUDE}" \
          "-I${ADDICTIONS_INCLUDE}" \
          ${LDFLAGS} \
          "${LIBRARY_PATH}" \
-         "${sourcefile}" > "${errput}" 2>&1
+         "${sourcefile}" 
 
-      suggest_debugger_commandline "${a_out}" "${stdin}"
+      suggest_debugger_commandline "${a_out_ext}" "${stdin}"
 
       exit 1
    fi
@@ -234,7 +316,7 @@ run_makefile_test()
 {
    local srcfile
    local owd
-   local a_out
+   local a_out_ext
 
    case "${UNAME}" in
       mingw)
@@ -245,12 +327,12 @@ run_makefile_test()
 
    srcfile="$1"
    owd="$2"
-   a_out="$3"
+   a_out_ext="$3"
 
    eval_exekutor CC="${CC}" \
    CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
    LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
-   OUTPUT="${a_out}" ${MAKE} -B
+   OUTPUT="${a_out_ext}" ${MAKE} -B
 }
 
 
@@ -258,21 +340,21 @@ run_gcc_compiler()
 {
    local srcfile
    local owd
-   local a_out
+   local a_out_ext
    local errput
 
    srcfile="$1"
    owd="$2"
-   a_out="$3"
+   a_out_ext="$3"
    errput="$4"
 
-   exekutor "${CC}" ${CFLAGS} -o "${a_out}" \
+   err_redirect_exekutor "${errput}" "${CC}" ${CFLAGS} -o "${a_out_ext}" \
    "-I${LIBRARY_INCLUDE}" \
    "-I${DEPENDENCIES_INCLUDE}" \
    "-I${ADDICTIONS_INCLUDE}" \
    "${sourcefile}" \
    "${LIBRARY_PATH}" \
-   ${LDFLAGS}  > "${errput}" 2>&1
+   ${LDFLAGS}  
 }
 
 
@@ -280,12 +362,12 @@ run_cl_compiler()
 {
    local srcfile
    local owd
-   local a_out
+   local a_out_ext
    local errput
 
    srcfile="$1"
    owd="$2"
-   a_out="$3"
+   a_out_ext="$3"
    errput="$4"
 
    local l_include
@@ -297,15 +379,15 @@ run_cl_compiler()
    l_path="`mingw_demangle_path "${LIBRARY_PATH}"`"
    d_include="`mingw_demangle_path "${DEPENDENCIES_INCLUDE}"`"
    a_include="`mingw_demangle_path "${ADDICTIONS_INCLUDE}"`"
-   a_out="`mingw_demangle_path "${a_out}"`"
+   a_out_ext="`mingw_demangle_path "${a_out_ext}"`"
 
-   exekutor "${CC}" ${CFLAGS} "/Fe${a_out}" \
+   err_redirect_exekutor "${errput}" "${CC}" ${CFLAGS} "/Fe${a_out_ext}" \
    "/I ${l_include}" \
    "/I ${d_include}" \
    "/I ${a_include}" \
    "${sourcefile}" \
    "${l_path}" \
-   ${LDFLAGS} > "${errput}" 2>&1
+   ${LDFLAGS} 
 }
 
 
@@ -325,29 +407,35 @@ run_compiler()
 
 run_a_out()
 {
-   local a_out
+   local input
+   local output
+   local errput
+   local a_out_ext
 
-   a_out="$1"
+   input="$1"
+   output="$2"
+   errput="$3"
+   a_out_ext="$4"
 
-   if [ ! -x "${a_out}" ]
+   if [ ! -x "${a_out_ext}" ]
    then
-      log_error "Compiler unexpectedly did not produce ${a_out}"
+      log_error "Compiler unexpectedly did not produce ${a_out_ext}"
       return 1
    fi
 
    case "${UNAME}" in
       darwin)
-         eval_exekutor MULLE_OBJC_TEST_ALLOCATOR=1 \
+         full_redirekt_eval_exekutor "${input}" "${output}" "${errput}" MULLE_OBJC_TEST_ALLOCATOR=1 \
 MallocStackLogging=1 \
 MallocScribble=1 \
 MallocPreScribble=1 \
 MallocGuardEdges=1 \
 MallocCheckHeapEach=1 \
-         "${a_out}"
+         "${a_out_ext}"
       ;;
 
       *)
-         eval_exekutor MULLE_OBJC_TEST_ALLOCATOR=1 "${a_out}"
+         full_redirekt_eval_exekutor "${input}" "${output}" "${errput}" MULLE_OBJC_TEST_ALLOCATOR=1 "${a_out_ext}"
       ;;
    esac
 }
@@ -395,7 +483,7 @@ check_compiler_output()
 
 _check_test_output()
 {
-   local a_out
+   local a_out_ext
    local ext
    local stdout
    local errput
@@ -411,14 +499,14 @@ _check_test_output()
    errput="$5"
    rval="$6"
    pretty_source="$7"
-   a_out="$8"
+   a_out_ext="$8"
    ext="$9"
 
    if [ ${rval} -ne 0 ]
    then
       if [ ! -f "${errors}" ]
       then
-         log_error "TEST CRASHED: \"${pretty_source}\" (${a_out}, ${errput})"
+         log_error "TEST CRASHED: \"${pretty_source}\" (${a_out_ext}, ${errput})"
          return 1
       fi
 
@@ -427,14 +515,14 @@ _check_test_output()
       if [ $? -eq 0 ]
       then
          # OK!
-         return 3  # but don't run a_out
+         return 3  # but don't run a_out_ext
       fi
       return 1
    fi
 
    if [ -f "${errors}" ]
    then
-      log_error "TEST FAILED TO CRASH: \"${pretty_source}\" (${a_out})"
+      log_error "TEST FAILED TO CRASH: \"${pretty_source}\" (${a_out_ext})"
       return 1
    fi
 
@@ -442,21 +530,21 @@ _check_test_output()
    then
       local result
 
-      result=`diff -q "${stdout}" "${output}"`
+      result=`exekutor diff -q "${stdout}" "${output}"`
       if [ "${result}" != "" ]
       then
-         white=`diff -q -w "${stdout}" "${output}"`
+         white=`exekutor diff -q -w "${stdout}" "${output}"`
          if [ "$white" != "" ]
          then
             log_error "FAILED: \"${pretty_source}\" produced unexpected output"
             log_info  "DIFF: (${output} vs. ${stdout})"
-            diff -y "${output}" "${stdout}" >&2
+            exekutor diff -y "${output}" "${stdout}" >&2
          else
             log_error "FAILED: \"${pretty_source}\" produced different whitespace output"
             log_info  "DIFF: (${stdout} vs. ${output})"
-            od -a "${output}" > "${output}.actual.hex"
-            od -a "${stdout}" > "${output}.expect.hex"
-            diff -y "${output}.expect.hex" "${output}.actual.hex" >&2
+            redirect_exekutor "${output}.actual.hex" od -a "${output}" 
+            redirect_exekutor "${output}.expect.hex" od -a "${stdout}" 
+            exekutor diff -y "${output}.expect.hex" "${output}.actual.hex" >&2
          fi
 
          return 2
@@ -464,7 +552,7 @@ _check_test_output()
    else
       local contents
 
-      contents="`head -2 "${output}"`" 2> /dev/null
+      contents="`exekutor head -2 "${output}"`" 2> /dev/null
       if [ "${contents}" != "" ]
       then
          log_warning "WARNING: \"${pretty_source}\" produced unexpected output (${output})" >&2
@@ -474,12 +562,12 @@ _check_test_output()
 
    if [ "${stderr}" != "-" ]
    then
-      result=`diff "${stderr}" "${errput}"`
+      result=`exekutor diff "${stderr}" "${errput}"`
       if [ "${result}" != "" ]
       then
          log_warning "WARNING: \"${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
-         echo "" >&2
-         diff "${stderr}" "${errput}" >&2
+         exekutor echo "" >&2
+         exekutor diff "${stderr}" "${errput}" >&2
          return 1
       fi
    fi
@@ -541,7 +629,7 @@ __preamble()
    output="${random}.stdout"
    errput="${random}.stderr"
    cc_errput="${random}.ccerr"
-   errors="`basename "${sourcefile}" "${ext}"`.errors"
+   errors="`basename -- "${sourcefile}" "${ext}"`.errors"
 
    owd="`pwd -P`"
    pretty_source=`relative_path_between "${owd}"/"${sourcefile}" "${root}"`
@@ -588,7 +676,11 @@ run_common_test()
 
    local rval
 
-   "${TEST_BUILDER}" "${srcfile}" "${owd}" "${a_out}" "${cc_errput}"
+   local a_out_ext
+
+   a_out_ext="${a_out}${EXE_EXTENSION}"
+ 
+   "${TEST_BUILDER}" "${srcfile}" "${owd}" "${a_out_ext}" "${cc_errput}"
    rval=$?
 
    check_compiler_output "${ccdiag}" "${cc_errput}" "${rval}" "${pretty_source}"
@@ -603,12 +695,12 @@ run_common_test()
       return $rval
    fi
 
-   local capture
-
-   capture="`run_a_out "${a_out}" < "${stdin}" 2> "${errput}"`"
+   run_a_out "${stdin}" "${output}.tmp" "${errput}.tmp" "${a_out_ext}" 
    rval=$?
 
-   echo "${capture}" | ${CRLFCAT} > "${output}"
+   redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
+   redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${errput}.tmp" 
+   exekutor rm "${output}.tmp" "${errput}.tmp"
 
    check_test_output  "${stdout}" \
                       "${stderr}" \
@@ -617,13 +709,15 @@ run_common_test()
                       "${errput}" \
                       "${rval}"   \
                       "${pretty_source}" \
-                      "${a_out}" \
+                      "${a_out_ext}" \
                       "${ext}"
    rval=$?
 
    if [ "${rval}" -ne 0 ]
    then
-      "${FAIL_TEST}" "${sourcefile}" "${a_out}" "${stdin}" "${ext}"
+      a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
+
+      "${FAIL_TEST}" "${sourcefile}" "${a_out_ext}" "${stdin}" "${ext}"
    fi
    return $rval
 }
@@ -639,7 +733,7 @@ run_makefile_test()
    local owd
 
    owd="`pwd -P`"
-   a_out="${owd}/${sourcefile}.exe"
+   a_out="${owd}/${sourcefile}"
 
    TEST_BUILDER=run_makefile
    FAIL_TEST=fail_test_makefile
@@ -659,7 +753,7 @@ run_c_test()
    local owd
 
    owd="`pwd -P`"
-   a_out="${owd}/`basename -- "${sourcefile}" "${ext}"`.exe"
+   a_out="${owd}/`basename -- "${sourcefile}" "${ext}"`"
 
    TEST_BUILDER=run_compiler
    FAIL_TEST=fail_test_c
@@ -753,7 +847,7 @@ run_test()
 
    if [ -z "${sourcefile}" ]
    then
-      sourcefile="`basename "${PWD}"`"
+      sourcefile="`basename -- "${PWD}"`"
    else
       sourcefile="${sourcefile}${ext}"
    fi
@@ -816,7 +910,7 @@ scan_current_directory()
             else
                for ext in ${SOURCE_EXTENSION}
                do
-                  filename=`basename "${i}" "${ext}"`
+                  filename=`basename -- "${i}" "${ext}"`
                   if [ "$filename" != "${i}" ]
                   then
                      run_test "${filename}" "${root}" "${ext}"
@@ -877,8 +971,8 @@ run_named_test()
    local old
    local ext
 
-   directory=`dirname "$1"`
-   filename=`basename "$1"`
+   directory=`dirname -- "$1"`
+   filename=`basename -- "$1"`
    found="NO"
 
    if [ -d "${1}" ]
@@ -895,7 +989,7 @@ run_named_test()
 
    for ext in ${SOURCE_EXTENSION}
    do
-      name=`basename "${filename}" "${ext}"`
+      name=`basename -- "${filename}" "${ext}"`
 
       if [ "${name}" != "${filename}" ]
       then
@@ -946,6 +1040,8 @@ run_all_tests()
 
 main()
 {
+   CFLAGS="${CFLAGS:-${RELEASE_CFLAGS}}"
+
    while [ $# -ne 0 ]
    do
       case "$1" in
@@ -1011,7 +1107,7 @@ main()
 
    if [ -z "${DEBUGGER_LIBRARY_PATH}" ]
    then
-      DEBUGGER_LIBRARY_PATH="`dirname "${DEBUGGER}"`/../lib"
+      DEBUGGER_LIBRARY_PATH="`dirname -- "${DEBUGGER}"`/../lib"
    fi
 
 
@@ -1080,9 +1176,9 @@ By convention a \"build-test.sh\" script does this using the
    #
    # figure out where the headers are
    #
-   LIBRARY_FILENAME="`basename "${LIBRARY_PATH}"`"
-   LIBRARY_DIR="`dirname "${LIBRARY_PATH}"`"
-   LIBRARY_ROOT="`dirname "${LIBRARY_DIR}"`"
+   LIBRARY_FILENAME="`basename -- "${LIBRARY_PATH}"`"
+   LIBRARY_DIR="`dirname -- "${LIBRARY_PATH}"`"
+   LIBRARY_ROOT="`dirname -- "${LIBRARY_DIR}"`"
 
    if [ -d "${LIBRARY_ROOT}/usr/local/include" ]
    then
@@ -1096,7 +1192,7 @@ By convention a \"build-test.sh\" script does this using the
    DEPENDENCIES_INCLUDE="`absolutepath "$DEPENDENCIES_INCLUDE"`"
    ADDICTIONS_INCLUDE="`absolutepath "$ADDICTIONS_INCLUDE"`"
 
-   LIBRARY_DIR="`dirname ${LIBRARY_PATH}`"
+   LIBRARY_DIR="`dirname -- ${LIBRARY_PATH}`"
 
    case "${UNAME}" in
       darwin)
@@ -1123,12 +1219,6 @@ By convention a \"build-test.sh\" script does this using the
 
    CCPATH="`which_binary "${CC}"`"
    assert_binary "$CCPATH"
-
-   if [ -z "${CFLAGS}" ]
-   then
-      CFLAGS="${DEFAULTCFLAGS}"
-   fi
-
 
    HAVE_WARNED="NO"
    RUNS=0

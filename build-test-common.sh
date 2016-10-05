@@ -67,13 +67,16 @@ do
    shift
 done
 
-
+#
+# build non-debug as a default
+#
 BUILD_DIR="${BUILD_DIR:-build}"
-BUILD_TYPE="${BUILD_TYPE:-Debug}"
-OSX_SYSROOT="${OSX_SYSROOT:-macosx}"
-BUILD_OPTIONS="${BUILD_OPTIONS:--c Debug -k}"
-INSTALL_PREFIX="`pwd -P`"
+BUILD_OPTIONS="${BUILD_OPTIONS:--k}"
+BUILD_TYPE="${BUILD_TYPE:-Release}"
+
 DEPENDENCIES_DIR="${DEPENDENCIES_DIR:-dependencies}"
+INSTALL_PREFIX="`pwd -P`"
+OSX_SYSROOT="${OSX_SYSROOT:-macosx}"
 
 if [ "${REBUILD}" = "YES" -a -d ../.bootstrap ]
 then
