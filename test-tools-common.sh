@@ -98,7 +98,6 @@ EOF
       exit 1
    fi
 
-
    #
    # this also loads in "logging"
    #
@@ -210,12 +209,12 @@ setup_environment()
       ;;
 
       darwin)
-         LDFLAGS="-framework Foundation"  ## harmles and sometimes useful
+         LDFLAGS="${LDFLAGS} -framework Foundation"  ## harmles and sometimes useful
          CRLFCAT="cat"
       ;;
 
       linux)
-         LDFLAGS="-ldl -lpthread"  # weak and lame
+         LDFLAGS="${LDFLAGS} -ldl -lpthread"  # weak and lame
          CRLFCAT="cat"
       ;;
 

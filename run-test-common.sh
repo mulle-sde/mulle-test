@@ -107,7 +107,7 @@ search_for_strings()
    do
       if [ ! -z "$expect" ]
       then
-         match=`exekutor grep "$expect" "${errput}"`
+         match=`eval_exekutor fgrep -s "'$expect'" "'${errput}'"`
          if [ "$match" = "" ]
          then
             if [ $fail -eq 0 ]
@@ -206,7 +206,9 @@ full_redirekt_eval_exekutor()
    fi
 }
 
-
+#
+# -----------------
+#
 fail_test_generic()
 {
    local sourcefile
@@ -265,13 +267,18 @@ fail_test_makefile()
    stdin="$3"
    ext="$4"
 
+   #hacque
+   local a_paths
+
+   a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
+
    if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
    then
       log_info "DEBUG: " >&2
       log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
 
       eval_exekutor CFLAGS="${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
-      LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
+      LDFLAGS="${LDFLAGS} ${LIBRARY_PATH} ${a_paths}" \
       OUTPUT="${a_out_ext}" make -B
 
       suggest_debugger_commandline "${a_out_ext}" "${stdin}"
@@ -292,6 +299,11 @@ fail_test_c()
    stdin="$3"
    ext="$4"
 
+   #hacque
+   local a_paths
+
+   a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
+
    if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
    then
       log_info "DEBUG: "
@@ -303,7 +315,8 @@ fail_test_c()
          "-I${ADDICTIONS_INCLUDE}" \
          ${LDFLAGS} \
          "${LIBRARY_PATH}" \
-         "${sourcefile}" 
+         "${a_paths}" \
+         "${sourcefile}"
 
       suggest_debugger_commandline "${a_out_ext}" "${stdin}"
 
@@ -331,7 +344,7 @@ run_makefile_test()
 
    eval_exekutor CC="${CC}" \
    CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
-   LDFLAGS="${LDFLAGS} ${LIBRARY_PATH}" \
+   LDFLAGS="${LDFLAGS} ${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS}" \
    OUTPUT="${a_out_ext}" ${MAKE} -B
 }
 
@@ -348,13 +361,19 @@ run_gcc_compiler()
    a_out_ext="$3"
    errput="$4"
 
+   #hacque
+   local a_paths
+
+   a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
+
    err_redirect_exekutor "${errput}" "${CC}" ${CFLAGS} -o "${a_out_ext}" \
    "-I${LIBRARY_INCLUDE}" \
    "-I${DEPENDENCIES_INCLUDE}" \
    "-I${ADDICTIONS_INCLUDE}" \
    "${sourcefile}" \
    "${LIBRARY_PATH}" \
-   ${LDFLAGS}  
+   "${a_paths}" \
+   ${LDFLAGS}
 }
 
 
@@ -381,13 +400,28 @@ run_cl_compiler()
    a_include="`mingw_demangle_path "${ADDICTIONS_INCLUDE}"`"
    a_out_ext="`mingw_demangle_path "${a_out_ext}"`"
 
+   local a_paths
+   local i
+   local demangle
+
+   IFS="
+"
+   for i in ${ADDITIONAL_LIBRARY_PATHS}
+   do
+      IFS="${DEFAULT_IFS}"
+      demangle="`mingw_demangle_path "${i}"`"
+      a_paths="`concat "${a_paths}" "${demangle}"`"
+   done
+   IFS="${DEFAULT_IFS}"
+
    err_redirect_exekutor "${errput}" "${CC}" ${CFLAGS} "/Fe${a_out_ext}" \
    "/I ${l_include}" \
    "/I ${d_include}" \
    "/I ${a_include}" \
    "${sourcefile}" \
    "${l_path}" \
-   ${LDFLAGS} 
+   "${a_paths}" \
+   ${LDFLAGS}
 }
 
 
@@ -492,13 +526,13 @@ _check_test_output()
    local rval
    local pretty_source
 
-   stdout="$1"
+   stdout="$1" # test provided
    stderr="$2"
    errors="$3"
-   output="$4"
+   output="$4" # test output
    errput="$5"
    rval="$6"
-   pretty_source="$7"
+   pretty_source="$7"  # environment
    a_out_ext="$8"
    ext="$9"
 
@@ -512,12 +546,7 @@ _check_test_output()
 
       search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
                          "${errput}" "${errors}"
-      if [ $? -eq 0 ]
-      then
-         # OK!
-         return 3  # but don't run a_out_ext
-      fi
-      return 1
+      return $?
    fi
 
    if [ -f "${errors}" ]
@@ -542,8 +571,8 @@ _check_test_output()
          else
             log_error "FAILED: \"${pretty_source}\" produced different whitespace output"
             log_info  "DIFF: (${stdout} vs. ${output})"
-            redirect_exekutor "${output}.actual.hex" od -a "${output}" 
-            redirect_exekutor "${output}.expect.hex" od -a "${stdout}" 
+            redirect_exekutor "${output}.actual.hex" od -a "${output}"
+            redirect_exekutor "${output}.expect.hex" od -a "${stdout}"
             exekutor diff -y "${output}.expect.hex" "${output}.actual.hex" >&2
          fi
 
@@ -634,7 +663,7 @@ __preamble()
    owd="`pwd -P`"
    pretty_source=`relative_path_between "${owd}"/"${sourcefile}" "${root}"`
 
-   log_verbose "${pretty_source}"
+   log_info "${pretty_source}"
 }
 
 
@@ -675,11 +704,12 @@ run_common_test()
    # denied, will always print TRACE/BPT
 
    local rval
-
    local a_out_ext
 
+   log_verbose "Build test"
+
    a_out_ext="${a_out}${EXE_EXTENSION}"
- 
+
    "${TEST_BUILDER}" "${srcfile}" "${owd}" "${a_out_ext}" "${cc_errput}"
    rval=$?
 
@@ -695,12 +725,16 @@ run_common_test()
       return $rval
    fi
 
-   run_a_out "${stdin}" "${output}.tmp" "${errput}.tmp" "${a_out_ext}" 
+   log_verbose "Run test"
+
+   run_a_out "${stdin}" "${output}.tmp" "${errput}.tmp" "${a_out_ext}"
    rval=$?
 
    redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
-   redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${errput}.tmp" 
+   redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${errput}.tmp"
    exekutor rm "${output}.tmp" "${errput}.tmp"
+
+   log_verbose "Check test output"
 
    check_test_output  "${stdout}" \
                       "${stderr}" \
@@ -888,13 +922,11 @@ scan_current_directory()
       return 0
    fi
 
-   old="${IFS:- }"
    IFS="
 "
-
    for i in `ls -1`
    do
-      IFS="${old}"
+      IFS="${DEFAULT_IFS}"
 
       case "${i}" in
          _*|build|include|lib|bin|tmp|etc|share)
@@ -922,7 +954,7 @@ scan_current_directory()
       esac
    done
 
-   IFS="${old}"
+   IFS="${DEFAULT_IFS}"
 }
 
 
@@ -935,6 +967,97 @@ assert_binary()
    then
       fail "$1 can not be found"
    fi
+}
+
+
+locate_path()
+{
+   local path
+
+   path="$1"
+
+   local found
+   found="`ls -1 "${path}" 2> /dev/null | tail -1`"
+
+   if [ ! -z "${MULLE_TEST_TRACE_LOOKUP}" ]
+   then
+      if [ -z "${found}" ]
+      then
+         log_trace "\"${path}\" does not exist"
+      else
+         log_trace "Found \"${found}\""
+      fi
+   fi
+
+   echo "${found}"
+}
+
+
+_locate_library()
+{
+   local filename
+
+   filename="$1"
+
+   local library_path
+
+   if [ ! -z "${LIB_PATH}" ]
+   then
+      library_path="`locate_path "${LIB_PATH}/${filename}"`"
+   fi
+   [ ! -z "${library_path}" ] && echo "${library_path}" && return
+
+   library_path="`locate_path "./lib/${filename}"`"
+   [ ! -z "${library_path}" ] && echo "${library_path}" && return
+
+   library_path="`locate_path "../lib/${filename}"`"
+   [ ! -z "${library_path}" ] && echo "${library_path}" && return
+
+   library_path="`locate_path "../dependencies/lib/${filename}"`"
+   [ ! -z "${library_path}" ] && echo "${library_path}" && return
+
+   library_path="`locate_path "../addictions/lib/${filename}"`"
+   [ ! -z "${library_path}" ] && echo "${library_path}" && return
+
+   library_path="`locate_path "./build/Products/Debug/${filename}"`"
+   [ ! -z "${library_path}" ] && echo "${library_path}" && return
+
+   library_path="`locate_path "../build/Products/Debug/${filename}"`"
+   [ ! -z "${library_path}" ] && echo "${library_path}" && return
+
+   echo "${library_path}"
+}
+
+
+locate_library()
+{
+  local library_path
+  local filename
+
+  filename="$1"
+  library_path="$2"
+
+   if [ -z "${library_path}" ]
+   then
+      library_path="`_locate_library "${filename}"`"
+   fi
+
+   if [ -z "${library_path}" ]
+   then
+      log_error "error: ${filename} can not be found."
+
+      log_info "Maybe you have not run \"build-test.sh\" yet ?
+
+You commonly need a shared library target in your CMakeLists.txt that
+links in all the platform dependencies for your platform. This library
+should be installed into \"./lib\" (and headers into \"./include\").
+
+By convention a \"build-test.sh\" script does this using the
+\"CMakeLists.txt\" file of your project."
+      exit 1
+   fi
+
+   echo "${library_path}"
 }
 
 
@@ -1040,27 +1163,30 @@ run_all_tests()
 
 main()
 {
+   DEFAULT_IFS="${IFS}"
+
    CFLAGS="${CFLAGS:-${RELEASE_CFLAGS}}"
 
    while [ $# -ne 0 ]
    do
       case "$1" in
          -v|--verbose)
+            BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
             MULLE_BOOTSTRAP_VERBOSE="YES"
          ;;
 
          -vv)
-            MULLE_BOOTSTRAP_FLUFF="YES"
-            MULLE_BOOTSTRAP_VERBOSE="YES"
-         ;;
-
-         -vvv)
+            BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
             MULLE_BOOTSTRAP_FLUFF="YES"
             MULLE_BOOTSTRAP_VERBOSE="YES"
             MULLE_EXECUTOR_TRACE="YES"
          ;;
 
-         -V)
+         -vvv)
+            BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
+            MULLE_TEST_TRACE_LOOKUP="YES"
+            MULLE_BOOTSTRAP_FLUFF="YES"
+            MULLE_BOOTSTRAP_VERBOSE="YES"
             MULLE_EXECUTOR_TRACE="YES"
          ;;
 
@@ -1080,8 +1206,17 @@ main()
             CFLAGS="${RELEASE_CFLAGS}"
          ;;
 
+         -s|--silent)
+            MULLE_BOOTSTRAP_TERSE="YES"
+         ;;
+
          -t|--trace)
             set -x
+         ;;
+
+         -te|--trace-execution)
+            BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
+            MULLE_EXECUTOR_TRACE="YES"
          ;;
 
          -*)
@@ -1110,7 +1245,6 @@ main()
       DEBUGGER_LIBRARY_PATH="`dirname -- "${DEBUGGER}"`/../lib"
    fi
 
-
    RESTORE_CRASHDUMP=`suppress_crashdumping`
    trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
 
@@ -1120,58 +1254,7 @@ main()
    DEPENDENCIES_INCLUDE="../dependencies/include"
    ADDICTIONS_INCLUDE="../addictions/include"
 
-   if [ -z "${LIBRARY_PATH}" ]
-   then
-      if [ ! -z "${LIB_PATH}" ]
-      then
-         LIBRARY_PATH="`ls -1 "${LIB_PATH}/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-      fi
-
-      if [ ! -f "${LIBRARY_PATH}" ]
-      then
-         LIBRARY_PATH="`ls -1 "./lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-      fi
-
-      if [ ! -f "${LIBRARY_PATH}" ]
-      then
-         LIBRARY_PATH="`ls -1 "../lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-      fi
-
-      if [ ! -f "${LIBRARY_PATH}" ]
-      then
-         LIBRARY_PATH="`ls -1 "../dependencies/lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-      fi
-
-      if [ ! -f "${LIBRARY_PATH}" ]
-      then
-         LIBRARY_PATH="`ls -1 "../addictions/lib/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-      fi
-
-      if [ ! -f "${LIBRARY_PATH}" ]
-      then
-         LIBRARY_PATH="`ls -1 "./build/Products/Debug/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-      fi
-
-      if [ ! -f "${LIBRARY_PATH}" ]
-      then
-         LIBRARY_PATH="`ls -1 "../build/Products/Debug/${LIBRARY_FILENAME}" 2> /dev/null | tail -1`"
-      fi
-   fi
-
-   if [ -z "${LIBRARY_PATH}" ]
-   then
-      log_error "error: ${LIBRARY_FILENAME} can not be found."
-
-      log_info "Maybe you have not run \"build-test.sh\" yet ?
-
-You commonly need a shared library target in your CMakeLists.txt that
-links in all the platform dependencies for your platform. This library
-should be installed into \"./lib\" (and headers into \"./include\").
-
-By convention a \"build-test.sh\" script does this using the
-\"CMakeLists.txt\" file of your project."
-      exit 1
-   fi
+   LIBRARY_PATH="`locate_library "${LIBRARY_FILENAME}" "${LIBRARY_PATH}"`" || exit 1
 
    #
    # figure out where the headers are
@@ -1187,10 +1270,10 @@ By convention a \"build-test.sh\" script does this using the
       LIBRARY_INCLUDE="${LIBRARY_ROOT}/include"
    fi
 
-   LIBRARY_PATH="`absolutepath "$LIBRARY_PATH"`"
-   LIBRARY_INCLUDE="`absolutepath "$LIBRARY_INCLUDE"`"
-   DEPENDENCIES_INCLUDE="`absolutepath "$DEPENDENCIES_INCLUDE"`"
-   ADDICTIONS_INCLUDE="`absolutepath "$ADDICTIONS_INCLUDE"`"
+   LIBRARY_PATH="`absolutepath "${LIBRARY_PATH}"`"
+   LIBRARY_INCLUDE="`absolutepath "${LIBRARY_INCLUDE}"`"
+   DEPENDENCIES_INCLUDE="`absolutepath "${DEPENDENCIES_INCLUDE}"`"
+   ADDICTIONS_INCLUDE="`absolutepath "${ADDICTIONS_INCLUDE}"`"
 
    LIBRARY_DIR="`dirname -- ${LIBRARY_PATH}`"
 
@@ -1211,6 +1294,29 @@ By convention a \"build-test.sh\" script does this using the
       ;;
    esac
 
+   #
+   # manage additional libraries, expected to be in same path
+   # as library
+   #
+   local i
+   local path
+   local filename
+
+IFS="
+"
+   for i in ${ADDITIONAL_LIBS}
+   do
+      IFS="${DEFAULT_IFS}"
+
+      filename="${LIB_PREFIX}${i}${LIB_SUFFIX}${LIB_EXTENSION}"
+      path="`locate_library "${filename}"`" || exit 1
+      path="`absolutepath "${path}"`"
+
+      ADDITIONAL_LIBRARY_PATHS="`concat "${ADDITIONAL_LIBRARY_PATHS}" "${path}"`"
+   done
+   IFS="${DEFAULT_IFS}"
+
+   log_fluff "Additonal libraries: ${ADDITIONAL_LIBRARY_PATHS}"
 
    if [ -z "${CC}" ]
    then
@@ -1226,7 +1332,6 @@ By convention a \"build-test.sh\" script does this using the
 
    if [ "$RUN_ALL" = "YES" -o $# -eq 0 ]
    then
-      MULLE_BOOTSTRAP_VERBOSE="${MULLE_BOOTSTRAP_VERBOSE:-YES}"
       run_all_tests "$@"
    else
       while [ $# -ne 0 ]
