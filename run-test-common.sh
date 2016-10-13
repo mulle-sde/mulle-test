@@ -272,7 +272,7 @@ fail_test_makefile()
 
    a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
 
-   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" -a "${BUILD_STYLE}" != "Debug" ]
    then
       log_info "DEBUG: " >&2
       log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
@@ -304,7 +304,7 @@ fail_test_c()
 
    a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
 
-   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" -a "${BUILD_STYLE}" != "Debug" ]
    then
       log_info "DEBUG: "
       log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
@@ -1199,10 +1199,12 @@ main()
          ;;
 
          --debug)
+            BUILD_STYLE=Debug
             CFLAGS="${DEBUG_CFLAGS}"
          ;;
 
          --release)
+            BUILD_STYLE=Release
             CFLAGS="${RELEASE_CFLAGS}"
          ;;
 

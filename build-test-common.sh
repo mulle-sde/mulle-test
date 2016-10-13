@@ -20,8 +20,9 @@ usage()
    cat <<EOF >&2
 usage: build-test.sh [-dj]
 
-   -d   : rebuild parent depedencies
-   -j   : number of cores parameter for make (${CORES})
+   --debug : build debug libraries
+   -d      : rebuild parent depedencies
+   -j      : number of cores parameter for make (${CORES})
 EOF
    exit 1
 }
@@ -44,8 +45,28 @@ do
          set -x
       ;;
 
-      -v)
+      -V)
       	MAKE_FLAGS="${MAKE_FLAGS} VERBOSE=1"
+      ;;
+
+      -v|--verbose)
+         BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
+         MULLE_BOOTSTRAP_FLUFF="NO"
+         MULLE_BOOTSTRAP_VERBOSE="YES"
+      ;;
+
+      -vv|--very-verbose)
+         BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
+         MULLE_BOOTSTRAP_FLUFF="YES"
+         MULLE_BOOTSTRAP_VERBOSE="YES"
+         MULLE_EXECUTOR_TRACE="YES"
+      ;;
+
+      -vvv|--very-verbose-with-settings)
+         BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
+         MULLE_BOOTSTRAP_FLUFF="YES"
+         MULLE_BOOTSTRAP_VERBOSE="YES"
+         MULLE_EXECUTOR_TRACE="YES"
       ;;
 
       -j)
@@ -53,6 +74,11 @@ do
          [ $# -eq 0 ] && usage
 
          CORES="$1"
+      ;;
+
+      --debug)
+         BUILD_TYPE=Debug
+         BUILD_OPTIONS="-c Debug -k"
       ;;
 
       -*)
@@ -82,9 +108,9 @@ if [ "${REBUILD}" = "YES" -a -d ../.bootstrap ]
 then
    if [ ! -d ../.repos -a ! -d ../archive ]
    then
-      ( cd .. ; mulle-bootstrap fetch )
+      ( cd .. ; mulle-bootstrap ${BOOTSTRAP_FLAGS} fetch )
    fi
-   ( cd .. ; mulle-bootstrap build ${BUILD_OPTIONS} "$@" )
+   ( cd .. ; mulle-bootstrap ${BOOTSTRAP_FLAGS} build ${BUILD_OPTIONS} "$@" )
 fi
 
 
@@ -107,17 +133,16 @@ fi
 
 if [ ! -d "${BUILD_DIR}" ]
 then
-   mkdir "${BUILD_DIR}" 2> /dev/null
+   exekutor mkdir "${BUILD_DIR}" 2> /dev/null
 fi
 
-cd "${BUILD_DIR}" || exit 1
+exekutor cd "${BUILD_DIR}" || exit 1
 
-${CMAKE} -G "${CMAKE_GENERATOR}" \
+exekutor ${CMAKE} -G "${CMAKE_GENERATOR}" \
       "-DCMAKE_OSX_SYSROOT=${OSX_SYSROOT}" \
       "-DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX}" \
       "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}" \
       "-DDEPENDENCIES_DIR=${DEPENDENCIES_DIR}" \
-      "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}" \
       ${CMAKE_FLAGS} \
       ../.. || exit 1
 
