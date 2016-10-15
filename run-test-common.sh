@@ -315,7 +315,7 @@ fail_test_c()
          "-I${ADDICTIONS_INCLUDE}" \
          ${LDFLAGS} \
          "${LIBRARY_PATH}" \
-         "${a_paths}" \
+         ${a_paths} \
          "${sourcefile}"
 
       suggest_debugger_commandline "${a_out_ext}" "${stdin}"
@@ -372,7 +372,7 @@ run_gcc_compiler()
    "-I${ADDICTIONS_INCLUDE}" \
    "${sourcefile}" \
    "${LIBRARY_PATH}" \
-   "${a_paths}" \
+   ${a_paths} \
    ${LDFLAGS}
 }
 
@@ -420,7 +420,7 @@ run_cl_compiler()
    "/I ${a_include}" \
    "${sourcefile}" \
    "${l_path}" \
-   "${a_paths}" \
+   ${a_paths} \
    ${LDFLAGS}
 }
 
