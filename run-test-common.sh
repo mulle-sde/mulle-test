@@ -325,7 +325,7 @@ fail_test_c()
 }
 
 
-run_makefile_test()
+run_makefile()
 {
    local srcfile
    local owd
@@ -342,10 +342,10 @@ run_makefile_test()
    owd="$2"
    a_out_ext="$3"
 
-   eval_exekutor CC="${CC}" \
-   CFLAGS="${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
-   LDFLAGS="${LDFLAGS} ${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS}" \
-   OUTPUT="${a_out_ext}" ${MAKE} -B
+   eval_exekutor CC="'${CC}'" \
+   CFLAGS="'${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
+   LDFLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS}'" \
+   OUTPUT="'${a_out_ext}'" ${MAKE} -B
 }
 
 
