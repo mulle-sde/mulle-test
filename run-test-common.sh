@@ -244,7 +244,7 @@ MULLE_TEST_ALLOCATOR_TRACE=2 \
 MallocStackLogging=1 \
 MALLOC_FILL_SPACE=1 \
 DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
-DYLD_FALLBACK_LIBRARY_PATH=\"${DYLD_FALLBACK_LIBRARY_PATH}\" \
+DYLD_LIBRARY_PATH=\"${DYLD_LIBRARY_PATH}\" \
 LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}:${DEBUGGER_LIBRARY_PATH}\" ${DEBUGGER} ${a_out_ext}" >&2
          if [ "${stdin}" != "/dev/null" ]
          then
@@ -1281,8 +1281,8 @@ main()
 
    case "${UNAME}" in
       darwin)
-         DYLD_FALLBACK_LIBRARY_PATH="${LIBRARY_DIR}"
-         export DYLD_FALLBACK_LIBRARY_PATH
+         DYLD_LIBRARY_PATH="${LIBRARY_DIR}"
+         export DYLD_LIBRARY_PATH
       ;;
 
       linux)
