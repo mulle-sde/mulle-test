@@ -277,9 +277,11 @@ fail_test_makefile()
       log_info "DEBUG: " >&2
       log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
 
-      eval_exekutor CFLAGS="${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}" \
-      LDFLAGS="${LDFLAGS} ${LIBRARY_PATH} ${a_paths}" \
-      OUTPUT="${a_out_ext}" make -B
+      eval_exekutor \
+      CFLAGS="'${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
+      LDFLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${a_paths}'" \
+      OUTPUT="'${a_out_ext}'" \
+      ${MAKE} -B
 
       suggest_debugger_commandline "${a_out_ext}" "${stdin}"
       exit 1
