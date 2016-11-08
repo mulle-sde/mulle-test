@@ -316,10 +316,10 @@ fail_test_c()
          "-I${LIBRARY_INCLUDE}" \
          "-I${DEPENDENCIES_INCLUDE}" \
          "-I${ADDICTIONS_INCLUDE}" \
-         ${LDFLAGS} \
+         "${sourcefile}" \
          "${LIBRARY_PATH}" \
          ${a_paths} \
-         "${sourcefile}"
+         ${LDFLAGS} 
 
       suggest_debugger_commandline "${a_out_ext}" "${stdin}"
 
@@ -376,7 +376,7 @@ run_gcc_compiler()
    "${sourcefile}" \
    "${LIBRARY_PATH}" \
    ${a_paths} \
-   ${LDFLAGS}
+   ${LDFLAGS} 
 }
 
 
@@ -458,6 +458,12 @@ run_a_out()
    then
       log_error "Compiler unexpectedly did not produce ${a_out_ext}"
       return 1
+   fi
+
+   if [ "${MULLE_EXECUTOR_TRACE}" = "YES" ]
+   then
+      echo "Environment:" >&2
+      env | sort >&2
    fi
 
    case "${UNAME}" in
@@ -1284,18 +1290,24 @@ main()
 
    case "${UNAME}" in
       darwin)
-         DYLD_LIBRARY_PATH="${LIBRARY_DIR}"
+         DYLD_LIBRARY_PATH="${DYLD_LIBRARY_PATH}:${LIBRARY_DIR}"
          export DYLD_LIBRARY_PATH
+
+         log_verbose "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}"
       ;;
 
       linux)
-         LD_LIBRARY_PATH="${LIBRARY_DIR}"
+         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${LIBRARY_DIR}"
          export LD_LIBRARY_PATH
+
+         log_verbose "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
       ;;
 
       mingw*)
-         PATH="${PATH}:${LIBRARY_DIR}"
+         PATH="${PATH}:${LIBRARY_DIR}:"
          export PATH
+
+         log_verbose "PATH=${PATH}"
       ;;
    esac
 
