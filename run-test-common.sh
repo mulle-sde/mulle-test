@@ -101,14 +101,15 @@ search_for_strings()
    local fail
    local expect
    local match
+   local escaped
 
    fail=0
    while read expect
    do
       if [ ! -z "$expect" ]
       then
-         match=`eval_exekutor fgrep -s "'$expect'" "'${errput}'"`
-         if [ "$match" = "" ]
+         match=`exekutor fgrep -s "${escaped}" "${errput}"`
+         if [ -z "$match" ]
          then
             if [ $fail -eq 0 ]
             then
