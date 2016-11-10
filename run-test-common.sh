@@ -246,12 +246,26 @@ MallocStackLogging=1 \
 MALLOC_FILL_SPACE=1 \
 DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
 DYLD_LIBRARY_PATH=\"${DYLD_LIBRARY_PATH}\" \
-LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}:${DEBUGGER_LIBRARY_PATH}\" ${DEBUGGER} ${a_out_ext}" >&2
+${DEBUGGER} ${a_out_ext}" >&2
          if [ "${stdin}" != "/dev/null" ]
          then
             echo "run < ${stdin}" >&2
          fi
       ;;
+
+      linux)
+         echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
+MULLE_OBJC_TEST_ALLOCATOR=1 \
+MULLE_TEST_ALLOCATOR_TRACE=2 \
+MallocStackLogging=1 \
+MALLOC_FILL_SPACE=1 \
+LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}\" \
+${DEBUGGER} ${a_out_ext}" >&2
+         if [ "${stdin}" != "/dev/null" ]
+         then
+            echo "run < ${stdin}" >&2
+         fi
+     ;;
    esac
 }
 
@@ -1290,21 +1304,21 @@ main()
 
    case "${UNAME}" in
       darwin)
-         DYLD_LIBRARY_PATH="${DYLD_LIBRARY_PATH}:${LIBRARY_DIR}"
+         DYLD_LIBRARY_PATH="${LIBRARY_DIR}:${DYLD_LIBRARY_PATH}"
          export DYLD_LIBRARY_PATH
 
          log_verbose "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}"
       ;;
 
       linux)
-         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${LIBRARY_DIR}"
+         LD_LIBRARY_PATH="${LIBRARY_DIR}:${LD_LIBRARY_PATH}"
          export LD_LIBRARY_PATH
 
          log_verbose "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
       ;;
 
       mingw*)
-         PATH="${PATH}:${LIBRARY_DIR}:"
+         PATH="${LIBRARY_DIR}:${PATH}"
          export PATH
 
          log_verbose "PATH=${PATH}"
