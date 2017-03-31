@@ -100,7 +100,9 @@ BUILD_DIR="${BUILD_DIR:-build}"
 BUILD_OPTIONS="${BUILD_OPTIONS:--k}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 
-DEPENDENCIES_DIR="${DEPENDENCIES_DIR:-dependencies}"
+DEPENDENCIES_DIR="`mulle-bootstrap paths dependencies`"
+ADDICTIONS_DIR="`mulle-bootstrap paths addictions`"
+
 INSTALL_PREFIX="`pwd -P`"
 OSX_SYSROOT="${OSX_SYSROOT:-macosx}"
 

@@ -209,7 +209,15 @@ setup_environment()
       ;;
 
       darwin)
-         LDFLAGS="${LDFLAGS} -framework Foundation"  ## harmles and sometimes useful
+         case "${CC}" in
+            mulle-clang)
+               # do nuthing
+            ;;
+
+            *)
+               LDFLAGS="${LDFLAGS} -framework Foundation"  ## harmles and sometimes useful
+            ;;
+         esac
          CRLFCAT="cat"
       ;;
 

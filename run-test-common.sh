@@ -137,17 +137,17 @@ err_redirect_exekutor()
    output="$1"
    shift
 
-   if [ "${MULLE_EXECUTOR_DRY_RUN}" = "YES" -o "${MULLE_EXECUTOR_TRACE}" = "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = "YES" -o "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
    then
-      if [ -z "${MULLE_LOG_DEVICE}" ]
+      if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then
          echo "==>" "$@" ">" "${output}" >&2
       else
-         echo "==>" "$@" ">" "${output}" > "${MULLE_LOG_DEVICE}"
+         echo "==>" "$@" ">" "${output}" > "${MULLE_EXEKUTOR_LOG_DEVICE}"
       fi
    fi
 
-   if [ "${MULLE_EXECUTOR_DRY_RUN}" != "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != "YES" ]
    then
       "$@" > "${output}" 2>&1
    fi
@@ -161,17 +161,17 @@ redirect_eval_exekutor()
    output="$1"
    shift
 
-   if [ "${MULLE_EXECUTOR_DRY_RUN}" = "YES" -o "${MULLE_EXECUTOR_TRACE}" = "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = "YES" -o "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
    then
-      if [ -z "${MULLE_LOG_DEVICE}" ]
+      if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then
          echo "==>" "$@" ">" "${output}" >&2
       else
-         echo "==>" "$@" ">" "${output}" > "${MULLE_LOG_DEVICE}"
+         echo "==>" "$@" ">" "${output}" > "${MULLE_EXEKUTOR_LOG_DEVICE}"
       fi
    fi
 
-   if [ "${MULLE_EXECUTOR_DRY_RUN}" != "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != "YES" ]
    then
       eval "$@" > "${output}"
    fi
@@ -191,17 +191,17 @@ full_redirekt_eval_exekutor()
    stderr="$1"
    shift
 
-   if [ "${MULLE_EXECUTOR_DRY_RUN}" = "YES" -o "${MULLE_EXECUTOR_TRACE}" = "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = "YES" -o "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
    then
-      if [ -z "${MULLE_LOG_DEVICE}" ]
+      if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then
          echo "==>" "$@" "<" "${stdin}" ">" "${stdout}" ">" "${stderr}" >&2
       else
-         echo "==>" "$@" "<" "${stdin}" ">" "${stdout}" ">" "${stderr}" > "${MULLE_LOG_DEVICE}"
+         echo "==>" "$@" "<" "${stdin}" ">" "${stdout}" ">" "${stderr}" > "${MULLE_EXEKUTOR_LOG_DEVICE}"
       fi
    fi
 
-   if [ "${MULLE_EXECUTOR_DRY_RUN}" != "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != "YES" ]
    then
       eval "$@" < "${stdin}" > "${stdout}" 2> "${stderr}"
    fi
@@ -242,6 +242,8 @@ suggest_debugger_commandline()
          echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
 MULLE_OBJC_TEST_ALLOCATOR=1 \
 MULLE_TEST_ALLOCATOR_TRACE=2 \
+MULLE_OBJC_TRACE_ENABLED=YES \
+MULLE_OBJC_WARN_ENABLED=YES \
 MallocStackLogging=1 \
 MALLOC_FILL_SPACE=1 \
 DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
@@ -257,6 +259,8 @@ ${DEBUGGER} ${a_out_ext}" >&2
          echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
 MULLE_OBJC_TEST_ALLOCATOR=1 \
 MULLE_TEST_ALLOCATOR_TRACE=2 \
+MULLE_OBJC_TRACE_ENABLED=YES \
+MULLE_OBJC_WARN_ENABLED=YES \
 MallocStackLogging=1 \
 MALLOC_FILL_SPACE=1 \
 LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}\" \
@@ -333,7 +337,7 @@ fail_test_c()
          "${sourcefile}" \
          "${LIBRARY_PATH}" \
          ${a_paths} \
-         ${LDFLAGS} 
+         ${LDFLAGS}
 
       suggest_debugger_commandline "${a_out_ext}" "${stdin}"
 
@@ -344,9 +348,9 @@ fail_test_c()
 
 run_makefile()
 {
-   local srcfile
-   local owd
-   local a_out_ext
+   local srcfile="$1"
+   local owd="$2"
+   local a_out_ext="$3"
 
    case "${UNAME}" in
       mingw)
@@ -354,10 +358,6 @@ run_makefile()
          return
       ;;
    esac
-
-   srcfile="$1"
-   owd="$2"
-   a_out_ext="$3"
 
    eval_exekutor CC="'${CC}'" \
    CFLAGS="'${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
@@ -368,43 +368,44 @@ run_makefile()
 
 run_gcc_compiler()
 {
-   local srcfile
-   local owd
-   local a_out_ext
-   local errput
-
-   srcfile="$1"
-   owd="$2"
-   a_out_ext="$3"
-   errput="$4"
+   local srcfile="$1"
+   local owd="$2"
+   local a_out_ext="$3"
+   local errput="$4"
 
    #hacque
    local a_paths
 
    a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
 
-   err_redirect_exekutor "${errput}" "${CC}" ${CFLAGS} -o "${a_out_ext}" \
+   local cflagsname
+   local cflags
+
+   cflags="${CFLAGS}"
+   cflagsname="`echo "${srcfile}" | sed 's/\.[^.]*$//'`.CFLAGS"
+
+   if [ -f "${cflagsname}" ]
+   then
+      cflags="`cat "${cflagsname}"`"
+   fi
+
+   err_redirect_exekutor "${errput}" "${CC}" ${cflags} -o "${a_out_ext}" \
    "-I${LIBRARY_INCLUDE}" \
    "-I${DEPENDENCIES_INCLUDE}" \
    "-I${ADDICTIONS_INCLUDE}" \
-   "${sourcefile}" \
+   "${srcfile}" \
    "${LIBRARY_PATH}" \
    ${a_paths} \
-   ${LDFLAGS} 
+   ${LDFLAGS}
 }
 
 
 run_cl_compiler()
 {
-   local srcfile
-   local owd
-   local a_out_ext
-   local errput
-
-   srcfile="$1"
-   owd="$2"
-   a_out_ext="$3"
-   errput="$4"
+   local srcfile="$1"
+   local owd="$2"
+   local a_out_ext="$3"
+   local errput="$4"
 
    local l_include
    local l_path
@@ -431,7 +432,18 @@ run_cl_compiler()
    done
    IFS="${DEFAULT_IFS}"
 
-   err_redirect_exekutor "${errput}" "${CC}" ${CFLAGS} "/Fe${a_out_ext}" \
+   local cflagsname
+   local cflags
+
+   cflags="${CFLAGS}"
+   cflagsname="`echo "${srcfile}" | sed 's/\.[^.]*$//'`.CLFLAGS"
+
+   if [ -f "${cflagsname}" ]
+   then
+      cflags="`cat "${cflagsname}"`"
+   fi
+
+   err_redirect_exekutor "${errput}" "${CC}" ${cflags} "/Fe${a_out_ext}" \
    "/I ${l_include}" \
    "/I ${d_include}" \
    "/I ${a_include}" \
@@ -474,7 +486,7 @@ run_a_out()
       return 1
    fi
 
-   if [ "${MULLE_EXECUTOR_TRACE}" = "YES" ]
+   if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
    then
       echo "Environment:" >&2
       env | sort >&2
@@ -692,23 +704,14 @@ __preamble()
 
 run_common_test()
 {
-   local a_out
-   local sourcefile
-   local ext
-   local root
-   local stdin
-   local stdout
-   local stderr
-   local ccdiag
-
-   a_out="$1"
-   sourcefile="$2"
-   root="$3"
-   ext="$4"
-   stdin="$5"
-   stdout="$6"
-   stderr="$7"
-   ccdiag="$8"
+   local a_out="$1"
+   local srcfile="$2"
+   local root="$3"
+   local ext="$4"
+   local stdin="$5"
+   local stdout="$6"
+   local stderr="$7"
+   local ccdiag="$8"
 
    local output
    local cc_errput
@@ -718,7 +721,7 @@ run_common_test()
    local match
    local pretty_source
 
-   __preamble "${sourcefile}" "${root}" "${ext}"
+   __preamble "${srcfile}" "${root}" "${ext}"
 
    # plz2shutthefuckup bash
    set +m
@@ -774,7 +777,7 @@ run_common_test()
    then
       a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
 
-      "${FAIL_TEST}" "${sourcefile}" "${a_out_ext}" "${stdin}" "${ext}"
+      "${FAIL_TEST}" "${srcfile}" "${a_out_ext}" "${stdin}" "${ext}"
    fi
    return $rval
 }
@@ -1036,10 +1039,10 @@ _locate_library()
    library_path="`locate_path "../lib/${filename}"`"
    [ ! -z "${library_path}" ] && echo "${library_path}" && return
 
-   library_path="`locate_path "../dependencies/lib/${filename}"`"
+   library_path="`locate_path "${DEPENDENCIES}/lib/${filename}"`"
    [ ! -z "${library_path}" ] && echo "${library_path}" && return
 
-   library_path="`locate_path "../addictions/lib/${filename}"`"
+   library_path="`locate_path "${ADDICTIONS}/lib/${filename}"`"
    [ ! -z "${library_path}" ] && echo "${library_path}" && return
 
    library_path="`locate_path "./build/Products/Debug/${filename}"`"
@@ -1202,7 +1205,7 @@ main()
             BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
             MULLE_BOOTSTRAP_FLUFF="YES"
             MULLE_BOOTSTRAP_VERBOSE="YES"
-            MULLE_EXECUTOR_TRACE="YES"
+            MULLE_FLAG_LOG_EXEKUTOR="YES"
          ;;
 
          -vvv)
@@ -1210,11 +1213,11 @@ main()
             MULLE_TEST_TRACE_LOOKUP="YES"
             MULLE_BOOTSTRAP_FLUFF="YES"
             MULLE_BOOTSTRAP_VERBOSE="YES"
-            MULLE_EXECUTOR_TRACE="YES"
+            MULLE_FLAG_LOG_EXEKUTOR="YES"
          ;;
 
          -n)
-            MULLE_EXECUTOR_DRY_RUN="YES"
+            MULLE_FLAG_EXEKUTOR_DRY_RUN="YES"
          ;;
 
          -f)
@@ -1241,7 +1244,7 @@ main()
 
          -te|--trace-execution)
             BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
-            MULLE_EXECUTOR_TRACE="YES"
+            MULLE_FLAG_LOG_EXEKUTOR="YES"
          ;;
 
          -*)
@@ -1276,8 +1279,12 @@ main()
    [ -z "${LIBRARY_SHORTNAME}" ] && fail "LIBRARY_SHORTNAME not set"
 
    LIBRARY_FILENAME="${LIB_PREFIX}${LIBRARY_SHORTNAME}${LIB_SUFFIX}${LIB_EXTENSION}"
-   DEPENDENCIES_INCLUDE="../dependencies/include"
-   ADDICTIONS_INCLUDE="../addictions/include"
+
+   DEPENDENCIES="`mulle-bootstrap paths dependencies`"
+   ADDICTIONS="`mulle-bootstrap paths addictions`"
+
+   DEPENDENCIES_INCLUDE="${DEPENDENCIES}/include"
+   ADDICTIONS_INCLUDE="${ADDICTIONS}/include"
 
    LIBRARY_PATH="`locate_library "${LIBRARY_FILENAME}" "${LIBRARY_PATH}"`" || exit 1
 
@@ -1373,4 +1380,5 @@ IFS="
    fi
 }
 
+MULLE_EXECUTABLE_PID=$$
 main "$@"
