@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-REQUIRED_FUNCTIONS_MIN_MAJOR=2
+REQUIRED_FUNCTIONS_MIN_MAJOR=3
 REQUIRED_FUNCTIONS_MIN_MINOR=0
 
 
@@ -99,9 +99,10 @@ EOF
    fi
 
    #
-   # this also loads in "logging"
+   # this also loads in "logging" and "which_binary"
    #
    PATH="${BOOTSTRAP_LIBEXECPATH}:$PATH" . mulle-bootstrap-functions.sh >&2
+   PATH="${BOOTSTRAP_LIBEXECPATH}:$PATH" . mulle-bootstrap-command.sh >&2
 
    assert_version "mulle-bootstrap-functions.sh"         \
                   "${MULLE_BOOTSTRAP_FUNCTIONS_VERSION}" \
