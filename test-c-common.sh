@@ -1,3 +1,5 @@
+#! /usr/bin/env bash
+
 SOURCE_EXTENSION=".c"
 STANDALONE_SUFFIX="_standalone"
 

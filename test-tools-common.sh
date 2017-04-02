@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /usr/bin/env bash
 
 REQUIRED_FUNCTIONS_MIN_MAJOR=2
 REQUIRED_FUNCTIONS_MIN_MINOR=0

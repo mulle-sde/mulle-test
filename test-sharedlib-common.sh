@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /usr/bin/env bash
 
 LIB_PREFIX="${SHAREDLIB_PREFIX}"
 LIB_EXTENSION="${SHAREDLIB_EXTENSION}"
