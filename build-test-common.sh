@@ -21,6 +21,7 @@ usage()
 usage: build-test.sh [-dj]
 
    --debug : build debug libraries
+   -f      : remove previous build results
    -d      : rebuild parent depedencies
    -j      : number of cores parameter for make (${CORES})
 EOF
@@ -35,6 +36,10 @@ do
    case "$1" in
       -h|--help)
          usage
+      ;;
+
+      -f)
+         FORCE="YES"
       ;;
 
       -d)
@@ -105,6 +110,29 @@ ADDICTIONS_DIR="`mulle-bootstrap paths addictions`"
 
 INSTALL_PREFIX="`pwd -P`"
 OSX_SYSROOT="${OSX_SYSROOT:-macosx}"
+
+if [ "${FORCE}" = "YES" ]
+then
+   if [ -d "build" ]
+   then
+      rm -rf build
+   fi
+
+   if [ -d "include" ]
+   then
+      rm -rf include
+   fi
+
+   if [ -d "lib" ]
+   then
+      rm -rf lib
+   fi
+
+   if [ -d "Frameworks" ]
+   then
+      rm -rf Frameworks
+   fi
+fi
 
 if [ "${REBUILD}" = "YES" -a -d ../.bootstrap ]
 then

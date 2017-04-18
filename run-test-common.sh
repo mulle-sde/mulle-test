@@ -53,6 +53,7 @@ trace_ignore()
 }
 
 
+
 #
 #
 #
@@ -149,7 +150,17 @@ err_redirect_exekutor()
 
    if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != "YES" ]
    then
+      local rval
+
       "$@" > "${output}" 2>&1
+      rval=$?
+
+      if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+      then
+         cat "${output}" >&2 # get stderr mixed in :/
+      fi
+
+      return $rval
    fi
 }
 
@@ -195,15 +206,25 @@ full_redirekt_eval_exekutor()
    then
       if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then
-         echo "==>" "$@" "<" "${stdin}" ">" "${stdout}" ">" "${stderr}" >&2
+         echo "==>" "$@" "<" "${stdin}" ">" "${stdout}" "2>" "${stderr}" >&2
       else
-         echo "==>" "$@" "<" "${stdin}" ">" "${stdout}" ">" "${stderr}" > "${MULLE_EXEKUTOR_LOG_DEVICE}"
+         echo "==>" "$@" "<" "${stdin}" ">" "${stdout}" "2>" "${stderr}" > "${MULLE_EXEKUTOR_LOG_DEVICE}"
       fi
    fi
 
    if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != "YES" ]
    then
+      local rval
+
       eval "$@" < "${stdin}" > "${stdout}" 2> "${stderr}"
+      rval=$?
+
+      if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+      then
+         cat "${stderr}" >&2
+      fi
+
+      return $rval
    fi
 }
 
@@ -300,7 +321,7 @@ fail_test_makefile()
       CFLAGS="'${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
       LDFLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${a_paths}'" \
       OUTPUT="'${a_out_ext}'" \
-      ${MAKE} -B
+      ${MAKE} -B ${MAKEFLAGS}
 
       suggest_debugger_commandline "${a_out_ext}" "${stdin}"
       exit 1
@@ -362,7 +383,7 @@ run_makefile()
    eval_exekutor CC="'${CC}'" \
    CFLAGS="'${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
    LDFLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS}'" \
-   OUTPUT="'${a_out_ext}'" ${MAKE} -B
+   OUTPUT="'${a_out_ext}'" ${MAKE} -B ${MAKEFLAGS}
 }
 
 
@@ -678,13 +699,9 @@ check_test_output()
 #
 __preamble()
 {
-   local sourcefile
-   local root
-   local ext
-
-   sourcefile="$1"
-   root="$2"
-   ext="$3"
+   local name="$1"
+   local root="$2"
+   local sourcefile="$3"
 
    local random
 
@@ -693,7 +710,7 @@ __preamble()
    output="${random}.stdout"
    errput="${random}.stderr"
    cc_errput="${random}.ccerr"
-   errors="`basename -- "${sourcefile}" "${ext}"`.errors"
+   errors="${name}.errors"
 
    owd="`pwd -P`"
    pretty_source=`relative_path_between "${owd}"/"${sourcefile}" "${root}"`
@@ -705,7 +722,7 @@ __preamble()
 run_common_test()
 {
    local a_out="$1"
-   local srcfile="$2"
+   local name="$2"
    local root="$3"
    local ext="$4"
    local stdin="$5"
@@ -721,7 +738,11 @@ run_common_test()
    local match
    local pretty_source
 
-   __preamble "${srcfile}" "${root}" "${ext}"
+   local srcfile
+
+   srcfile="${name}${ext}"
+
+   __preamble "${name}" "${root}" "${srcfile}"
 
    # plz2shutthefuckup bash
    set +m
@@ -785,15 +806,13 @@ run_common_test()
 
 run_makefile_test()
 {
-   local sourcefile
-
-   sourcefile="$1"
+   local name="$1"
 
    local a_out
    local owd
 
    owd="`pwd -P`"
-   a_out="${owd}/${sourcefile}"
+   a_out="${owd}/${name}"
 
    TEST_BUILDER=run_makefile
    FAIL_TEST=fail_test_makefile
@@ -803,17 +822,14 @@ run_makefile_test()
 
 run_c_test()
 {
-   local sourcefile
-   local ext
-
-   sourcefile="$1"
-   ext="$3"
+   local name="$1"
+   local ext="$3"
 
    local a_out
    local owd
 
    owd="`pwd -P`"
-   a_out="${owd}/`basename -- "${sourcefile}" "${ext}"`"
+   a_out="${owd}/${name}"
 
    TEST_BUILDER=run_compiler
    FAIL_TEST=fail_test_c
@@ -833,118 +849,117 @@ run_cpp_test()
 }
 
 
+# we are in the test directory
+#
+# testname: is either the test.m or "" for Makefile
+# runtest : is where the user started the search, its only used for printing
+# ext     : extension of the file used for tmp filename construction
+#
 run_test()
 {
-   local sourcefile
-   local root
-   local ext
-   local makefile
+   local name="$1"
+   local root="$2"
+   local ext="$3"
 
-   sourcefile="$1"
-   root="$2"
-   ext="$3"
+   local makefile
+   local testpath
+   local name
 
    local stdin
    local stdout
    local stderr
    local plist
 
-   stdin="$1.stdin"
-   if [ ! -f "${stdin}" ]
+   log_fluff "Looking for test files in $PWD"
+
+   stdin="${name}.stdin"
+   if exekutor [ ! -f "${stdin}" ]
    then
-      stdin="provide/$1.stdin"
+      stdin="provide/${name}.stdin"
    fi
-   if [ ! -f "${stdin}" ]
+   if exekutor [ ! -f "${stdin}" ]
    then
       stdin="default.stdin"
    fi
-   if [ ! -f "${stdin}" ]
+   if exekutor [ ! -f "${stdin}" ]
    then
       stdin="/dev/null"
    fi
 
-   stdout="$1.stdout"
-   if [ ! -f "${stdout}" ]
+   stdout="${name}.stdout"
+   if exekutor [ ! -f "${stdout}" ]
    then
-      stdout="expect/$1.stdout"
+      stdout="expect/${name}.stdout"
    fi
-   if [ ! -f "${stdout}" ]
+   if exekutor [ ! -f "${stdout}" ]
    then
       stdout="default.stdout"
    fi
-   if [ ! -f "${stdout}" ]
+   if exekutor [ ! -f "${stdout}" ]
    then
       stdout="-"
    fi
 
-   stderr="$1.stderr"
-   if [ ! -f "${stderr}" ]
+   stderr="${name}.stderr"
+   if exekutor [ ! -f "${stderr}" ]
    then
-      stderr="expect/$1.stderr"
+      stderr="expect/${name}.stderr"
    fi
-   if [ ! -f "${stderr}" ]
+   if exekutor [ ! -f "${stderr}" ]
    then
       stderr="default.stderr"
    fi
-   if [ ! -f "${stderr}" ]
+   if exekutor [ ! -f "${stderr}" ]
    then
       stderr="-"
    fi
 
-   ccdiag="$1.ccdiag"
-   if [ ! -f "${ccdiag}" ]
+   ccdiag="${name}.ccdiag"
+   if exekutor [ ! -f "${ccdiag}" ]
    then
-      ccdiag="expect/$1.ccdiag"
+      ccdiag="expect/${name}.ccdiag"
    fi
-   if [ ! -f "${ccdiag}" ]
+   if exekutor [ ! -f "${ccdiag}" ]
    then
       ccdiag="default.ccdiag"
    fi
-   if [ ! -f "${ccdiag}" ]
+   if exekutor [ ! -f "${ccdiag}" ]
    then
       ccdiag="-"
    fi
 
-   if [ -z "${sourcefile}" ]
-   then
-      sourcefile="`basename -- "${PWD}"`"
-   else
-      sourcefile="${sourcefile}${ext}"
-   fi
 
    case "${ext}" in
       Makefile)
-         run_makefile_test "$sourcefile" "${root}" "${ext}" "${stdin}" "${stdout}" "${stderr}" "${ccdiag}"
-         ;;
+         run_makefile_test "${name}" "${root}" "" "${stdin}" "${stdout}" "${stderr}" "${ccdiag}"
+      ;;
 
       .m|.aam)
-         run_m_test "$sourcefile" "${root}" "${ext}" "${stdin}" "${stdout}" "${stderr}" "${ccdiag}"
-         ;;
+         run_m_test "${name}" "${root}" "${ext}" "${stdin}" "${stdout}" "${stderr}" "${ccdiag}"
+      ;;
 
       .c)
-         run_c_test "$sourcefile" "${root}" "${ext}" "${stdin}" "${stdout}" "${stderr}" "${ccdiag}"
-         ;;
+         run_c_test "${name}" "${root}" "${ext}" "${stdin}" "${stdout}" "${stderr}" "${ccdiag}"
+      ;;
 
       .cxx|.cpp)
-         run_cpp_test "$sourcefile" "${root}" "${ext}" "${stdin}" "${stdout}" "${stderr}" "${ccdiag}"
-         ;;
+         run_cpp_test "${name}" "${root}" "${ext}" "${stdin}" "${stdout}" "${stderr}" "${ccdiag}"
+      ;;
    esac
 }
 
 
 scan_current_directory()
 {
-   local root
-
-   root="$1"
+   local root="$1"
 
    local i
-   local filename
    local owd
+   local name
 
    if [ -f Makefile ]
    then
-      run_test "" "${root}" "Makefile"
+      run_test "`basename -- "${PWD}"`" "${root}" "Makefile"
       return 0
    fi
 
@@ -963,15 +978,15 @@ scan_current_directory()
             then
                owd="`pwd -P`"
                cd "${i}"
-               scan_current_directory "${root}"
+                  scan_current_directory "${root}"
                cd "${owd}"
             else
                for ext in ${SOURCE_EXTENSION}
                do
-                  filename=`basename -- "${i}" "${ext}"`
-                  if [ "$filename" != "${i}" ]
+                  name=`basename -- "${i}" "${ext}"`
+                  if [ "${name}" != "${i}" ]
                   then
-                     run_test "${filename}" "${root}" "${ext}"
+                     run_test "${name}" "${root}" "${ext}"
                      break
                   fi
                done
@@ -1152,13 +1167,13 @@ run_named_test()
       fail "error: source file must have ${SOURCE_EXTENSION} extension"
    fi
 
-   old="`pwd -P`"
+   root="`pwd -P`"
 
-      cd "${directory}" || exit 1
-      run_test "${name}" "${old}" "${ext}"
-      rval=$?
+   cd "${directory}" || exit 1
+   run_test "${name}" "${root}" "${ext}"
+   rval=$?
 
-   cd "${old}" || exit 1
+   cd "${root}" || exit 1
    exit ${rval}
 }
 
@@ -1189,31 +1204,36 @@ run_all_tests()
 
 main()
 {
+   local def_makeflags
+
    DEFAULT_IFS="${IFS}"
 
    CFLAGS="${CFLAGS:-${RELEASE_CFLAGS}}"
+   def_makeflags="-s"
 
    while [ $# -ne 0 ]
    do
       case "$1" in
          -v|--verbose)
             BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
-            MULLE_BOOTSTRAP_VERBOSE="YES"
+            MULLE_FLAG_LOG_VERBOSE="YES"
          ;;
 
          -vv)
             BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
-            MULLE_BOOTSTRAP_FLUFF="YES"
-            MULLE_BOOTSTRAP_VERBOSE="YES"
+            MULLE_FLAG_LOG_FLUFF="YES"
+            MULLE_FLAG_LOG_VERBOSE="YES"
             MULLE_FLAG_LOG_EXEKUTOR="YES"
+            def_makeflags=""
          ;;
 
          -vvv)
             BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
             MULLE_TEST_TRACE_LOOKUP="YES"
-            MULLE_BOOTSTRAP_FLUFF="YES"
-            MULLE_BOOTSTRAP_VERBOSE="YES"
+            MULLE_FLAG_LOG_FLUFF="YES"
+            MULLE_FLAG_LOG_VERBOSE="YES"
             MULLE_FLAG_LOG_EXEKUTOR="YES"
+            def_makeflags=""
          ;;
 
          -n)
@@ -1235,7 +1255,7 @@ main()
          ;;
 
          -s|--silent)
-            MULLE_BOOTSTRAP_TERSE="YES"
+            MULLE_FLAG_LOG_TERSE="YES"
          ;;
 
          -t|--trace)
@@ -1260,6 +1280,7 @@ main()
       shift
    done
 
+   MAKEFLAGS="${MAKEFLAGS:-${def_makeflags}}"
 
    if [ -z "${DEBUGGER}" ]
    then
