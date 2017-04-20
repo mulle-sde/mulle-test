@@ -18,12 +18,17 @@
 usage()
 {
    cat <<EOF >&2
-usage: build-test.sh [-dj]
+usage: build-test.sh [options]
 
+Options:
    --debug : build debug libraries
    -f      : remove previous build results
    -d      : rebuild parent depedencies
    -j      : number of cores parameter for make (${CORES})
+   -V      : verbose make
+   -v      : verbose
+   -vv     : very verbose
+   -vvv    : extremely verbose
 EOF
    exit 1
 }
@@ -48,6 +53,13 @@ do
 
       -t)
          set -x
+      ;;
+
+      --path-prefix)
+         [ $# -eq 1 ] && echo "missing $1 parameter" >&2 && usage
+         shift
+
+         USERPREFIX="$1"
       ;;
 
       -V)
@@ -75,18 +87,23 @@ do
       ;;
 
       -j)
+         [ $# -eq 1 ] && echo "missing $1 parameter" >&2 && usage
          shift
-         [ $# -eq 0 ] && usage
 
          CORES="$1"
       ;;
 
       --debug)
          BUILD_TYPE=Debug
-         BUILD_OPTIONS="-c Debug -k"
+         BUILD_OPTIONS="-c Debug ${BUILD_OPTIONS}"
       ;;
 
+      --release)
+         BUILD_TYPE=Release
+         BUILD_OPTIONS="-c Release ${BUILD_OPTIONS}"
+      ;;
       -*)
+         echo "Unknown option \"$1\""
          usage
       ;;
 

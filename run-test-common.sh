@@ -312,7 +312,7 @@ fail_test_makefile()
 
    a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
 
-   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" -a "${BUILD_STYLE}" != "Debug" ]
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" -a "${BUILD_TYPE}" != "Debug" ]
    then
       log_info "DEBUG: " >&2
       log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
@@ -346,7 +346,7 @@ fail_test_c()
 
    a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
 
-   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" -a "${BUILD_STYLE}" != "Debug" ]
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" -a "${BUILD_TYPE}" != "Debug" ]
    then
       log_info "DEBUG: "
       log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
@@ -596,18 +596,18 @@ _check_test_output()
    then
       if [ ! -f "${errors}" ]
       then
-         log_error "TEST CRASHED: \"${pretty_source}\" (${a_out_ext}, ${errput})"
+         log_error "TEST CRASHED: \"${USERPREFIX}${pretty_source}\" (${USERPREFIX}${a_out_ext}, ${errput})"
          return 1
       fi
 
-      search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
+      search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"${USERPREFIX}${pretty_source}\" (${errput})" \
                          "${errput}" "${errors}"
       return $?
    fi
 
    if [ -f "${errors}" ]
    then
-      log_error "TEST FAILED TO CRASH: \"${pretty_source}\" (${a_out_ext})"
+      log_error "TEST FAILED TO CRASH: \"${USERPREFIX}${pretty_source}\" (${USERPREFIX}${a_out_ext})"
       return 1
    fi
 
@@ -621,12 +621,12 @@ _check_test_output()
          white=`exekutor diff -q -w "${stdout}" "${output}"`
          if [ "$white" != "" ]
          then
-            log_error "FAILED: \"${pretty_source}\" produced unexpected output"
+            log_error "FAILED: \"${USERPREFIX}${pretty_source}\" produced unexpected output"
             log_info  "DIFF: (${output} vs. ${stdout})"
             exekutor diff -y "${output}" "${stdout}" >&2
          else
-            log_error "FAILED: \"${pretty_source}\" produced different whitespace output"
-            log_info  "DIFF: (${stdout} vs. ${output})"
+            log_error "FAILED: \"${USERPREFIX}${pretty_source}\" produced different whitespace output"
+            log_info  "DIFF: (${USERPREFIX}${stdout} vs. ${output})"
             redirect_exekutor "${output}.actual.hex" od -a "${output}"
             redirect_exekutor "${output}.expect.hex" od -a "${stdout}"
             exekutor diff -y "${output}.expect.hex" "${output}.actual.hex" >&2
@@ -640,7 +640,7 @@ _check_test_output()
       contents="`exekutor head -2 "${output}"`" 2> /dev/null
       if [ "${contents}" != "" ]
       then
-         log_warning "WARNING: \"${pretty_source}\" produced unexpected output (${output})" >&2
+         log_warning "WARNING: \"${USERPREFIX}${pretty_source}\" produced unexpected output (${output})" >&2
          return 2
       fi
    fi
@@ -650,7 +650,7 @@ _check_test_output()
       result=`exekutor diff "${stderr}" "${errput}"`
       if [ "${result}" != "" ]
       then
-         log_warning "WARNING: \"${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
+         log_warning "WARNING: \"${USERPREFIX}${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
          exekutor echo "" >&2
          exekutor diff "${stderr}" "${errput}" >&2
          return 1
@@ -715,7 +715,7 @@ __preamble()
    owd="`pwd -P`"
    pretty_source=`relative_path_between "${owd}"/"${sourcefile}" "${root}"`
 
-   log_info "${pretty_source}"
+   log_info "${USERPREFIX}${pretty_source}"
 }
 
 
@@ -963,6 +963,8 @@ scan_current_directory()
       return 0
    fi
 
+   log_fluff "Scannning \"${PWD}\" ..."
+
    IFS="
 "
    for i in `ls -1`
@@ -970,7 +972,7 @@ scan_current_directory()
       IFS="${DEFAULT_IFS}"
 
       case "${i}" in
-         _*|build|include|lib|bin|tmp|etc|share)
+         _*|build|include|lib|bin|tmp|etc|share|stashes)
          ;;
 
          *)
@@ -1148,7 +1150,7 @@ run_named_test()
 
    if [ ! -f "${1}" ]
    then
-      fail "error: source file not found"
+      fail "error: source file \"${USERPREFIX}${1}\" not found"
    fi
 
    for ext in ${SOURCE_EXTENSION}
@@ -1236,6 +1238,10 @@ main()
             def_makeflags=""
          ;;
 
+         -V)
+            def_makeflags="VERBOSE=1"
+         ;;
+
          -n)
             MULLE_FLAG_EXEKUTOR_DRY_RUN="YES"
          ;;
@@ -1245,12 +1251,12 @@ main()
          ;;
 
          --debug)
-            BUILD_STYLE=Debug
+            BUILD_TYPE=Debug
             CFLAGS="${DEBUG_CFLAGS}"
          ;;
 
          --release)
-            BUILD_STYLE=Release
+            BUILD_TYPE=Release
             CFLAGS="${RELEASE_CFLAGS}"
          ;;
 
@@ -1265,6 +1271,13 @@ main()
          -te|--trace-execution)
             BOOTSTRAP_FLAGS="`concat "${BOOTSTRAP_FLAGS}" "$1"`"
             MULLE_FLAG_LOG_EXEKUTOR="YES"
+         ;;
+
+         --path-prefix)
+            shift
+            [ $# -eq 0 ] && usage
+
+            USERPREFIX="$1"
          ;;
 
          -*)
