@@ -59,7 +59,7 @@ do
          [ $# -eq 1 ] && echo "missing $1 parameter" >&2 && usage
          shift
 
-         USERPREFIX="$1"
+         TEST_PATH_PREFIX="$1"
       ;;
 
       -V)

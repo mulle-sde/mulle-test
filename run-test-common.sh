@@ -550,9 +550,9 @@ check_compiler_output()
 
    if [ "${ccdiag}" = "-" ]
    then
-      log_error "COMPILER ERRORS: \"${pretty_source}\""
+      log_error "COMPILER ERRORS: \"${TEST_PATH_PREFIX}${pretty_source}\""
    else
-      search_for_strings "COMPILER FAILED TO PRODUCE ERRORS: \"${pretty_source}\" (${errput})" \
+      search_for_strings "COMPILER FAILED TO PRODUCE ERRORS: \"${TEST_PATH_PREFIX}${pretty_source}\" (${errput})" \
                          "${errput}" "${ccdiag}"
       if [ $? -eq 0 ]
       then
@@ -596,18 +596,18 @@ _check_test_output()
    then
       if [ ! -f "${errors}" ]
       then
-         log_error "TEST CRASHED: \"${USERPREFIX}${pretty_source}\" (${USERPREFIX}${a_out_ext}, ${errput})"
+         log_error "TEST CRASHED: \"${TEST_PATH_PREFIX}${pretty_source}\" (${TEST_PATH_PREFIX}${a_out_ext}, ${errput})"
          return 1
       fi
 
-      search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"${USERPREFIX}${pretty_source}\" (${errput})" \
+      search_for_strings "TEST FAILED TO PRODUCE ERRORS: \"${TEST_PATH_PREFIX}${pretty_source}\" (${errput})" \
                          "${errput}" "${errors}"
       return $?
    fi
 
    if [ -f "${errors}" ]
    then
-      log_error "TEST FAILED TO CRASH: \"${USERPREFIX}${pretty_source}\" (${USERPREFIX}${a_out_ext})"
+      log_error "TEST FAILED TO CRASH: \"${TEST_PATH_PREFIX}${pretty_source}\" (${TEST_PATH_PREFIX}${a_out_ext})"
       return 1
    fi
 
@@ -621,12 +621,12 @@ _check_test_output()
          white=`exekutor diff -q -w "${stdout}" "${output}"`
          if [ "$white" != "" ]
          then
-            log_error "FAILED: \"${USERPREFIX}${pretty_source}\" produced unexpected output"
+            log_error "FAILED: \"${TEST_PATH_PREFIX}${pretty_source}\" produced unexpected output"
             log_info  "DIFF: (${output} vs. ${stdout})"
             exekutor diff -y "${output}" "${stdout}" >&2
          else
-            log_error "FAILED: \"${USERPREFIX}${pretty_source}\" produced different whitespace output"
-            log_info  "DIFF: (${USERPREFIX}${stdout} vs. ${output})"
+            log_error "FAILED: \"${TEST_PATH_PREFIX}${pretty_source}\" produced different whitespace output"
+            log_info  "DIFF: (${TEST_PATH_PREFIX}${stdout} vs. ${output})"
             redirect_exekutor "${output}.actual.hex" od -a "${output}"
             redirect_exekutor "${output}.expect.hex" od -a "${stdout}"
             exekutor diff -y "${output}.expect.hex" "${output}.actual.hex" >&2
@@ -640,7 +640,7 @@ _check_test_output()
       contents="`exekutor head -2 "${output}"`" 2> /dev/null
       if [ "${contents}" != "" ]
       then
-         log_warning "WARNING: \"${USERPREFIX}${pretty_source}\" produced unexpected output (${output})" >&2
+         log_warning "WARNING: \"${TEST_PATH_PREFIX}${pretty_source}\" produced unexpected output (${output})" >&2
          return 2
       fi
    fi
@@ -650,7 +650,7 @@ _check_test_output()
       result=`exekutor diff "${stderr}" "${errput}"`
       if [ "${result}" != "" ]
       then
-         log_warning "WARNING: \"${USERPREFIX}${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
+         log_warning "WARNING: \"${TEST_PATH_PREFIX}${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
          exekutor echo "" >&2
          exekutor diff "${stderr}" "${errput}" >&2
          return 1
@@ -715,7 +715,7 @@ __preamble()
    owd="`pwd -P`"
    pretty_source=`relative_path_between "${owd}"/"${sourcefile}" "${root}"`
 
-   log_info "${USERPREFIX}${pretty_source}"
+   log_info "${TEST_PATH_PREFIX}${pretty_source}"
 }
 
 
@@ -1150,7 +1150,7 @@ run_named_test()
 
    if [ ! -f "${1}" ]
    then
-      fail "error: source file \"${USERPREFIX}${1}\" not found"
+      fail "error: source file \"${TEST_PATH_PREFIX}${1}\" not found"
    fi
 
    for ext in ${SOURCE_EXTENSION}
@@ -1240,6 +1240,7 @@ main()
 
          -V)
             def_makeflags="VERBOSE=1"
+            MULLE_FLAG_LOG_EXEKUTOR="YES"
          ;;
 
          -n)
@@ -1277,7 +1278,7 @@ main()
             shift
             [ $# -eq 0 ] && usage
 
-            USERPREFIX="$1"
+            TEST_PATH_PREFIX="$1"
          ;;
 
          -*)
