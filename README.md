@@ -10,59 +10,20 @@ library functions are used.
 
 ## Embed mulle-tests with mulle-bootstrap
 
+This will place `mulle-tests` into `tests/mulle-tests`
 ```
-echo "https://www.mulle-kybernetik.com/repositories/mulle-tests" >> .bootstrap/embedded_repositories
+mulle-bootstrap setting -r -g embedded_repositories 'https://github.com/mulle-nat/mulle-tests;tests/mulle-tests
 mulle-bootstrap fetch
 ```
 
-## Setting it up
+## Set it up
 
-This is how you set it up your tests, assuming your C library is of the same
-name as the current directory and you already placed `mulle-tests` in your
-project directory. This creates a **tests** directory, where tests to be
-written are placed:
-
+Let `mulle-tests-init` produce the two scripts `tests/build-test.sh` and
+`tests/run-test.sh`:
 
 ```
-name="`basename ${PWD}"`
+./tests/mulle-tests/mulle-tests-init
 
-mkdir tests
-cd tests
-
-#
-# create build script
-#
-cat > ./build-test.sh <<EOF
-#!/usr/bin/env bash
-
-LIBRARY_SHORTNAME="${name}"
-
-if [ -d ../.bootstrap ]
-then
-	( cd .. ; mulle-build -a )
-fi
-
-. "../mulle-tests/test-c-common.sh"
-. "../mulle-tests/test-tools-common.sh"
-. "../mulle-tests/test-sharedlib-common.sh"
-. "../mulle-tests/build-test-common.sh"
-EOF
-chmod 755 build-test.sh
-
-#
-# create test script
-#
-cat > ./run-test.sh <<EOF
-#!/usr/bin/env bash
-
-LIBRARY_SHORTNAME="${name}"
-
-. "../mulle-tests/test-c-common.sh"
-. "../mulle-tests/test-tools-common.sh"
-. "../mulle-tests/test-sharedlib-common.sh"
-. "../mulle-tests/run-test-common.sh"
-EOF
-chmod 755 run-test.sh
 ```
 
 
@@ -88,3 +49,9 @@ cat <<EOF > example/example.stdout
 Hello World
 EOF
 ```
+
+## Running tests
+
+Run the tests with `mulle-test`.
+
+
