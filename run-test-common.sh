@@ -315,7 +315,7 @@ fail_test_makefile()
    if [ -z "${MULLE_TEST_IGNORE_FAILURE}" -a "${BUILD_TYPE}" != "Debug" ]
    then
       log_info "DEBUG: " >&2
-      log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
+      log_info "Rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
 
       eval_exekutor \
       CFLAGS="'${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
@@ -1026,9 +1026,9 @@ locate_path()
    then
       if [ -z "${found}" ]
       then
-         log_trace "\"${path}\" does not exist"
+         log_fluff "\"${path}\" does not exist"
       else
-         log_trace "Found \"${found}\""
+         log_fluff "Found \"${found}\""
       fi
    fi
 
