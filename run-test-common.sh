@@ -1238,6 +1238,9 @@ main()
             def_makeflags=""
          ;;
 
+         -le|-ld)
+         ;;
+
          -V)
             def_makeflags="VERBOSE=1"
             MULLE_FLAG_LOG_EXEKUTOR="YES"
