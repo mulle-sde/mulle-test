@@ -13,4 +13,4 @@ fi
 #
 # need mulle-build 3.8 for this to work
 #
-mulle-install --build-dir build --prefix "`pwd`" ${MULLE_INSTALL_FLAGS} "$@"
+mulle-build -install --build-dir build --prefix "`pwd`" ${MULLE_INSTALL_FLAGS} "$@"

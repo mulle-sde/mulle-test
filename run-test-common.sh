@@ -228,27 +228,6 @@ full_redirekt_eval_exekutor()
    fi
 }
 
-#
-# -----------------
-#
-fail_test_generic()
-{
-   local sourcefile
-   local a_out
-   local stdin
-   local ext
-
-   sourcefile="$1"
-   a_out_ext="$2"
-   stdin="$3"
-   ext="$4"
-
-   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
-   then
-      exit 1
-   fi
-}
-
 
 suggest_debugger_commandline()
 {
@@ -312,18 +291,22 @@ fail_test_makefile()
 
    a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
 
-   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" -a "${BUILD_TYPE}" != "Debug" ]
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
    then
-      log_info "DEBUG: " >&2
-      log_info "Rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
+      if [ "${BUILD_TYPE}" != "Debug" ]
+      then
+         log_info "DEBUG: " >&2
+         log_info "Rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
 
-      eval_exekutor \
-      CFLAGS="'${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
-      LDFLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${a_paths}'" \
-      OUTPUT="'${a_out_ext}'" \
-      ${MAKE} -B ${MAKEFLAGS}
+         eval_exekutor \
+         CFLAGS="'${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
+         LDFLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${a_paths}'" \
+         OUTPUT="'${a_out_ext}'" \
+         ${MAKE} -B ${MAKEFLAGS}
 
-      suggest_debugger_commandline "${a_out_ext}" "${stdin}"
+         suggest_debugger_commandline "${a_out_ext}" "${stdin}"
+      fi
+
       exit 1
    fi
 }
@@ -346,21 +329,24 @@ fail_test_c()
 
    a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
 
-   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" -a "${BUILD_TYPE}" != "Debug" ]
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ] 
    then
-      log_info "DEBUG: "
-      log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
+      if [ "${BUILD_TYPE}" != "Debug" ]
+      then
+         log_info "DEBUG: "
+         log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
 
-      exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out_ext}" \
-         "-I${LIBRARY_INCLUDE}" \
-         "-I${DEPENDENCIES_INCLUDE}" \
-         "-I${ADDICTIONS_INCLUDE}" \
-         "${sourcefile}" \
-         "${LIBRARY_PATH}" \
-         ${a_paths} \
-         ${LDFLAGS}
+         exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out_ext}" \
+            "-I${LIBRARY_INCLUDE}" \
+            "-I${DEPENDENCIES_INCLUDE}" \
+            "-I${ADDICTIONS_INCLUDE}" \
+            "${sourcefile}" \
+            "${LIBRARY_PATH}" \
+            ${a_paths} \
+            ${LDFLAGS}
 
-      suggest_debugger_commandline "${a_out_ext}" "${stdin}"
+         suggest_debugger_commandline "${a_out_ext}" "${stdin}"
+      fi
 
       exit 1
    fi
@@ -491,15 +477,10 @@ run_compiler()
 
 run_a_out()
 {
-   local input
-   local output
-   local errput
-   local a_out_ext
-
-   input="$1"
-   output="$2"
-   errput="$3"
-   a_out_ext="$4"
+   local input="$1"
+   local output="$2"
+   local errput="$3"
+   local a_out_ext="$4"
 
    if [ ! -x "${a_out_ext}" ]
    then
@@ -759,9 +740,11 @@ run_common_test()
 
    "${TEST_BUILDER}" "${srcfile}" "${owd}" "${a_out_ext}" "${cc_errput}"
    rval=$?
-
-   check_compiler_output "${ccdiag}" "${cc_errput}" "${rval}" "${pretty_source}"
-   rval=$?
+   if [ "$rval" -eq 0 ]
+   then
+      check_compiler_output "${ccdiag}" "${cc_errput}" "${rval}" "${pretty_source}"
+      rval=$?
+   fi
 
    if [ $rval -ne 0 ]
    then
@@ -777,11 +760,11 @@ run_common_test()
    run_a_out "${stdin}" "${output}.tmp" "${errput}.tmp" "${a_out_ext}"
    rval=$?
 
+   log_verbose "Check test output"
+
    redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
    redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${errput}.tmp"
    exekutor rm "${output}.tmp" "${errput}.tmp"
-
-   log_verbose "Check test output"
 
    check_test_output  "${stdout}" \
                       "${stderr}" \
@@ -792,8 +775,8 @@ run_common_test()
                       "${pretty_source}" \
                       "${a_out_ext}" \
                       "${ext}"
-   rval=$?
 
+   rval=$?
    if [ "${rval}" -ne 0 ]
    then
       a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
