@@ -1100,12 +1100,15 @@ usage()
 usage:
    run-test.sh [options] [tests]
 
+   You may optionally specify a source test file, to run
+   a certain test.
+
    Options:
+         -f  : keep going, if tests fail
          -q  : quiet
          -t  : shell trace
          -v  : verbose
-
-   tests specify source test file
+         -V  : show commands
 EOF
    exit 1
 }
