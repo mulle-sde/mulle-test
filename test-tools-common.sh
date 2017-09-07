@@ -119,11 +119,7 @@ setup_tooling()
          CC="`mingw_mangle_compiler_exe "${CC}" "CC"`"
          CXX="`mingw_mangle_compiler_exe "${CXX}" "CXX"`"
          CMAKE="${CMAKE:-cmake}"
-
-         if [ -z "${CC}" ]
-         then
-            MAKE="${MAKE:-nmake}"
-         fi
+         MAKE="${MAKE:-nmake}"
 
          case "${MAKE}" in
             nmake)
