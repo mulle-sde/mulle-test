@@ -53,7 +53,6 @@ trace_ignore()
 }
 
 
-
 #
 #
 #
@@ -247,7 +246,6 @@ MULLE_OBJC_WARN_ENABLED=YES \
 MallocStackLogging=1 \
 MALLOC_FILL_SPACE=1 \
 DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
-DYLD_LIBRARY_PATH=\"${DYLD_LIBRARY_PATH}\" \
 ${DEBUGGER} ${a_out_ext}" >&2
          if [ "${stdin}" != "/dev/null" ]
          then
@@ -274,7 +272,50 @@ ${DEBUGGER} ${a_out_ext}" >&2
 }
 
 
-fail_test_makefile()
+
+fail_test_c()
+{
+   local sourcefile
+   local a_out
+   local stdin
+   local ext
+
+   sourcefile="$1"
+   a_out_ext="$2"
+   stdin="$3"
+   ext="$4"
+
+   #hacque
+   local a_paths
+
+   a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
+
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
+   then
+      if [ "${BUILD_TYPE}" != "Debug" ]
+      then
+         log_info "DEBUG: "
+         log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
+
+         exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out_ext}" \
+            "-I${LIBRARY_INCLUDE}" \
+            "-I${DEPENDENCIES_INCLUDE}" \
+            "-I${ADDICTIONS_INCLUDE}" \
+            "${sourcefile}" \
+            "${LIBRARY_PATH}" \
+            ${a_paths} \
+            ${LDFLAGS} \
+            ${RPATH_FLAGS}
+
+         suggest_debugger_commandline "${a_out_ext}" "${stdin}"
+      fi
+
+      exit 1
+   fi
+}
+
+
+fail_test_cmake()
 {
    local sourcefile
    local a_out
@@ -299,10 +340,12 @@ fail_test_makefile()
          log_info "Rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
 
          eval_exekutor \
-         CFLAGS="'${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
-         LDFLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${a_paths}'" \
-         OUTPUT="'${a_out_ext}'" \
-         ${MAKE} -B ${MAKEFLAGS}
+         -DCMAKE_C_FLAGS="'${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
+         -DCMAKE_CXX_FLAGS="'${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
+         -DCMAKE_EXE_LINKER_FLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${a_paths}'"
+         ${CMAKE} -B ${CMAKEFLAGS}
+
+         eval_exekutor ${MAKE} -B ${MAKEFLAGS}
 
          suggest_debugger_commandline "${a_out_ext}" "${stdin}"
       fi
@@ -312,48 +355,7 @@ fail_test_makefile()
 }
 
 
-fail_test_c()
-{
-   local sourcefile
-   local a_out
-   local stdin
-   local ext
-
-   sourcefile="$1"
-   a_out_ext="$2"
-   stdin="$3"
-   ext="$4"
-
-   #hacque
-   local a_paths
-
-   a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
-
-   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ] 
-   then
-      if [ "${BUILD_TYPE}" != "Debug" ]
-      then
-         log_info "DEBUG: "
-         log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
-
-         exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out_ext}" \
-            "-I${LIBRARY_INCLUDE}" \
-            "-I${DEPENDENCIES_INCLUDE}" \
-            "-I${ADDICTIONS_INCLUDE}" \
-            "${sourcefile}" \
-            "${LIBRARY_PATH}" \
-            ${a_paths} \
-            ${LDFLAGS}
-
-         suggest_debugger_commandline "${a_out_ext}" "${stdin}"
-      fi
-
-      exit 1
-   fi
-}
-
-
-run_makefile()
+run_cmake()
 {
    local srcfile="$1"
    local owd="$2"
@@ -366,10 +368,26 @@ run_makefile()
       ;;
    esac
 
-   eval_exekutor CC="'${CC}'" \
-   CFLAGS="'${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
-   LDFLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS}'" \
-   OUTPUT="'${a_out_ext}'" ${MAKE} -B ${MAKEFLAGS}
+   directory="`dirname -- "${srcfile}"`"
+   (
+      exekutor cd "${directory}"
+      rmdir_safer "build" &&
+      mkdir_if_missing  "build" &&
+      exekutor cd "build" &&
+
+      eval_exekutor "'${CMAKE}'" \
+         -G "'${CMAKE_GENERATOR}'" \
+         -DCMAKE_RULE_MESSAGES=OFF \
+         -DCMAKE_C_COMPILER="'${CC}'" \
+         -DCMAKE_CXX_COMPILER="'${CXX}'" \
+         -DCMAKE_C_FLAGS="'${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
+         -DCMAKE_CXX_FLAGS="'${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
+         -DCMAKE_EXE_LINKER_FLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS} ${RPATH_FLAGS}'" &&
+
+      eval_exekutor "'${MAKE}'" -B ${MAKEFLAGS} &&
+
+      exekutor install "`basename -- "${a_out_ext}"`" ..
+   )
 }
 
 
@@ -397,13 +415,14 @@ run_gcc_compiler()
    fi
 
    err_redirect_exekutor "${errput}" "${CC}" ${cflags} -o "${a_out_ext}" \
-   "-I${LIBRARY_INCLUDE}" \
-   "-I${DEPENDENCIES_INCLUDE}" \
-   "-I${ADDICTIONS_INCLUDE}" \
-   "${srcfile}" \
-   "${LIBRARY_PATH}" \
-   ${a_paths} \
-   ${LDFLAGS}
+                                             "-I${LIBRARY_INCLUDE}" \
+                                             "-I${DEPENDENCIES_INCLUDE}" \
+                                             "-I${ADDICTIONS_INCLUDE}" \
+                                             "${srcfile}" \
+                                             "${LIBRARY_PATH}" \
+                                             ${a_paths} \
+                                             ${LDFLAGS} \
+                                             ${RPATH_FLAGS}
 }
 
 
@@ -451,13 +470,14 @@ run_cl_compiler()
    fi
 
    err_redirect_exekutor "${errput}" "${CC}" ${cflags} "/Fe${a_out_ext}" \
-   "/I ${l_include}" \
-   "/I ${d_include}" \
-   "/I ${a_include}" \
-   "${sourcefile}" \
-   "${l_path}" \
-   ${a_paths} \
-   ${LDFLAGS}
+                                             "/I ${l_include}" \
+                                             "/I ${d_include}" \
+                                             "/I ${a_include}" \
+                                             "${sourcefile}" \
+                                             "${l_path}" \
+                                             ${a_paths} \
+                                             ${LDFLAGS} \
+                                             ${RPATH_FLAGS}
 }
 
 
@@ -787,7 +807,7 @@ run_common_test()
 }
 
 
-run_makefile_test()
+run_cmake_test()
 {
    local name="$1"
 
@@ -797,8 +817,8 @@ run_makefile_test()
    owd="`pwd -P`"
    a_out="${owd}/${name}"
 
-   TEST_BUILDER=run_makefile
-   FAIL_TEST=fail_test_makefile
+   TEST_BUILDER=run_cmake
+   FAIL_TEST=fail_test_cmake
    run_common_test "${a_out}" "$@"
 }
 
@@ -844,14 +864,11 @@ run_test()
    local root="$2"
    local ext="$3"
 
-   local makefile
-   local testpath
    local name
 
    local stdin
    local stdout
    local stderr
-   local plist
 
    log_fluff "Looking for test files in $PWD"
 
@@ -913,8 +930,8 @@ run_test()
 
 
    case "${ext}" in
-      Makefile)
-         run_makefile_test "${name}" "${root}" "" "${stdin}" "${stdout}" "${stderr}" "${ccdiag}"
+      cmake)
+         run_cmake_test "${name}" "${root}" "" "${stdin}" "${stdout}" "${stderr}" "${ccdiag}"
       ;;
 
       .m|.aam)
@@ -940,9 +957,9 @@ scan_current_directory()
    local owd
    local name
 
-   if [ -f Makefile ]
+   if [ -f CMakeLists.txt ]
    then
-      run_test "`basename -- "${PWD}"`" "${root}" "Makefile"
+      run_test "`basename -- "${PWD}"`" "${root}" "cmake"
       return 0
    fi
 
@@ -1271,8 +1288,7 @@ main()
          ;;
 
          -*)
-            log_error "unknown option \"$1\""
-            usage
+            log_verbose "ignored option \"$1\""
          ;;
 
          *)
@@ -1335,10 +1351,9 @@ main()
 
    case "${UNAME}" in
       darwin)
-         DYLD_LIBRARY_PATH="${LIBRARY_DIR}:${DYLD_LIBRARY_PATH}"
-         export DYLD_LIBRARY_PATH
+         RPATH_FLAGS="-Wl,-rpath ${LIBRARY_DIR}"
 
-         log_verbose "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}"
+         log_verbose "RPATH_FLAGS=${RPATH_FLAGS}"
       ;;
 
       linux)
