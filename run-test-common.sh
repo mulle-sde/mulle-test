@@ -243,8 +243,6 @@ MULLE_OBJC_TEST_ALLOCATOR=1 \
 MULLE_TEST_ALLOCATOR_TRACE=2 \
 MULLE_OBJC_TRACE_ENABLED=YES \
 MULLE_OBJC_WARN_ENABLED=YES \
-MallocStackLogging=1 \
-MALLOC_FILL_SPACE=1 \
 DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
 ${DEBUGGER} ${a_out_ext}" >&2
          if [ "${stdin}" != "/dev/null" ]
@@ -259,8 +257,6 @@ MULLE_OBJC_TEST_ALLOCATOR=1 \
 MULLE_TEST_ALLOCATOR_TRACE=2 \
 MULLE_OBJC_TRACE_ENABLED=YES \
 MULLE_OBJC_WARN_ENABLED=YES \
-MallocStackLogging=1 \
-MALLOC_FILL_SPACE=1 \
 LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}\" \
 ${DEBUGGER} ${a_out_ext}" >&2
          if [ "${stdin}" != "/dev/null" ]
@@ -339,11 +335,26 @@ fail_test_cmake()
          log_info "DEBUG: " >&2
          log_info "Rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
 
-         eval_exekutor \
-         -DCMAKE_C_FLAGS="'${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
-         -DCMAKE_CXX_FLAGS="'${DEBUG_CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
-         -DCMAKE_EXE_LINKER_FLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${a_paths}'"
-         ${CMAKE} -B ${CMAKEFLAGS}
+         local directory
+
+         directory="`dirname -- "${srcfile}"`"
+
+         exekutor cd "${directory}"
+
+         rmdir_safer "build.debug"
+         mkdir_if_missing  "build.debug"
+         exekutor cd "build.debug"
+
+         eval_exekutor "'${CMAKE}'" \
+            -G "'${CMAKE_GENERATOR}'" \
+            -DCMAKE_BUILD_TYPE="'Debug'" \
+            -DCMAKE_RULE_MESSAGES=OFF \
+            -DCMAKE_C_COMPILER="'${CC}'" \
+            -DCMAKE_CXX_COMPILER="'${CXX}'" \
+            -DCMAKE_C_FLAGS="'-I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
+            -DCMAKE_CXX_FLAGS="'-I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
+            -DCMAKE_EXE_LINKER_FLAGS="'${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS} ${RPATH_FLAGS}'" \
+            ..
 
          eval_exekutor ${MAKE} -B ${MAKEFLAGS}
 
@@ -368,6 +379,8 @@ run_cmake()
       ;;
    esac
 
+   local directory
+
    directory="`dirname -- "${srcfile}"`"
    (
       exekutor cd "${directory}"
@@ -377,12 +390,14 @@ run_cmake()
 
       eval_exekutor "'${CMAKE}'" \
          -G "'${CMAKE_GENERATOR}'" \
+         -DCMAKE_BUILD_TYPE="'${BUILD_TYPE}'" \
          -DCMAKE_RULE_MESSAGES=OFF \
          -DCMAKE_C_COMPILER="'${CC}'" \
          -DCMAKE_CXX_COMPILER="'${CXX}'" \
-         -DCMAKE_C_FLAGS="'${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
-         -DCMAKE_CXX_FLAGS="'${CFLAGS} -I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
-         -DCMAKE_EXE_LINKER_FLAGS="'${LDFLAGS} ${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS} ${RPATH_FLAGS}'" &&
+         -DCMAKE_C_FLAGS="'-I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
+         -DCMAKE_CXX_FLAGS="'-I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
+         -DCMAKE_EXE_LINKER_FLAGS="'${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS} ${RPATH_FLAGS}'" \
+         .. &&
 
       eval_exekutor "'${MAKE}'" -B ${MAKEFLAGS} &&
 
@@ -517,11 +532,6 @@ run_a_out()
    case "${UNAME}" in
       darwin)
          full_redirekt_eval_exekutor "${input}" "${output}" "${errput}" MULLE_OBJC_TEST_ALLOCATOR=1 \
-MallocStackLogging=1 \
-MallocScribble=1 \
-MallocPreScribble=1 \
-MallocGuardEdges=1 \
-MallocCheckHeapEach=1 \
          "${a_out_ext}"
       ;;
 
