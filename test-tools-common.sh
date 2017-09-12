@@ -10,18 +10,16 @@ mingw_demangle_path()
 }
 
 
+#
+# just use regular clang on commandline tests
+#
 mingw_mangle_compiler_exe()
 {
    local compiler
 
    compiler="$1"
    case "${compiler}" in
-      mulle-clang|clang)
-         compiler="${compiler}-cl.exe"
-      ;;
-
-      mulle-clang-*|clang-*)
-         :
+      mulle-clang*|clang*)
       ;;
 
       *)

@@ -412,6 +412,7 @@ run_gcc_compiler()
    if [ -f "${cflagsname}" ]
    then
       cflags="`cat "${cflagsname}"`"
+      log_fluff "Got CFLAGS=\"${cflags}\" from \"${cflagsname}\""
    fi
 
    err_redirect_exekutor "${errput}" "${CC}" ${cflags} -o "${a_out_ext}" \
@@ -1379,7 +1380,7 @@ main()
    local path
    local filename
 
-IFS="
+   IFS="
 "
    for i in ${ADDITIONAL_LIBS}
    do
@@ -1393,15 +1394,15 @@ IFS="
    done
    IFS="${DEFAULT_IFS}"
 
-   log_fluff "Additonal libraries: ${ADDITIONAL_LIBRARY_PATHS}"
+   log_fluff "Additional libraries: ${ADDITIONAL_LIBRARY_PATHS}"
 
    if [ -z "${CC}" ]
    then
       fail "CC for C compiler not defined"
    fi
 
+   assert_binary "$CC" "CC"
    CCPATH="`which_binary "${CC}"`"
-   assert_binary "$CCPATH"
 
    HAVE_WARNED="NO"
    RUNS=0
