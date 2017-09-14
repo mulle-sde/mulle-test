@@ -1,4 +1,4 @@
-# 2.0
+# 2.0.0
 
 * use cmake instead of make as the multiple source file test builder
 
