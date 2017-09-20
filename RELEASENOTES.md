@@ -1,3 +1,7 @@
+### 2.1.1
+
+* use MULLE_TEST to get os-specific-libraries.txt
+
 ## 2.1.0
 
 * use MULLE_TESTS CMAKEFLAGS to let mulle-configuration produce os-specific-libs.txt for linkage

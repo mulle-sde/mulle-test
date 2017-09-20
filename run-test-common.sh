@@ -1379,9 +1379,12 @@ main()
       do
          IFS="${DEFAULT_IFS}"
 
+         log_verbose "Additional library: ${path}"
          ADDITIONAL_LIBRARY_PATHS="`concat "${ADDITIONAL_LIBRARY_PATHS}" "${path}"`"
       done
       IFS="${DEFAULT_IFS}"
+   else
+      log_warning "build/os-specific-libs.txt not found"
    fi
 
    #
@@ -1402,11 +1405,10 @@ main()
       path="`locate_library "${filename}"`" || exit 1
       path="`absolutepath "${path}"`"
 
+      log_verbose "Additional library: ${path}"
       ADDITIONAL_LIBRARY_PATHS="`concat "${ADDITIONAL_LIBRARY_PATHS}" "${path}"`"
    done
    IFS="${DEFAULT_IFS}"
-
-   log_fluff "Additional libraries: ${ADDITIONAL_LIBRARY_PATHS}"
 
    if [ -z "${CC}" ]
    then

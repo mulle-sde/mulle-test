@@ -12,7 +12,7 @@ build_it()
    local prefix
 
    prefix="`pwd`"
-   CMAKEFLAGS="-DMULLE_TESTS=ON" cmdline="mulle-build -install --build-dir build --prefix '${prefix}'"
+   cmdline="CMAKEFLAGS=-DMULLE_TEST=ON mulle-build -install --build-dir build --prefix '${prefix}'"
 
    #
    # only let it bootstrap, if dependencies are required and not present
