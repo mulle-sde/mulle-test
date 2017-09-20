@@ -545,15 +545,10 @@ run_a_out()
 
 check_compiler_output()
 {
-   local ccdiag
-   local errput
-   local pretty_source
-   local rval
-
-   ccdiag="$1"
-   errput="$2"
-   rval="$3"
-   pretty_source="$4"
+   local ccdiag="$1"
+   local errput="$2"
+   local rval="$3"
+   local pretty_source="$4"
 
    if [ ${rval} -eq 0 ]
    then
@@ -585,24 +580,15 @@ check_compiler_output()
 
 _check_test_output()
 {
-   local a_out_ext
-   local ext
-   local stdout
-   local errput
-   local output
-   local errors
-   local rval
-   local pretty_source
-
-   stdout="$1" # test provided
-   stderr="$2"
-   errors="$3"
-   output="$4" # test output
-   errput="$5"
-   rval="$6"
-   pretty_source="$7"  # environment
-   a_out_ext="$8"
-   ext="$9"
+   local stdout="$1" # test provided
+   local stderr="$2"
+   local errors="$3"
+   local output="$4" # test output
+   local errput="$5"
+   local rval="$6"
+   local pretty_source="$7"  # environment
+   local a_out_ext="$8"
+   local ext="$9"
 
    if [ ${rval} -ne 0 ]
    then
@@ -974,7 +960,7 @@ scan_current_directory()
       return 0
    fi
 
-   log_fluff "Scannning \"${PWD}\" ..."
+   log_fluff "Scanning \"${PWD}\" ..."
 
    IFS="
 "
@@ -1381,6 +1367,22 @@ main()
          log_verbose "PATH=${PATH}"
       ;;
    esac
+
+
+   #
+   # read os-specific-libs
+   #
+   if [ -f "build/os-specific-libs.txt" ]
+   then
+      IFS=";"
+      for path in `cat "build/os-specific-libs.txt"`
+      do
+         IFS="${DEFAULT_IFS}"
+
+         ADDITIONAL_LIBRARY_PATHS="`concat "${ADDITIONAL_LIBRARY_PATHS}" "${path}"`"
+      done
+      IFS="${DEFAULT_IFS}"
+   fi
 
    #
    # manage additional libraries, expected to be in same path

@@ -1,3 +1,8 @@
+## 2.1.0
+
+* use MULLE_TESTS CMAKEFLAGS to let mulle-configuration produce os-specific-libs.txt for linkage
+
+
 # 2.0.0
 
 * use cmake instead of make as the multiple source file test builder
