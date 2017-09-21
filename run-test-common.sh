@@ -311,6 +311,33 @@ fail_test_c()
 }
 
 
+eval_cmake()
+{
+
+   # fix for mingw, which demangles the first -I path
+   # but not subsequent ones
+   local cmake_c_flags
+
+   if [ ! -z "${LIBRARY_INCLUDE}" ]
+   then
+      cmake_c_flags="-I${LIBRARY_INCLUDE}"
+   fi
+
+
+   eval_exekutor "'${CMAKE}'" \
+      -G "'${CMAKE_GENERATOR}'" \
+      -DCMAKE_BUILD_TYPE="'$1'" \
+      -DCMAKE_RULE_MESSAGES="OFF" \
+      -DDEPENDENCIES_DIR="${DEPENDENCIES_DIR}" \
+      -DADDICTIONS_DIR="${ADDICTIONS_DIR}" \
+      -DCMAKE_C_COMPILER="'${CC}'" \
+      -DCMAKE_CXX_COMPILER="'${CXX}'" \
+      -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
+      -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
+      -DCMAKE_EXE_LINKER_FLAGS="'${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS} ${RPATH_FLAGS}'" \
+      ..   
+}
+
 fail_test_cmake()
 {
    local sourcefile
@@ -345,18 +372,9 @@ fail_test_cmake()
          mkdir_if_missing  "build.debug"
          exekutor cd "build.debug"
 
-         eval_exekutor "'${CMAKE}'" \
-            -G "'${CMAKE_GENERATOR}'" \
-            -DCMAKE_BUILD_TYPE="'Debug'" \
-            -DCMAKE_RULE_MESSAGES=OFF \
-            -DCMAKE_C_COMPILER="'${CC}'" \
-            -DCMAKE_CXX_COMPILER="'${CXX}'" \
-            -DCMAKE_C_FLAGS="'-I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
-            -DCMAKE_CXX_FLAGS="'-I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
-            -DCMAKE_EXE_LINKER_FLAGS="'${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS} ${RPATH_FLAGS}'" \
-            ..
+         eval_cmake "Debug"
 
-         eval_exekutor ${MAKE} -B ${MAKEFLAGS}
+         eval_exekutor ${MAKE} ${MAKEFLAGS}
 
          suggest_debugger_commandline "${a_out_ext}" "${stdin}"
       fi
@@ -372,13 +390,6 @@ run_cmake()
    local owd="$2"
    local a_out_ext="$3"
 
-   case "${UNAME}" in
-      mingw)
-         log_error "Can't do Makefile test on MINGW (yet?) ($2)"
-         return
-      ;;
-   esac
-
    local directory
 
    directory="`dirname -- "${srcfile}"`"
@@ -388,18 +399,9 @@ run_cmake()
       mkdir_if_missing  "build" &&
       exekutor cd "build" &&
 
-      eval_exekutor "'${CMAKE}'" \
-         -G "'${CMAKE_GENERATOR}'" \
-         -DCMAKE_BUILD_TYPE="'${BUILD_TYPE}'" \
-         -DCMAKE_RULE_MESSAGES=OFF \
-         -DCMAKE_C_COMPILER="'${CC}'" \
-         -DCMAKE_CXX_COMPILER="'${CXX}'" \
-         -DCMAKE_C_FLAGS="'-I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
-         -DCMAKE_CXX_FLAGS="'-I${LIBRARY_INCLUDE} -I${DEPENDENCIES_INCLUDE} -I${ADDICTIONS_INCLUDE}'" \
-         -DCMAKE_EXE_LINKER_FLAGS="'${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS} ${RPATH_FLAGS}'" \
-         .. &&
+      eval_cmake "${BUILD_TYPE}" &&
 
-      eval_exekutor "'${MAKE}'" -B ${MAKEFLAGS} &&
+      eval_exekutor "'${MAKE}'" ${MAKEFLAGS} &&
 
       exekutor install "`basename -- "${a_out_ext}"`" ..
    )
@@ -1053,10 +1055,10 @@ _locate_library()
    library_path="`locate_path "../lib/${filename}"`"
    [ ! -z "${library_path}" ] && echo "${library_path}" && return
 
-   library_path="`locate_path "${DEPENDENCIES}/lib/${filename}"`"
+   library_path="`locate_path "${DEPENDENCIES_DIR}/lib/${filename}"`"
    [ ! -z "${library_path}" ] && echo "${library_path}" && return
 
-   library_path="`locate_path "${ADDICTIONS}/lib/${filename}"`"
+   library_path="`locate_path "${ADDICTIONS_DIR}/lib/${filename}"`"
    [ ! -z "${library_path}" ] && echo "${library_path}" && return
 
    library_path="`locate_path "./build/Products/Debug/${filename}"`"
@@ -1211,6 +1213,7 @@ main()
    DEFAULT_IFS="${IFS}"
 
    CFLAGS="${CFLAGS:-${RELEASE_CFLAGS}}"
+   BUILD_TYPE="${BUILD_TYPE:-Release}"
    def_makeflags="-s"
 
    while [ $# -ne 0 ]
@@ -1317,11 +1320,11 @@ main()
 
    LIBRARY_FILENAME="${LIB_PREFIX}${LIBRARY_SHORTNAME}${LIB_SUFFIX}${LIB_EXTENSION}"
 
-   DEPENDENCIES="`mulle-bootstrap paths dependencies`"
-   ADDICTIONS="`mulle-bootstrap paths addictions`"
+   DEPENDENCIES_DIR="`mulle-bootstrap paths dependencies`"
+   ADDICTIONS_DIR="`mulle-bootstrap paths addictions`"
 
-   DEPENDENCIES_INCLUDE="${DEPENDENCIES}/include"
-   ADDICTIONS_INCLUDE="${ADDICTIONS}/include"
+   DEPENDENCIES_INCLUDE="${DEPENDENCIES_DIR}/include"
+   ADDICTIONS_INCLUDE="${ADDICTIONS_DIR}/include"
 
    LIBRARY_PATH="`locate_library "${LIBRARY_FILENAME}" "${LIBRARY_PATH}"`" || exit 1
 

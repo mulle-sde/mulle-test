@@ -2,8 +2,17 @@
 
 # nmake doesn't work
 MAKE=make
-CC="${CC:-mulle-clang}"
-CXX="${CXX:-mulle-clang}"
+case "`uname -s`" in
+	MINGW*)
+		CC="${CC:-mulle-clang-cl}"
+		CXX="${CXX:-mulle-clang-cl}"
+   ;;
+
+   *)
+      CC="${CC:-mulle-clang}"
+      CXX="${CXX:-mulle-clang}"
+   ;;
+esac
 
 SOURCE_EXTENSION=".m .aam"
 STANDALONE_SUFFIX="Standalone"

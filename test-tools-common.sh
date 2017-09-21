@@ -6,7 +6,7 @@ REQUIRED_FUNCTIONS_MIN_MINOR=12
 
 mingw_demangle_path()
 {
-   echo "$1" | sed 's|^/\(.\)|\1:|' | sed s'|/|\\|g'
+   echo "$1" | sed 's|^/\(.\)/|\1:/|' | sed s'|/|\\|g'
 }
 
 
@@ -130,6 +130,7 @@ setup_tooling()
                CMAKE_GENERATOR="MinGW Makefiles"
                CC="${CC:-cl}"
                CXX="${CXX:-cl}"
+               FILEPATH_DEMANGLER="mingw_demangle_path"
             ;;
 
             *)
@@ -153,13 +154,13 @@ setup_tooling()
 
    case "${CC}" in
       *-cl|*-cl.exe|cl.exe|cl)
-         DEBUG_CFLAGS="${DEBUG_CL_CFLAGS} ${DEBUG_CFLAGS}"
-         RELEASE_CFLAGS="${RELEASE_CL_CFLAGS} ${RELEASE_CFLAGS}"
+         DEBUG_CFLAGS="${DEBUG_CL_CFLAGS}"
+         RELEASE_CFLAGS="${RELEASE_CL_CFLAGS}"
       ;;
 
       *)
-         DEBUG_CFLAGS="${DEBUG_GCC_CFLAGS} ${DEBUG_CFLAGS}"
-         RELEASE_CFLAGS="${RELEASE_GCC_CFLAGS} ${RELEASE_CFLAGS}"
+         DEBUG_CFLAGS="${DEBUG_GCC_CFLAGS}"
+         RELEASE_CFLAGS="${RELEASE_GCC_CFLAGS}"
       ;;
    esac
 }
