@@ -426,11 +426,17 @@ run_gcc_compiler()
    cflags="${CFLAGS}"
    cflagsname="`echo "${srcfile}" | sed 's/\.[^.]*$//'`.CFLAGS"
 
-   if [ -f "${cflagsname}" ]
+   if [ -f "${cflagsname}.${UNAME}" ]
    then
-      cflags="`cat "${cflagsname}"`"
-      log_fluff "Got CFLAGS=\"${cflags}\" from \"${cflagsname}\""
-   fi
+      cflags="`cat "${cflagsname}.${UNAME}"`"
+      log_fluff "Got CFLAGS=\"${cflags}\" from \"${cflagsname}.${UNAME}\""
+   else
+	   if [ -f "${cflagsname}" ]
+	   then
+	      cflags="`cat "${cflagsname}"`"
+	      log_fluff "Got CFLAGS=\"${cflags}\" from \"${cflagsname}\""
+	   fi
+	fi   	
 
    err_redirect_exekutor "${errput}" "${CC}" ${cflags} -o "${a_out_ext}" \
                                              "-I${LIBRARY_INCLUDE}" \
