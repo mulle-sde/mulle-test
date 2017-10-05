@@ -1,3 +1,7 @@
+### 2.2.1
+
+* Various small improvements
+
 ### 2.1.1
 
 * use MULLE_TEST to get os-specific-libraries.txt

@@ -58,13 +58,12 @@ trace_ignore()
 #
 maybe_show_diagnostics()
 {
-   local errput
-
-   errput="$1"
+   local errput="$1"
 
    local contents
+
    contents="`head -2 "${errput}"`" 2> /dev/null
-   if [ "${contents}" != "" ]
+   if [ ! -z "${contents}" ]
    then
       log_info "DIAGNOSTICS:" >&2
       cat "${errput}" >&2
@@ -335,7 +334,7 @@ eval_cmake()
       -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
       -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
       -DCMAKE_EXE_LINKER_FLAGS="'${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS} ${RPATH_FLAGS}'" \
-      ..   
+      ..
 }
 
 fail_test_cmake()
@@ -436,7 +435,7 @@ run_gcc_compiler()
 	      cflags="`cat "${cflagsname}"`"
 	      log_fluff "Got CFLAGS=\"${cflags}\" from \"${cflagsname}\""
 	   fi
-	fi   	
+	fi
 
    err_redirect_exekutor "${errput}" "${CC}" ${cflags} -o "${a_out_ext}" \
                                              "-I${LIBRARY_INCLUDE}" \
@@ -558,7 +557,7 @@ check_compiler_output()
    local rval="$3"
    local pretty_source="$4"
 
-   if [ ${rval} -eq 0 ]
+   if [ "${rval}" -eq 0 ]
    then
       return 0
    fi
@@ -764,21 +763,23 @@ run_common_test()
    a_out_ext="${a_out}${EXE_EXTENSION}"
 
    "${TEST_BUILDER}" "${srcfile}" "${owd}" "${a_out_ext}" "${cc_errput}"
-   rval=$?
-   if [ "$rval" -eq 0 ]
-   then
-      check_compiler_output "${ccdiag}" "${cc_errput}" "${rval}" "${pretty_source}"
-      rval=$?
-   fi
+   rval="$?"
 
-   if [ $rval -ne 0 ]
-   then
-      if [ $rval -eq 3 ]
-      then
+   check_compiler_output "${ccdiag}" "${cc_errput}" "${rval}" "${pretty_source}"
+   rval="$?"
+
+   case "$rval" in
+      0)
+      ;;
+
+      3)
          return 0
-      fi
-      return $rval
-   fi
+      ;;
+
+      *)
+         return $rval
+      ;;
+   esac
 
    log_verbose "Run test"
 
@@ -839,8 +840,8 @@ run_c_test()
    owd="`pwd -P`"
    a_out="${owd}/${name}"
 
-   TEST_BUILDER=run_compiler
-   FAIL_TEST=fail_test_c
+   TEST_BUILDER="run_compiler"
+   FAIL_TEST="fail_test_c"
    run_common_test "${a_out}" "$@"
 }
 
