@@ -129,7 +129,7 @@ search_for_strings()
 #
 # also redirects error to output (for tests)
 #
-err_redirect_exekutor()
+err_redirect_eval_exekutor()
 {
    local output
 
@@ -150,7 +150,7 @@ err_redirect_exekutor()
    then
       local rval
 
-      "$@" > "${output}" 2>&1
+      eval "$@" > "${output}" 2>&1
       rval=$?
 
       if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
@@ -267,46 +267,66 @@ ${DEBUGGER} ${a_out_ext}" >&2
 }
 
 
-
-fail_test_c()
+emit_include_cflags()
 {
-   local sourcefile
-   local a_out
-   local stdin
-   local ext
+   local quote="$1"
+   local cflags
 
-   sourcefile="$1"
-   a_out_ext="$2"
-   stdin="$3"
-   ext="$4"
-
-   #hacque
-   local a_paths
-
-   a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
-
-   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
+   if [ ! -z "${LIBRARY_INCLUDE}" ]
    then
-      if [ "${BUILD_TYPE}" != "Debug" ]
-      then
-         log_info "DEBUG: "
-         log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
-
-         exekutor "${CC}" ${DEBUG_CFLAGS} -o "${a_out_ext}" \
-            "-I${LIBRARY_INCLUDE}" \
-            "-I${DEPENDENCIES_INCLUDE}" \
-            "-I${ADDICTIONS_INCLUDE}" \
-            "${sourcefile}" \
-            "${LIBRARY_PATH}" \
-            ${a_paths} \
-            ${LDFLAGS} \
-            ${RPATH_FLAGS}
-
-         suggest_debugger_commandline "${a_out_ext}" "${stdin}"
-      fi
-
-      exit 1
+      cflags="-I${quote}${LIBRARY_INCLUDE}${quote}"
    fi
+
+   if [ ! -z "${DEPENDENCIES_INCLUDE}" ]
+   then
+      if [ -z "${cflags}" ]
+      then
+         cflags="-I${quote}${DEPENDENCIES_INCLUDE}${quote}"
+      else
+         cflags="${cflags} -I${quote}${DEPENDENCIES_INCLUDE}${quote}"
+      fi
+   fi
+
+   if [ ! -z "${ADDICTIONS_INCLUDE}" ]
+   then
+      if [ -z "${cflags}" ]
+      then
+         cflags="-I${quote}${ADDICTIONS_INCLUDE}${quote}"
+      else
+         cflags="${cflags} -I${quote}${ADDICTIONS_INCLUDE}${quote}"
+      fi
+   fi
+
+   if [ ! -z "${cflags}" ]
+   then
+      echo "${cflags}"
+   fi
+}
+
+
+emit_cflags()
+{
+   local srcfile="$1"
+
+   local cflagsname
+   local cflags
+
+   cflags="${CFLAGS}"
+   cflagsname="`echo "${srcfile}" | sed 's/\.[^.]*$//'`.CFLAGS"
+
+   if [ -f "${cflagsname}.${UNAME}" ]
+   then
+      cflags="`cat "${cflagsname}.${UNAME}"`"
+      log_fluff "Got CFLAGS=\"${cflags}\" from \"${cflagsname}.${UNAME}\""
+   else
+      if [ -f "${cflagsname}" ]
+      then
+         cflags="`cat "${cflagsname}"`"
+         log_fluff "Got CFLAGS=\"${cflags}\" from \"${cflagsname}\""
+      fi
+   fi
+
+   echo "${cflags}"
 }
 
 
@@ -317,29 +337,9 @@ eval_cmake()
    #
    # (where is this fix ?)
    #
-   local cmake_c_flags
+   local cflags
 
-   if [ ! -z "${LIBRARY_INCLUDE}" ]
-   then
-      cmake_c_flags="-I${LIBRARY_INCLUDE}"
-   fi
-
-   if [ ! -z "${DEPENDENCIES_INCLUDE}" ]
-   then
-      if [ -z "${cmake_c_flags}" ]
-      then
-         cmake_c_flags="-I${DEPENDENCIES_INCLUDE}"
-      else
-         cmake_c_flags="${cmake_c_flags} -I${DEPENDENCIES_INCLUDE}"
-      fi
-   fi
-
-   if [ ! -z "${ADDICTIONS_INCLUDE}" ]
-   then
-      cmake_c_flags="-I${ADDICTIONS_INCLUDE}"
-   else
-      cmake_c_flags="${cmake_c_flags} -I${ADDICTIONS_INCLUDE}"
-   fi
+   cflags="`emit_include_cflags`"
 
    eval_exekutor "'${CMAKE}'" \
       -G "'${CMAKE_GENERATOR}'" \
@@ -354,6 +354,7 @@ eval_cmake()
       -DCMAKE_EXE_LINKER_FLAGS="'${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS} ${RPATH_FLAGS}'" \
       ..
 }
+
 
 fail_test_cmake()
 {
@@ -425,6 +426,51 @@ run_cmake()
 }
 
 
+fail_test_c()
+{
+   local sourcefile="$1"
+   local a_out_ext="$2"
+   local stdin="$3"
+   local ext="$4"
+
+   if [ -z "${MULLE_TEST_IGNORE_FAILURE}" ]
+   then
+      return
+   fi
+
+   if [ "${BUILD_TYPE}" != "Debug" ]
+   then
+      local a_paths
+
+      a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
+
+      local cflags
+      local incflags
+
+      cflags="`emit_cflags "${sourcefile}"`"
+      incflags="`emit_include_cflags "'"`"
+
+      log_info "DEBUG: "
+      log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
+
+      eval_exekutor "'${CC}'" \
+                    "${DEBUG_CFLAGS}"
+                    -o "'${a_out_ext}'" \
+                    "${cflags}" \
+                    "${incflags}" \
+                    "'${sourcefile}'" \
+                    "'${LIBRARY_PATH}'" \
+                    "${a_paths}" \
+                    "${LDFLAGS}" \
+                    "${RPATH_FLAGS}"
+
+      suggest_debugger_commandline "${a_out_ext}" "${stdin}"
+   fi
+
+   exit 1
+}
+
+
 run_gcc_compiler()
 {
    local srcfile="$1"
@@ -437,88 +483,21 @@ run_gcc_compiler()
 
    a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
 
-   local cflagsname
    local cflags
+   local incflags
 
-   cflags="${CFLAGS}"
-   cflagsname="`echo "${srcfile}" | sed 's/\.[^.]*$//'`.CFLAGS"
+   cflags="`emit_cflags "${srcfile}"`"
+   incflags="`emit_include_cflags "'"`"
 
-   if [ -f "${cflagsname}.${UNAME}" ]
-   then
-      cflags="`cat "${cflagsname}.${UNAME}"`"
-      log_fluff "Got CFLAGS=\"${cflags}\" from \"${cflagsname}.${UNAME}\""
-   else
-	   if [ -f "${cflagsname}" ]
-	   then
-	      cflags="`cat "${cflagsname}"`"
-	      log_fluff "Got CFLAGS=\"${cflags}\" from \"${cflagsname}\""
-	   fi
-	fi
-
-   err_redirect_exekutor "${errput}" "${CC}" ${cflags} -o "${a_out_ext}" \
-                                             "-I${LIBRARY_INCLUDE}" \
-                                             "-I${DEPENDENCIES_INCLUDE}" \
-                                             "-I${ADDICTIONS_INCLUDE}" \
-                                             "${srcfile}" \
-                                             "${LIBRARY_PATH}" \
-                                             ${a_paths} \
-                                             ${LDFLAGS} \
-                                             ${RPATH_FLAGS}
-}
-
-
-run_cl_compiler()
-{
-   local srcfile="$1"
-   local owd="$2"
-   local a_out_ext="$3"
-   local errput="$4"
-
-   local l_include
-   local l_path
-   local d_include
-   local a_include
-
-   l_include="`mingw_demangle_path "${LIBRARY_INCLUDE}"`"
-   l_path="`mingw_demangle_path "${LIBRARY_PATH}"`"
-   d_include="`mingw_demangle_path "${DEPENDENCIES_INCLUDE}"`"
-   a_include="`mingw_demangle_path "${ADDICTIONS_INCLUDE}"`"
-   a_out_ext="`mingw_demangle_path "${a_out_ext}"`"
-
-   local a_paths
-   local i
-   local demangle
-
-   IFS="
-"
-   for i in ${ADDITIONAL_LIBRARY_PATHS}
-   do
-      IFS="${DEFAULT_IFS}"
-      demangle="`mingw_demangle_path "${i}"`"
-      a_paths="`concat "${a_paths}" "${demangle}"`"
-   done
-   IFS="${DEFAULT_IFS}"
-
-   local cflagsname
-   local cflags
-
-   cflags="${CFLAGS}"
-   cflagsname="`echo "${srcfile}" | sed 's/\.[^.]*$//'`.CLFLAGS"
-
-   if [ -f "${cflagsname}" ]
-   then
-      cflags="`cat "${cflagsname}"`"
-   fi
-
-   err_redirect_exekutor "${errput}" "${CC}" ${cflags} "/Fe${a_out_ext}" \
-                                             "/I ${l_include}" \
-                                             "/I ${d_include}" \
-                                             "/I ${a_include}" \
-                                             "${sourcefile}" \
-                                             "${l_path}" \
-                                             ${a_paths} \
-                                             ${LDFLAGS} \
-                                             ${RPATH_FLAGS}
+   err_redirect_eval_exekutor "${errput}" "'${CC}'" \
+                                          "${cflags}" \
+                                          "${incflags}" \
+                                          -o "'${a_out_ext}'" \
+                                          "'${srcfile}'" \
+                                          "'${LIBRARY_PATH}'" \
+                                          "${a_paths}" \
+                                          "${LDFLAGS}" \
+                                          "${RPATH_FLAGS}"
 }
 
 
@@ -1348,8 +1327,15 @@ main()
    DEPENDENCIES_DIR="`mulle-bootstrap paths dependencies`"
    ADDICTIONS_DIR="`mulle-bootstrap paths addictions`"
 
-   DEPENDENCIES_INCLUDE="${DEPENDENCIES_DIR}/include"
-   ADDICTIONS_INCLUDE="${ADDICTIONS_DIR}/include"
+   if [ ! -z "${DEPENDENCIES_DIR}" ]
+   then
+      DEPENDENCIES_INCLUDE="${DEPENDENCIES_DIR}/include"
+   fi
+
+   if [ ! -z "${ADDICTIONS_DIR}" ]
+   then
+      ADDICTIONS_INCLUDE="${ADDICTIONS_DIR}/include"
+   fi
 
    LIBRARY_PATH="`locate_library "${LIBRARY_FILENAME}" "${LIBRARY_PATH}"`" || exit 1
 
