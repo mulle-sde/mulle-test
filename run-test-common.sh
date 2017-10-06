@@ -312,9 +312,11 @@ fail_test_c()
 
 eval_cmake()
 {
-
    # fix for mingw, which demangles the first -I path
    # but not subsequent ones
+   #
+   # (where is this fix ?)
+   #
    local cmake_c_flags
 
    if [ ! -z "${LIBRARY_INCLUDE}" ]
@@ -322,6 +324,22 @@ eval_cmake()
       cmake_c_flags="-I${LIBRARY_INCLUDE}"
    fi
 
+   if [ ! -z "${DEPENDENCIES_INCLUDE}" ]
+   then
+      if [ -z "${cmake_c_flags}" ]
+      then
+         cmake_c_flags="-I${DEPENDENCIES_INCLUDE}"
+      else
+         cmake_c_flags="${cmake_c_flags} -I${DEPENDENCIES_INCLUDE}"
+      fi
+   fi
+
+   if [ ! -z "${ADDICTIONS_INCLUDE}" ]
+   then
+      cmake_c_flags="-I${ADDICTIONS_INCLUDE}"
+   else
+      cmake_c_flags="${cmake_c_flags} -I${ADDICTIONS_INCLUDE}"
+   fi
 
    eval_exekutor "'${CMAKE}'" \
       -G "'${CMAKE_GENERATOR}'" \
