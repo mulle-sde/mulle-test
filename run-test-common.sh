@@ -337,9 +337,9 @@ eval_cmake()
    #
    # (where is this fix ?)
    #
-   local cflags
+   local cmake_c_flags
 
-   cflags="`emit_include_cflags`"
+   cmake_c_flags="`emit_include_cflags`"
 
    eval_exekutor "'${CMAKE}'" \
       -G "'${CMAKE_GENERATOR}'" \
@@ -1203,6 +1203,7 @@ run_all_tests()
          log_info "All tests ($RUNS) passed successfully" >&2
       else
          log_error "$FAILS tests out of $RUNS failed" >&2
+         return 1
       fi
    else
       log_warning "No tests found"

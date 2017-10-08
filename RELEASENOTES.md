@@ -1,3 +1,7 @@
+### 2.2.3
+
+* fix return code on fails, fix cmake
+
 ### 2.2.1
 
 * Various small improvements
