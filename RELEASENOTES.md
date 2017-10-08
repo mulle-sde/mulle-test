@@ -1,3 +1,7 @@
+### 2.2.5
+
+* dial down the convenience to support gcc. TEST_LIBRARIES must be linked inside tests CMakeLists.txt now
+
 ### 2.2.3
 
 * fix return code on fails, fix cmake

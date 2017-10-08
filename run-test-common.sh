@@ -326,7 +326,30 @@ emit_cflags()
       fi
    fi
 
+
    echo "${cflags}"
+}
+
+
+emit_libraries()
+{
+   local s
+
+   while [ $# -ne 0 ]
+   do
+      if [ -z "${s}" ]
+      then 
+         s="$1"
+      else
+         s="${s};$1"
+      fi
+      shift
+   done
+
+   if [ ! -z "${s}" ]
+   then
+      echo "${s}"
+   fi
 }
 
 
@@ -341,6 +364,10 @@ eval_cmake()
 
    cmake_c_flags="`emit_include_cflags`"
 
+   local cmake_libraries
+
+   cmake_libraries="`emit_libraries "${LIBRARY_PATH}" ${ADDITIONAL_LIBRARY_PATHS}`"
+
    eval_exekutor "'${CMAKE}'" \
       -G "'${CMAKE_GENERATOR}'" \
       -DCMAKE_BUILD_TYPE="'$1'" \
@@ -351,7 +378,8 @@ eval_cmake()
       -DCMAKE_CXX_COMPILER="'${CXX}'" \
       -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
       -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
-      -DCMAKE_EXE_LINKER_FLAGS="'${LIBRARY_PATH} ${ADDITIONAL_LIBRARY_PATHS} ${RPATH_FLAGS}'" \
+      -DTEST_LIBRARIES="'${cmake_libraries}'" \
+      -DCMAKE_EXE_LINKER_FLAGS="'${RPATH_FLAGS}'" \
       ..
 }
 
