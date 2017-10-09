@@ -15,9 +15,8 @@ mingw_demangle_path()
 #
 mingw_mangle_compiler_exe()
 {
-   local compiler
+   local compiler="$1"
 
-   compiler="$1"
    case "${compiler}" in
       mulle-clang*|clang*)
       ;;
@@ -33,13 +32,9 @@ mingw_mangle_compiler_exe()
 
 check_version()
 {
-   local min_major
-   local min_minor
-   local version
-
-   version="$1"
-   min_major="$2"
-   min_minor="$3"
+   local version="$1"
+   local min_major="$2"
+   local min_minor="$3"
 
    local arewegood
    local major
@@ -107,7 +102,6 @@ EOF
                   "${REQUIRED_FUNCTIONS_MIN_MAJOR}"      \
                   "${REQUIRED_FUNCTIONS_MIN_MINOR}"
 }
-
 
 
 setup_tooling()

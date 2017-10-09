@@ -1,11 +1,12 @@
 #! /usr/bin/env bash
 
-# nmake doesn't work
-MAKE=make
 case "`uname -s`" in
 	MINGW*)
 		CC="${CC:-mulle-clang-cl}"
 		CXX="${CXX:-mulle-clang-cl}"
+
+      # nmake doesn't work ? /questionable!
+      MAKE=make
    ;;
 
    *)
@@ -13,6 +14,9 @@ case "`uname -s`" in
       CXX="${CXX:-mulle-clang}"
    ;;
 esac
+
+echo "CC is ${CC}" >&2
+echo "CXX is ${CC}" >&2
 
 SOURCE_EXTENSION=".m .aam"
 STANDALONE_SUFFIX="Standalone"

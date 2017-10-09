@@ -338,7 +338,7 @@ emit_libraries()
    while [ $# -ne 0 ]
    do
       if [ -z "${s}" ]
-      then 
+      then
          s="$1"
       else
          s="${s};$1"
@@ -1459,7 +1459,6 @@ main()
    fi
 
    assert_binary "$CC" "CC"
-   CCPATH="`which_binary "${CC}"`"
 
    HAVE_WARNED="NO"
    RUNS=0
