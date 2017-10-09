@@ -1,3 +1,7 @@
+### 2.2.9
+
+* if objc do not allow CC defaults from travis unless OBJC_DIALECT is set
+
 ### 2.2.5
 
 * dial down the convenience to support gcc. TEST_LIBRARIES must be linked inside tests CMakeLists.txt now

@@ -1,22 +1,29 @@
 #! /usr/bin/env bash
 
-case "`uname -s`" in
-	MINGW*)
-		CC="${CC:-mulle-clang-cl}"
-		CXX="${CXX:-mulle-clang-cl}"
-
-      # nmake doesn't work ? /questionable!
-      MAKE=make
+#
+# OBJC_DIALECT is by default empty
+#
+case "${OBJC_DIALECT}" in
+   Apple|GNUStep)
    ;;
 
    *)
-      CC="${CC:-mulle-clang}"
-      CXX="${CXX:-mulle-clang}"
+      case "`uname -s`" in
+      	MINGW*)
+      		CC="mulle-clang-cl"
+      		CXX="mulle-clang-cl"
+
+            # nmake doesn't work ? /questionable!
+            MAKE=make
+         ;;
+
+         *)
+            CC="mulle-clang"
+            CXX="mulle-clang"
+         ;;
+      esac
    ;;
 esac
-
-echo "CC is ${CC}" >&2
-echo "CXX is ${CC}" >&2
 
 SOURCE_EXTENSION=".m .aam"
 STANDALONE_SUFFIX="Standalone"
