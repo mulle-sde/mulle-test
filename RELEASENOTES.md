@@ -1,3 +1,7 @@
+### 2.2.11
+
+* Various small improvements
+
 ### 2.2.9
 
 * if objc do not allow CC defaults from travis unless OBJC_DIALECT is set
