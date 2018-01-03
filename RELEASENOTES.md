@@ -1,3 +1,10 @@
+# 3.0.0
+
+* mulle-test 3.0 renamed from mulle-tests 2
+* init is now done my mulle-test. There is a separate -env for
+* reorganized project
+
+
 ### 2.2.11
 
 * Various small improvements

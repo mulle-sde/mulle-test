@@ -1,3 +1,6 @@
 .DS_Store
 tmp.*
+
+.mulle-sourcetree-fix
 mulle-project/publisher-info.sh
+*.sublime-workspace
