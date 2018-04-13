@@ -1,57 +1,32 @@
-# mulle-tests Cross platform tests
+# mulle-test,  <|PROJECT_DESCRIPTION|>
 
-Test C and Objective C **library** code
+This is your mulle-sde extension template.
 
-Used in conjunction with [mulle-build](//github.com/mulle-nat/mulle-build) and
-[cmake](//cmake.org). [mulle-bootstrap](//github.com/mulle-nat/mulle-bootstrap),
-a dependency of **mulle-build** is a prerequisite, because some of its shell
-library functions are used.
+See the [mulle-sde Wiki](https://github.com/mulle-sde/mulle-sde/wiki) for
+information about how to develop extensions.
 
 
-## Embed mulle-tests with mulle-bootstrap
+## Test without installation
 
-This will place `mulle-tests` into `tests/mulle-tests`
-```
-mulle-bootstrap setting -r -g embedded_repositories 'https://github.com/mulle-nat/mulle-tests;tests/mulle-tests
-mulle-bootstrap fetch
-```
-
-## Set it up
-
-Let `mulle-tests-init` produce the two scripts `tests/build-test.sh` and
-`tests/run-test.sh`:
+See if your extension is found by **mulle-sde** by running:
 
 ```
-./tests/mulle-tests/mulle-tests-init
-
+MULLE_SDE_EXTENSION_PATH="${PWD}/src:${MULLE_SDE_EXTENSION_PATH}" \
+   mulle-sde extension list --all
 ```
 
-
-## Writing a test
-
-Here is a simple test, that checks that "Hello World" is properly output:
+Get detailed information about your extension with *extension usage*:
 
 ```
-cd tests
-mkdir example
-
-cat <<EOF > example/example.c
-#include <stdio.h>
-
-main()
-{
-   printf( "Hello World\n");
-   return( 0);	  // important!
-}
-EOF
-
-cat <<EOF > example/example.stdout
-Hello World
-EOF
+MULLE_SDE_EXTENSION_PATH="${PWD}/src:${MULLE_SDE_EXTENSION_PATH}" \
+   mulle-sde extension usage --info --list '*' <|VENDOR_NAME|>:mulle-test
 ```
 
-## Running tests
+## Install
 
-Run the tests with `mulle-test`.
-
-
+```
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+make install
+```

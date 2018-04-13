@@ -1,0 +1,16 @@
+digraph X {
+    node [ shape="note" ]
+
+    test    [ shape="folder" ]
+    example [ shape="folder" ]
+
+    "run-test"   [ fontcolor="gray", color="gray" ]
+    "build-test" [ fontcolor="gray", color="gray" ]
+
+
+    test -> "run-test"    [ color="gray" ]
+    test -> "build-test"  [ color="gray" ]
+    test -> example
+    example -> "hello.c"
+    example -> "hello.stdout"
+}

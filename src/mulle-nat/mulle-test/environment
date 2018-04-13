@@ -1,0 +1,10 @@
+#
+# Make it known that we are present
+#
+MULLE_SDE_TEST_CALLBACKS="test"
+
+
+#
+# These are used by mulle-match find to speed up the search.
+#
+MULLE_MATCH_FIND_NAMES+="*.stdout,*.stdin,*.stderr,*.errors,*.ccdiag"

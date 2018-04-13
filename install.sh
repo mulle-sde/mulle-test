@@ -180,8 +180,6 @@ main()
 
    install -m "${mode}" "mulle-test" "${bin}/mulle-test" || exit 1
    printf "install: ${C_MAGENTA}${C_BOLD}%s${C_RESET}\n" "${bin}/mulle-test" >&2
-   install -m "${mode}" "mulle-test-env" "${bin}/mulle-test-env" || exit 1
-   printf "install: ${C_MAGENTA}${C_BOLD}%s${C_RESET}\n" "${bin}/mulle-test-env" >&2
 
    for i in src/*.sh
    do

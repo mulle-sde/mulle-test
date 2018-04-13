@@ -3,7 +3,7 @@
 # formula operations.
 #
 PROJECT="mulle-test"      # your project/repository name
-DESC="☑︎ Test scripts that verify that output conforms to expectations"
+DESC="☑︎ Run tests and compare their results against expectations"
 LANGUAGE="bash"           # c,cpp, objc, bash ...
 # NAME="${PROJECT}"       # formula filename without .rb extension
 

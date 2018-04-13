@@ -29,29 +29,19 @@
 #   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #   POSSIBILITY OF SUCH DAMAGE.
 #
-if [ "${TRACE}" = "YES" ]
-then
-   set -x
-fi
+[ "${TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-VERSION_MAJOR="3"
+MULLE_TEST_VERSION="3.0.1"
 
 # version is in mulle-test-env
-
-trap_fail()
-{
-   exit 1
-}
 
 
 usage()
 {
-   local verbose="${1:-NO}"
-
    cat <<EOF
 Usage:
-   ${MULLE_EXECUTABLE_NAME} [flags] [command]
+   ${MULLE_EXECUTABLE_NAME} [flags] <command>
 
    Run tests.
 
@@ -63,265 +53,31 @@ EOF
    cat <<EOF
 
 Commands:
-   init       :  prepare project for mulle-test
-   test       :  build and run tests (default)
+   build     : build libraries for tests
+   clean     : remove folders: bin,build,include,lib,libexec,share,Frameworks
+   run       : run tests
+   test      : first build then run tests
+   test-dir  : locate test folder
 EOF
-
-   if [ "${verbose}" = "NO" ]
-   then
-      cat <<EOF
-
-      (use mulle-test -v help to show more commands and flags)
-EOF
-   fi
 
    exit 1
 }
 
 
-#
-# >>> init
-# TODO: need styles for different languages
-#
-write_build_script()
+cd_test_dir()
 {
-   local name="$1"
-   local lang="$2"
-   local version="$3"
-
-   cat <<EOF
-#!/usr/bin/env bash
-
-PROJECTDIR="\`dirname "\$PWD"\`"
-PROJECTNAME="${name}"
-LIBRARY_SHORTNAME="${name}"
-ADDITIONAL_LIBS=
-
-MULLE_TEST_LIBEXEC_DIR="\`mulle-test-env libexec-dir ${version}\`" || exit 1
-
-. "\${MULLE_TEST_LIBEXEC_DIR}/test-${lang}-common.sh"
-. "\${MULLE_TEST_LIBEXEC_DIR}/test-tools-common.sh"
-. "\${MULLE_TEST_LIBEXEC_DIR}/test-staticlib-common.sh"
-. "\${MULLE_TEST_LIBEXEC_DIR}/build-test-common.sh"
-EOF
-}
-
-
-write_test_script()
-{
-   local name="$1"
-   local lang="$2"
-   local version="$3"
-
-   cat <<EOF
-#!/usr/bin/env bash
-
-PROJECTDIR="\`dirname "\$PWD"\`"
-PROJECTNAME="${name}"
-LIBRARY_SHORTNAME="${name}"
-ADDITIONAL_LIBS=
-
-MULLE_TEST_LIBEXEC_DIR="\`mulle-test-env libexec-dir ${version}\`" || exit 1
-
-. "\${MULLE_TEST_LIBEXEC_DIR}/test-${lang}-common.sh"
-. "\${MULLE_TEST_LIBEXEC_DIR}/test-tools-common.sh"
-. "\${MULLE_TEST_LIBEXEC_DIR}/test-staticlib-common.sh"
-. "\${MULLE_TEST_LIBEXEC_DIR}/run-test-common.sh"
-EOF
-}
-
-
-init_main()
-{
-   local directory
-   local parent
-   local name
-   local lang
-
-   if [ $# -ge 1 ]
-   then
-      directory="$1"
-      name="`basename -- "${directory}"`"
-      shift
-   else
-      while :
-      do
-         directory="`pwd`"
-         name="`basename -- "${directory}"`"
-         case "${name}" in
-            mulle-test|tests)
-               cd ..
-               continue
-            ;;
-         esac
-         break
-      done
-   fi
-
-   if [ $# -ge 1 ]
-   then
-      name="$1"
-      shift
-   fi
-
-   lang="c"
-   if [ $# -ge 1 ]
-   then
-      lang="$1"
-      shift
-   fi
-
-   cd "${directory}" || fail "missing directory \"${directory}\""
-   mkdir "tests" 2> /dev/null
-
-   if [ ! -f tests/build-test.sh ]
-   then
-      write_build_script "${name}" "${lang}" "${VERSION_MAJOR}" > tests/build-test
-      chmod 755 tests/build-test
-   else
-      echo "tests/build-test already exists" >&2
-   fi
-
-   if [ ! -f tests/build-test.sh ]
-   then
-      write_test_script "${name}" "${lang}" "${VERSION_MAJOR}" > tests/run-test
-      chmod 755 tests/run-test
-   else
-      echo "tests/run-test already exists" >&2
-   fi
-}
-
-
-
-#
-# init done
-#
-
-locate_tests()
-{
-   log_entry "locate_tests" "$@"
+   log_entry "cd_test_dir" "$@"
 
    local testdir
-   local rootdir
 
-   # ez shortcut
-   testdir="${TESTS:-tests}"
-   if [ -x "${testdir}/run-test" ]
+   # shellcheck source=src/mulle-test-locate.sh
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
+   if ! testdir="`locate_main "$@"`"
    then
-      echo "${testdir}"
-      return
+      fail "Did not find a \"test\" directory"
    fi
 
-   rootdir="${MULLE_VIRTUAL_ROOT:-`pwd -P`}"
-
-   local old
-
-   old="${IFS}"
-   IFS="
-"
-   #
-   # find the nearest tests folder, with a run-test.sh
-   # executable. The awk emits "#pathComponents path"
-   # and then it get sorted. We run breadth first
-   # search this way
-   #
-   for testdir in `find "${rootdir}" -name tests -type d -print | \
-                     awk -F'/' '{print NF " " $0}' | \
-                     sort -n | \
-                     sed 's/[0-9]* \(.*\)/\1/'`
-   do
-      IFS="${old}"
-
-      case "${testdir}" in
-         ${rootdir}/stashes/*)
-            # ignore "top level" stashes
-         ;;
-
-         *)
-            if [ -x "${testdir}/run-test" ]
-            then
-               echo "${testdir}"
-               return
-            fi
-         ;;
-      esac
-   done
-
-   IFS="${old}"
-}
-
-
-test_main()
-{
-   log_entry "test_main" "$@"
-
-   # check this first
-   local testdir
-   local userrel
-
-   testdir="`locate_tests`"
-   userrel="`symlink_relpath "${testdir}" "$PWD"`/"
-
-   if [ -z "${testdir}" ]
-   then
-      fail "Don't know how to run tests (tests/run-test is missing)"
-   fi
-
-   if [ "${OPTION_DONT_BUILD}" = "NO" ]
-   then
-      if [ -x "${testdir}/build-test" ]
-      then
-         (
-            exekutor cd "${testdir}"
-            TEST_PATH_PREFIX="${userrel}" \
-               eval_exekutor "./build-test" \
-                                 ${TEST_BUILD_OPTIONS} "$@"
-         ) || exit 1
-      else
-         if [ -f "${testdir}/build-test" ]
-         then
-            fail "build-test.sh is not executable"
-         fi
-         log_verbose "No build-test found"
-      fi
-   else
-      log_fluff "Build skipped on demand"
-   fi
-
-   local cmdline
-   local relative
-
-   #
-   # improve relative paths for change to "${testdir}"
-   #
-   while [ $# -ne 0 ]
-   do
-      # grab off options
-      case "$1" in
-         -j)
-            cmdline="`concat "${cmdline}" "$1"`"
-            shift
-            cmdline="`concat "${cmdline}" "$1"`"
-         ;;
-
-         -*)
-            cmdline="`concat "${cmdline}" "$1"`"
-         ;;
-
-         *)
-            relative="`symlink_relpath "${PWD}/$1" "${testdir}"`"
-            cmdline="`concat "${cmdline}" "'${relative}'"`"
-         ;;
-      esac
-      shift
-   done
-
-   (
-      exekutor cd "${testdir}"
-      eval_exekutor "./run-test" --path-prefix "'${userrel}'" \
-                                    "${TEST_OPTIONS}" \
-                                    "${cmdline}"
-   ) || exit 1
+   exekutor cd "${testdir}"
 }
 
 
@@ -357,12 +113,12 @@ main()
       fi
 
       case "$1" in
-         -f|--force)
-            MULLE_FLAG_MAGNUM_FORCE="BOTH"
+         -h|--help|help)
+            usage "${MULLE_TRACE}"
          ;;
 
-         -h|--help)
-            usage "${MULLE_TRACE}"
+         -f|--force)
+            MULLE_FLAG_MAGNUM_FORCE="BOTH"
          ;;
 
          -*)
@@ -378,31 +134,71 @@ main()
       shift
    done
 
-
    options_setup_trace "${MULLE_TRACE}"
 
-   local cmd
-
-   cmd="$1"
-
-   MULLE_EXECUTABLE_FAIL_PREFIX="${MULLE_EXECUTABLE_NAME} ${cmd}"
+   local cmd="$1"
    [ $# -eq 0 ] || shift
 
    case "${cmd:-test}" in
-      init)
-         init_main "$@"
+      build)
+         cd_test_dir || exit 1
+
+         # shellcheck source=src/mulle-test-build.sh
+         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-build.sh"
+         build_main "$@"
+      ;;
+
+      clean)
+         cd_test_dir || exit 1
+
+         rmdir_safer bin
+         rmdir_safer build
+         rmdir_safer include
+         rmdir_safer lib
+         rmdir_safer libexec
+         rmdir_safer share
+         rmdir_safer Frameworks
+      ;;
+
+      run)
+         cd_test_dir || exit 1
+
+         # shellcheck source=src/mulle-test-run.sh
+         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-run.sh"
+         run_main "$@"
       ;;
 
       test)
-         test_main "$@"
+         cd_test_dir || exit 1
+
+         if [ -x "build-test" ]
+         then
+            exekutor ./build-test "$@"
+         else
+            # shellcheck source=src/mulle-test-build.sh
+            . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-build.sh"
+            build_main "$@" || exit 1
+         fi
+
+         # shellcheck source=src/mulle-test-run.sh
+         if [ -x "run-test" ]
+         then
+            exekutor ./run-test "$@"
+         else
+            . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-run.sh"
+
+            run_main "$@"
+         fi
       ;;
 
-      help)
-         usage "${MULLE_TRACE}"
+      test-dir)
+         # shellcheck source=src/mulle-test-locate.sh
+         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
+         locate_main "$@"
       ;;
 
       *)
-         log_error "${MULLE_EXECUTABLE_FAIL_PREFIX}: Unknown command \"${cmd}\""
+         log_error "Unknown command \"${cmd}\""
          usage "${MULLE_TRACE}"
       ;;
    esac
@@ -412,7 +208,6 @@ main()
 #
 #
 #
-
 _init()
 {
    #
@@ -425,44 +220,41 @@ _init()
    fi
 
    MULLE_BASHFUNCTIONS_LIBEXEC_DIR="`mulle-bashfunctions-env libexec-dir 2> /dev/null`"
-   if [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ]
-   then
-      if [ -z "`command -v "${executablepath}"`" ]
-      then
-          echo "Fatal Error: Could not find mulle-bashfunctions-env in PATH (not installed ?)" >&2
-      else
-         echo "Fatal Error: Could not find libexec of mulle-bashfunctions-env ($PWD)" >&2
-      fi
+   [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ] && \
+      echo "mulle-bashfunctions-env not installed" >&2 && \
       exit 1
+
+   . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-bashfunctions.sh" "minimal" || exit 1
+
+   local _libexec_dir
+
+   _get_libexec_dir "$0" "mulle-match" "mulle-test-run.sh"
+
+   MULLE_TEST_LIBEXEC_DIR="${_libexec_dir}"
+
+   #
+   # minimal setup exit
+   #
+   if [ "$#" -eq 1 ]
+   then
+      case "$1" in
+         "libexec-dir")
+            echo "${MULLE_TEST_LIBEXEC_DIR}"
+            exit 0
+         ;;
+      esac
    fi
 
-   local failmsg
-
-   failmsg="failed to load bashfunctions from ${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}"
-
-      # shellcheck source=../mulle-bashfunctions/src/mulle-string.sh
-   . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-string.sh"   || fail "${failmsg}"
-      # shellcheck source=../mulle-bashfunctions/src/mulle-logging.sh
-   . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-logging.sh"  || fail "${failmsg}"
-      # shellcheck source=../mulle-bashfunctions/src/mulle-exekutor.sh
-   . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-exekutor.sh" || fail "${failmsg}"
-      # shellcheck source=../mulle-bashfunctions/src/mulle-options.sh
-   . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-options.sh"  || fail "${failmsg}"
-      # shellcheck source=../mulle-bashfunctions/src/mulle-path.sh
-   . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-path.sh"     || fail "${failmsg}"
-      # shellcheck source=../mulle-bashfunctions/src/mulle-file.sh
-   . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-file.sh"     || fail "${failmsg}"
-
-
-   #  set -e # more pain then gain in the end
-   #  set -u # doesn't work with my style
-
-   trap trap_fail INT
    set -o pipefail
-
-   MULLE_ARGUMENTS="$*"
 }
 
 
-_init "$@" # needs params
+# mingw stuff
+case "$PATH" in
+   '\\'*)
+      PATH="${PATH//\\/\/}"
+   ;;
+esac
+
+_init
 main "$@"
