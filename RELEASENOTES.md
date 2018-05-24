@@ -1,3 +1,7 @@
+### 3.0.5
+
+* fix CMakeLists.txt again and again and again
+
 ### 3.0.4
 
 * fix CMakeLists.txt again and again
