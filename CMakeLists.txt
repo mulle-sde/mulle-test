@@ -39,6 +39,6 @@ DESTINATION "libexec/mulle-test/${PROJECT_VERSION}")
 ######
 #
 # must be after CPACK_PACKAGE_VERSION
-include( CMakePackage.txt)
+include( CMakePackage)
 include( CPack)
 
