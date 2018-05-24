@@ -37,9 +37,8 @@ fail_test_c()
    log_entry "fail_test_c" "$@"
 
    local sourcefile="$1"
-   local a_out_ext="$2"
-   local stdin="$3"
-   local ext="$4"
+   local a_out="$2"
+   local ext="$3"
 
    if [ -z "${MULLE_FLAG_MAGNUM_FORCE}" ]
    then
@@ -59,11 +58,11 @@ fail_test_c()
       incflags="`emit_include_cflags "'"`"
 
       log_info "DEBUG: "
-      log_info "rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
+      log_info "Rebuilding as `basename -- ${a_out}` with -O0 and debug symbols..."
 
       eval_exekutor "'${CC}'" \
                     "${DEBUG_CFLAGS}" \
-                    -o "'${a_out_ext}'" \
+                    -o "'${a_out}'" \
                     "${cflags}" \
                     "${incflags}" \
                     "'${sourcefile}'" \
@@ -73,19 +72,17 @@ fail_test_c()
                     "${RPATH_FLAGS}"
    fi
 
-   if [ -z "${stdin}" ]
+   stdin="${name}.stdin"
+   if rexekutor [ ! -f "${stdin}" ]
    then
-      stdin="${name}.stdin"
-      if rexekutor [ ! -f "${stdin}" ]
-      then
-         stdin="default.stdin"
-      fi
-      if rexekutor [ ! -f "${stdin}" ]
-      then
-         stdin="-"
-      fi
+      stdin="default.stdin"
    fi
-   suggest_debugger_commandline "${a_out_ext}" "${stdin}"
+   if rexekutor [ ! -f "${stdin}" ]
+   then
+      stdin="-"
+   fi
+
+   suggest_debugger_commandline "${a_out}" "${stdin}"
 
    exit 1
 }
@@ -96,8 +93,12 @@ run_gcc_compiler()
    log_entry "run_gcc_compiler" "$@"
 
    local srcfile="$1"
-   local a_out_ext="$2"
+   local a_out="$2"
    local errput="$3"
+
+   [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
+   [ -z "${a_out}" ]   && internal_fail "a_out is empty"
+   [ -z "${errput}" ]  && internal_fail "errput is empty"
 
    #hacque
    local a_paths
@@ -110,10 +111,15 @@ run_gcc_compiler()
    cflags="`emit_cflags "${srcfile}"`"
    incflags="`emit_include_cflags "'"`"
 
+   log_debug "LIBRARY_PATH=${LIBRARY_PATH}"
+   log_debug "ADDITIONAL_LIBRARY_PATHS=${a_paths}"
+   log_debug "LDFLAGS=${LDFLAGS}"
+   log_debug "RPATH_FLAGS=${RPATH_FLAGS}"
+
    err_redirect_eval_exekutor "${errput}" "'${CC}'" \
                                           "${cflags}" \
                                           "${incflags}" \
-                                          -o "'${a_out_ext}'" \
+                                          -o "'${a_out}'" \
                                           "'${srcfile}'" \
                                           "'${LIBRARY_PATH}'" \
                                           "${a_paths}" \
@@ -149,6 +155,16 @@ suggest_debugger_commandline()
    local a_out_ext="$1"
    local stdin="$2"
 
+   case "${stdin}" in
+      ""|"-")
+         stdin=""
+      ;;
+
+      *)
+         stdin="< ${stdin}"
+      ;;
+   esac
+
    case "${MULLE_UNAME}" in
       darwin)
          echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
@@ -160,7 +176,7 @@ DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
 ${DEBUGGER} ${a_out_ext}" >&2
          if [ "${stdin}" != "/dev/null" ]
          then
-            echo "run < ${stdin}" >&2
+            echo "run ${stdin}" >&2
          fi
       ;;
 
@@ -174,7 +190,7 @@ LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}\" \
 ${DEBUGGER} ${a_out_ext}" >&2
          if [ "${stdin}" != "/dev/null" ]
          then
-            echo "run < ${stdin}" >&2
+            echo "run ${stdin}" >&2
          fi
      ;;
    esac
@@ -231,7 +247,7 @@ check_compiler_output()
 
 assert_binary()
 {
-   log_entry "run_named_test" "$@"
+   log_entry "assert_binary" "$@"
 
    local name="$1"
    local bin

@@ -108,22 +108,28 @@ _check_test_output()
    [ -z "${errput}" ] && internal_fail "errput must not be empty"
    [ -z "${a_out}" ]  && internal_fail "a_out must not be empty"
 
+   local info_text
+
+   info_text="\"${TEST_PATH_PREFIX}${pretty_source}\" (${TEST_PATH_PREFIX}${a_out}"
+
    if [ ${rval} -ne 0 ]
    then
       if [ ! -f "${errors}" ]
       then
-         log_error "TEST CRASHED: \"${TEST_PATH_PREFIX}${pretty_source}\" (${TEST_PATH_PREFIX}${a_out}, ${errput})"
+         log_error "TEST CRASHED: ${info_text}, ${errput})"
          return ${RVAL_FAILURE}
       fi
 
-      search_for_regexps "TEST FAILED TO PRODUCE ERRORS: \"${TEST_PATH_PREFIX}${pretty_source}\" (${errput})" \
-                         "${errput}" "${errors}"
+      local banner
+
+      banner="TEST FAILED TO PRODUCE ERRORS: ${info_text} ,${errput})"
+      search_for_regexps "${banner}" "${errput}" "${errors}"
       return $?
    fi
 
    if [ -f "${errors}" ]
    then
-      log_error "TEST FAILED TO CRASH: \"${TEST_PATH_PREFIX}${pretty_source}\" (${TEST_PATH_PREFIX}${a_out})"
+      log_error "TEST FAILED TO CRASH: "
       return ${RVAL_FAILURE}
    fi
 

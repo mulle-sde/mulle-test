@@ -38,12 +38,13 @@ setup_language()
 {
    log_entry "setup_language" "$@"
 
-   PROJECT_LANGUAGE="${PROJECT_LANGUAGE:-c}"
-   PROJECT_DIALECT="${PROJECT_DIALECT:-c}"
+   local platform="$1"
+   local language="${2:-c}"
+   local dialect="${3:-c}"
 
-   case "${PROJECT_LANGUAGE}" in
+   case "${language}" in
       c)
-         case "${PROJECT_DIALECT}" in
+         case "${dialect}" in
             c)
                PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-c}"
                STANDALONE_SUFFIX="-standalone"
@@ -64,13 +65,21 @@ setup_language()
                   ;;
 
                   *)
-                     case "`uname -s`" in
-                        MINGW*)
+                     case "${platform}" in
+                        mingw*)
                            CC="mulle-clang-cl"
                            CXX="mulle-clang-cl"
 
                            # nmake doesn't work ? /questionable!
-                           MAKE=make
+                           MAKE="make"
+                        ;;
+
+                        darwin)
+                           APPLE_SDKPATH="`xcrun --show-sdk-path`"
+                           [ -z "${APPLE_SDKPATH}" ] && fail "Could not figure out sdk path with xcrun"
+
+                           CC="mulle-clang"
+                           CXX="mulle-clang"
                         ;;
 
                         *)
@@ -92,13 +101,13 @@ setup_language()
             ;;
 
             *)
-               fail "unsupported \"${PROJECT_LANGUAGE}\" dialect \"${PROJECT_DIALECT}\""
+               fail "unsupported \"${language}\" dialect \"${dialect}\""
             ;;
          esac
       ;;
 
       *)
-         fail "unsupported language \"${PROJECT_LANGUAGE}\""
+         fail "unsupported language \"${language}\""
       ;;
    esac
 }
@@ -151,7 +160,9 @@ setup_tooling()
 {
    log_entry "setup_tooling" "$@"
 
-   case "${MULLE_UNAME}" in
+   local platform="$1"
+
+   case "$1" in
       mingw)
          CC="`mingw_mangle_compiler_exe "${CC}" "CC"`"
          CXX="`mingw_mangle_compiler_exe "${CXX}" "CXX"`"
@@ -179,7 +190,7 @@ setup_tooling()
       ;;
 
       "")
-         fail "MULLE_UNAME not set"
+         fail "platform not set"
       ;;
 
       *)
@@ -209,7 +220,9 @@ setup_platform()
 {
    log_entry "setup_platform" "$@"
 
-   case "${MULLE_UNAME}" in
+   local platform="$1"
+
+   case "$1" in
       mingw)
          SHAREDLIB_PREFIX=""
          SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.lib}" # link with extension
@@ -239,14 +252,14 @@ setup_platform()
    esac
 
 
-   case "${MULLE_UNAME}" in
+   case "$1" in
       mingw)
          CRLFCAT="dos2unix"
       ;;
 
       darwin)
          case "${CC}" in
-            mulle-clang)
+            mulle-cl*)
                # do nuthing
             ;;
 
@@ -263,7 +276,7 @@ setup_platform()
       ;;
 
       "")
-         log_fail "MULLE_UNAME not set"
+         log_fail "platform not set"
       ;;
 
       *)

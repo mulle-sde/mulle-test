@@ -60,7 +60,6 @@ EOF
 }
 
 
-
 #
 # this is system wide, not so great
 # and also not trapped...
@@ -225,8 +224,8 @@ run_cmake_test()
 
    a_out="${PWD}/${name}"
 
-   TEST_BUILDER=run_cmake
-   FAIL_TEST=fail_test_cmake
+   TEST_BUILDER="run_cmake"
+   FAIL_TEST="fail_test_cmake"
    run_common_test "${a_out}" "$@"
 }
 
@@ -335,7 +334,11 @@ run_test_in_directory()
          FAILS="`expr "${FAILS}" + 1`"
          if [ "${MULLE_FLAG_MAGNUM_FORCE}" != "YES" ]
          then
-            fail "Test \"${name}\" failed ($rval)"
+            local pretty_source
+
+            pretty_source="`relative_path_between "${PWD}/${name}" "${root}"`" || exit 1
+
+            fail "Test \"${TEST_PATH_PREFIX}${pretty_source}\" failed ($rval)"
          fi
       ;;
    esac
@@ -455,11 +458,10 @@ run_named_test()
    local RUNS=0
    local FAILS=0
 
-   local directory
-   local filename
-
-   directory="`fast_dirname "${path}"`"
-   filename="`fast_basename "${path}"`"
+   if [ ! -e "${path}" ]
+   then
+      fail "Test \"${TEST_PATH_PREFIX}${path}\" not found"
+   fi
 
    if [ -d "${path}" ]
    then
@@ -467,10 +469,16 @@ run_named_test()
       return $?
    fi
 
-   if [ ! -f "${path}" ]
+   if [ -x "${path}" ]
    then
-      fail "error: source file \"${TEST_PATH_PREFIX}${path}\" not found"
+      fail "Specify the source file not a binary \"${TEST_PATH_PREFIX}${path}\""
    fi
+
+   local directory
+   local filename
+
+   directory="`fast_dirname "${path}"`"
+   filename="`fast_basename "${path}"`"
 
    run_test_matching_extensions_in_directory "${filename}" \
                                              "${directory}" \
@@ -498,36 +506,16 @@ run_all_tests()
          return 1
       fi
    else
-      log_warning "No tests found"
+      log_warning "No tests found in ${PWD}"
    fi
 }
 
 
-setup_environment()
+setup_library_environment()
 {
-   MAKEFLAGS="${MAKEFLAGS:-${def_makeflags}}"
+   log_entry "setup_library_environment" "$@"
 
-   if [ -z "${DEBUGGER}" ]
-   then
-      DEBUGGER=lldb
-   fi
-
-   DEBUGGER="`which "${DEBUGGER}" 2> /dev/null`"
-
-   if [ -z "${DEBUGGER_LIBRARY_PATH}" ]
-   then
-      DEBUGGER_LIBRARY_PATH="`dirname -- "${DEBUGGER}"`/../lib"
-   fi
-
-   RESTORE_CRASHDUMP=`suppress_crashdumping`
-   trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
-
-   LIBRARY_SHORTNAME="${LIBRARY_SHORTNAME:-${PROJECT_NAME}}"
-   [ -z "${LIBRARY_SHORTNAME}" ] && fail "LIBRARY_SHORTNAME not set"
-
-   LIBRARY_FILENAME="${LIB_PREFIX}${LIBRARY_SHORTNAME}${LIB_SUFFIX}${LIB_EXTENSION}"
-
-   LIBRARY_PATH="`locate_library "${LIBRARY_FILENAME}" "${LIBRARY_PATH}"`" || exit 1
+   LIBRARY_PATH="$1"
 
    #
    # figure out where the headers are
@@ -548,7 +536,7 @@ setup_environment()
 
    LIBRARY_DIR="`dirname -- ${LIBRARY_PATH}`"
 
-   case "${MULLE_UNAME}" in
+   case "${platform}" in
       darwin)
          RPATH_FLAGS="-Wl,-rpath ${LIBRARY_DIR}"
 
@@ -570,9 +558,113 @@ setup_environment()
       ;;
    esac
 
+   #
+   # manage additional libraries, expected to be in same path as library
+   #
+   local i
+   local path
+   local filename
+
+   IFS="
+"
+   for i in ${ADDITIONAL_LIBS}
+   do
+      IFS="${DEFAULT_IFS}"
+
+      filename="${LIB_PREFIX}${i}${LIB_SUFFIX}${LIB_EXTENSION}"
+      path="`locate_library "${filename}"`" || exit 1
+      path="`absolutepath "${path}"`"
+
+      log_verbose "Additional library: ${path}"
+      ADDITIONAL_LIBRARY_PATHS="`concat "${ADDITIONAL_LIBRARY_PATHS}" "${path}"`"
+   done
+   IFS="${DEFAULT_IFS}"
+}
+
+
+setup_environment()
+{
+   log_entry "setup_environment" "$@"
+
+   local platform="$1"
+
+   MAKEFLAGS="${MAKEFLAGS:-${def_makeflags}}"
+
+   if [ -z "${DEBUGGER}" ]
+   then
+      DEBUGGER=lldb
+   fi
+
+   DEBUGGER="`which "${DEBUGGER}" 2> /dev/null`"
+
+   if [ -z "${DEBUGGER_LIBRARY_PATH}" ]
+   then
+      DEBUGGER_LIBRARY_PATH="`dirname -- "${DEBUGGER}"`/../lib"
+   fi
+
+   RESTORE_CRASHDUMP=`suppress_crashdumping`
+   trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
+
+   if [ -z "${PROJECT_DIR}" ]
+   then
+      PROJECT_DIR="`fast_dirname "${PWD}"`"
+      log_fluff "PROJECT_DIR assumed to be \"${PROJECT_DIR}\""
+
+      if [ -z "${DEPENDENCY_DIR}" -a -d "${PROJECT_DIR}/dependency" ]
+      then
+         DEPENDENCY_DIR="${PROJECT_DIR}/dependency"
+         log_fluff "DEPENDENCY_DIR assumed to be \"${DEPENDENCY_DIR}\""
+      fi
+      if [ -z "${ADDICTION_DIR}" -a -d "${PROJECT_DIR}/addiction" ]
+      then
+         ADDICTION_DIR="${PROJECT_DIR}/addiction"
+         log_fluff "ADDICTION_DIR assumed to be \"${ADDICTION_DIR}\""
+      fi
+   fi
+
+   if [ -z "${PROJECT_NAME}" ]
+   then
+      PROJECT_NAME="`fast_basename "${PROJECT_DIR}"`"
+      PROJECT_NAME="${PROJECT_NAME%%.*}"
+
+      log_fluff "PROJECT_NAME assumed to be \"${PROJECT_NAME}\""
+   fi
+
+   if [ -z "${PROJECT_LANGUAGE}" ]
+   then
+      PROJECT_LANGUAGE="c"
+      log_fluff "PROJECT_LANGUAGE assumed to be \"c\""
+   fi
+
+   LIBRARY_SHORTNAME="${LIBRARY_SHORTNAME:-${PROJECT_NAME}}"
+   [ -z "${LIBRARY_SHORTNAME}" ] && fail "PROJECT_NAME not set"
+
+   LIBRARY_FILENAME="${LIB_PREFIX}${LIBRARY_SHORTNAME}${LIB_SUFFIX}${LIB_EXTENSION}"
+   LIBRARY_PATH="`locate_library "${LIBRARY_FILENAME}" "${LIBRARY_PATH}"`"
+
+   if [ -z "${LIBRARY_PATH}" ]
+   then
+      if [ "${OPTION_REQUIRE_LIBRARY}" = "YES" ]
+      then
+         log_error "error: ${LIBRARY_FILENAME} can not be found."
+
+         log_info "Maybe you have not run \"build-test.sh\" yet ?
+
+   You commonly need a shared library target in your CMakeLists.txt that
+   links in all the platform dependencies for your platform. This library
+   should be installed into \"./lib\" (and headers into \"./include\").
+
+   By convention a \"build-test.sh\" script does this using the
+   \"CMakeLists.txt\" file of your project."
+
+         exit 1
+      fi
+   else
+      setup_library_environment "${LIBRARY_PATH}"
+   fi
 
    #
-   # read os-specific-libraries, to link unto standalone
+   # read os-specific-libraries, to link
    #
    local os_specific
 
@@ -594,28 +686,6 @@ setup_environment()
       log_warning "${os_specific} not found"
    fi
 
-   #
-   # manage additional libraries, expected to be in same path
-   # as library
-   #
-   local i
-   local path
-   local filename
-
-   IFS="
-"
-   for i in ${ADDITIONAL_LIBS}
-   do
-      IFS="${DEFAULT_IFS}"
-
-      filename="${LIB_PREFIX}${i}${LIB_SUFFIX}${LIB_EXTENSION}"
-      path="`locate_library "${filename}"`" || exit 1
-      path="`absolutepath "${path}"`"
-
-      log_verbose "Additional library: ${path}"
-      ADDITIONAL_LIBRARY_PATHS="`concat "${ADDITIONAL_LIBRARY_PATHS}" "${path}"`"
-   done
-   IFS="${DEFAULT_IFS}"
 
    if [ -z "${CC}" ]
    then
@@ -631,8 +701,7 @@ run_main()
    log_entry "run_main" "$@"
 
    local def_makeflags
-
-   set -m # job control enable
+   local OPTION_REQUIRE_LIBRARY="YES"
 
    CFLAGS="${CFLAGS:-${RELEASE_CFLAGS}}"
    BUILD_TYPE="${BUILD_TYPE:-Release}"
@@ -641,17 +710,17 @@ run_main()
    while [ $# -ne 0 ]
    do
       case "$1" in
-         -V)
-            def_makeflags="VERBOSE=1"
-            MULLE_FLAG_LOG_EXEKUTOR="YES"
-         ;;
-
-         -n)
-            MULLE_FLAG_EXEKUTOR_DRY_RUN="YES"
+         -h|--help|help)
+            usage
          ;;
 
          -f)
             MULLE_FLAG_MAGNUM_FORCE="YES"
+         ;;
+
+         -V)
+            def_makeflags="VERBOSE=1"
+            MULLE_FLAG_LOG_EXEKUTOR="YES"
          ;;
 
          --debug)
@@ -671,8 +740,12 @@ run_main()
             TEST_PATH_PREFIX="$1"
          ;;
 
+         --no-library)
+            OPTION_REQUIRE_LIBRARY="NO"
+         ;;
+
          -*)
-            fail "unknown option \"$1\""
+            fail "Unknown run option \"$1\""
          ;;
 
          *)
@@ -703,11 +776,11 @@ run_main()
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-logging.sh"
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-regexsearch.sh"
 
-   setup_platform
-   setup_tooling
-   setup_language "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+   setup_language "${MULLE_UNAME}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+   setup_tooling "${MULLE_UNAME}"
+   setup_platform "${MULLE_UNAME}" # after tooling
    setup_library_type "${LIBRARY_TYPE}"
-   setup_environment
+   setup_environment "${MULLE_UNAME}"
 
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2
@@ -716,7 +789,6 @@ run_main()
    local RVAL_IGNORED_FAILURE=5
 
    local HAVE_WARNED="NO"
-
 
    if [ "$RUN_ALL" = "YES" -o $# -eq 0 ]
    then

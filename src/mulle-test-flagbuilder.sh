@@ -98,6 +98,10 @@ emit_cflags()
       fi
    fi
 
+   if [ ! -z "${APPLE_SDKPATH}" ]
+   then
+      cflags="`concat "${cflags}" "-isysroot '${APPLE_SDKPATH}'" `"
+   fi
    echo "${cflags}"
 }
 

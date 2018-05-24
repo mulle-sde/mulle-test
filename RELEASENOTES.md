@@ -1,3 +1,7 @@
+### 3.0.1
+
+* improved environment setup for standalone operation w/o mulle-sde
+
 # 3.0.0
 
 * mulle-test 3.0 renamed from mulle-tests 2

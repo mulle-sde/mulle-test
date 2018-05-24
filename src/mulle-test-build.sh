@@ -45,9 +45,12 @@ build_it()
 
    prefix="`pwd`"
 
-   if [ "`fast_basename "${prefix}"`" != "test" ]
+   local testdirname
+
+   testdirname="`fast_basename "${TEST_DIR:-test}"`"
+   if [ "`fast_basename "${prefix}"`" != "${testdirname}" ]
    then
-      fail "Must be started from directory \"test\""
+      fail "Must be started from directory \"${testdirname}\""
    fi
 
    cmdline="${MULLE_MAKE:-mulle-make}"

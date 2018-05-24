@@ -39,7 +39,7 @@ MULLE_TEST_VERSION="3.0.1"
 
 usage()
 {
-   cat <<EOF
+   cat <<EOF >&2
 Usage:
    ${MULLE_EXECUTABLE_NAME} [flags] <command>
 
@@ -48,16 +48,23 @@ Usage:
 Flags:
 EOF
 
-   options_technical_flags_usage
+   (
+      options_technical_flags_usage "             : "
+      cat <<EOF
+   --dir-name <name> : specify test directory name (default: test)
+EOF
+   ) | sort >&2
 
-   cat <<EOF
+
+   cat <<EOF >&2
 
 Commands:
-   build     : build libraries for tests
-   clean     : remove folders: bin,build,include,lib,libexec,share,Frameworks
-   run       : run tests
-   test      : first build then run tests
-   test-dir  : locate test folder
+   build             : build libraries for tests
+   clean             : remove folders: bin,build,include,lib,libexec,
+                                       share,Frameworks
+   run               : run tests
+   test              : first build then run tests
+   test-dir          : locate test folder
 EOF
 
    exit 1
@@ -70,11 +77,14 @@ cd_test_dir()
 
    local testdir
 
+   MULLE_START_PWD="${PWD}"
+
    # shellcheck source=src/mulle-test-locate.sh
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
+
    if ! testdir="`locate_main "$@"`"
    then
-      fail "Did not find a \"test\" directory"
+      fail "Did not find a \"${TEST_DIR:-test}\" directory"
    fi
 
    exekutor cd "${testdir}"
@@ -119,6 +129,35 @@ main()
 
          -f|--force)
             MULLE_FLAG_MAGNUM_FORCE="BOTH"
+         ;;
+
+         --dir-name)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            TEST_DIR="$1"
+         ;;
+
+         --project-language)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            if [ "$1" != "${PROJECT_LANGUAGE}" ]
+            then
+               PROJECT_LANGUAGE="$1"
+               PROJECT_EXTENSIONS=""
+            fi
+         ;;
+
+         --project-dialect)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            if [ "$1" != "${PROJECT_DIALECT}" ]
+            then
+               PROJECT_DIALECT="$1"
+               PROJECT_EXTENSIONS=""
+            fi
          ;;
 
          -*)

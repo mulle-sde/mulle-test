@@ -62,10 +62,10 @@ search_for_regexps()
       then
          if [ $fail -eq 0 ]
          then
-            log_error "${banner}" >&2
+            log_error "${banner}"
             fail=2
          fi
-         echo "${indent}${regexp}" >&2
+         log_error "${indent}${regexp} not found"
       fi
    done < "${strings}"
 

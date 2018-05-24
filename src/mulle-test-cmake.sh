@@ -49,10 +49,25 @@ eval_mulle_make()
 
    cmake_libraries="`emit_libraries "${LIBRARY_PATH}" ${ADDITIONAL_LIBRARY_PATHS}`"
 
-   exekutor ${MULLE_MAKE:-mulle-make} ${MULLE_TECHNICAL_FLAGS} \
-               ${MULLE_MAKE_FLAGS} \
-               build \
-                  --info-dir "${MULLE_VIRTUAL_ROOT}/.mulle-make" \
+   export CC
+   export CXX
+
+#   local cmake_definitions
+#
+#   if [ ! -z "${CC}" ]
+#   then
+#      cmake_definitions="${cmake_definitions} -DCMAKE_C_COMPILER='${CC}'"
+#   fi
+#   if [ ! -z "${CXX}" ]
+#   then
+#      cmake_definitions="${cmake_definitions} -DCMAKE_CXX_COMPILER='${CXX}'"
+#   fi
+
+    eval_exekutor ${MULLE_MAKE:-mulle-make} "${MULLE_TECHNICAL_FLAGS}" \
+               "${MULLE_MAKE_FLAGS}" \
+               build -K \
+                  --info-dir "'${MULLE_VIRTUAL_ROOT}/.mulle-make'" \
+                  "${cmake_definitions}" \
                   -DCMAKE_BUILD_TYPE="'$1'" \
                   -DCMAKE_RULE_MESSAGES="OFF" \
                   -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
@@ -68,15 +83,16 @@ fail_test_cmake()
 
    local sourcefile="$1"
    local a_out_ext="$2"
-   local stdin="$3"
-   local ext="$4"
+   local ext="$3"
 
    [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
    [ -z "${a_out_ext}" ] && internal_fail "a_out_ext is empty"
 
    #hacque
    local a_paths
+   local executable
 
+   executable="`fast_basename "${a_out_ext}"`"
    a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
 
    if [ -z "${MULLE_FLAG_MAGNUM_FORCE}" ]
@@ -92,7 +108,7 @@ fail_test_cmake()
 
          exekutor cd "${directory}" &&
          eval_mulle_make "Debug" &&
-         exekutor install "`fast_basename "${a_out_ext}"`" "../${a_out_ext}.debug"
+         exekutor cp -p "build/${executable}" "./${executable}.debug"
 
          suggest_debugger_commandline "${a_out_ext}" "${stdin}"
       fi
@@ -113,13 +129,16 @@ run_cmake()
    [ -z "${a_out_ext}" ] && internal_fail "a_out_ext is empty"
 
    local directory
+   local executable
+
+   executable="`fast_basename "${a_out_ext}"`"
 
    directory="`fast_dirname "${srcfile}"`"
    (
       exekutor cd "${directory}"
 
       eval_mulle_make "${BUILD_TYPE}" &&
-      exekutor install "`fast_basename "${a_out_ext}"`" ..
+      exekutor cp -p "build/${executable}" "./${executable}"
    ) || exit 1
 }
 

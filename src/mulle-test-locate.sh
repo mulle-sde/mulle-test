@@ -100,25 +100,10 @@ locate_library()
 
    if [ -z "${library_path}" ]
    then
-      library_path="`_locate_library "${filename}"`"
+      _locate_library "${filename}"
+   else
+      echo "${library_path}"
    fi
-
-   if [ -z "${library_path}" ]
-   then
-      log_error "error: ${filename} can not be found."
-
-      log_info "Maybe you have not run \"build-test.sh\" yet ?
-
-You commonly need a shared library target in your CMakeLists.txt that
-links in all the platform dependencies for your platform. This library
-should be installed into \"./lib\" (and headers into \"./include\").
-
-By convention a \"build-test.sh\" script does this using the
-\"CMakeLists.txt\" file of your project."
-      exit 1
-   fi
-
-   echo "${library_path}"
 }
 
 
@@ -126,18 +111,19 @@ locate_test_dir()
 {
    log_entry "locate_test_dir" "$@"
 
-   local testdir
-   local rootdir
+   local testdir="$1"
+
 
    # ez shortcut
-   testdir="${TEST_DIR:-test}"
+
    if [ -d "${testdir}" ]
    then
       echo "${testdir}"
       return 0
    fi
 
-   testdir="${MULLE_VIRTUAL_ROOT:-`pwd -P`}/test"
+   testdirname="`fast_basename "${testdir}"`"
+   testdir="${MULLE_VIRTUAL_ROOT:-`pwd -P`}/${testdirname}"
    if [ -d "${testdir}" ]
    then
       echo "${testdir}"
@@ -152,5 +138,5 @@ locate_main()
 {
    log_entry "locate_main" "$@"
 
-   locate_test_dir
+   locate_test_dir "${TEST_DIR:-test}"
 }

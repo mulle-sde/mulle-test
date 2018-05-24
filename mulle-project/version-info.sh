@@ -4,6 +4,5 @@
 # enough for you. If you don't have this file, there will be
 # not git operations.
 #
-# VERSIONFILE=
-# VERSIONNAME=
-VERSION="`./mulle-test-env version`"
+VERSIONFILE=mulle-test
+VERSIONNAME=MULLE_TEST_VERSION
