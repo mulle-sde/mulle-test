@@ -387,7 +387,7 @@ _scan_directory()
       return $?
    fi
 
-   log_fluff "Scanning \"${PWD}\" ..."
+   log_fluff "Scanning \"${PWD}\" for files with extensions \"${extensions}\"..."
 
    local i
 

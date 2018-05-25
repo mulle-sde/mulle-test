@@ -1,3 +1,7 @@
+### 3.0.7
+
+* fix dependencies
+
 ### 3.0.6
 
 * fix CMakeLists.txt again and again and again and again
