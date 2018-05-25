@@ -66,6 +66,16 @@ build_it()
    cmdline="`concat "${cmdline}" "--prefix '${prefix}'" `"
    cmdline="`concat "${cmdline}" "-DSTANDALONE=ON" `"
 
+   MULLE_SDE="${MULLE_SDE:-`command -v "mulle-sde"`}"
+   if [ ! -z "${MULLE_SDE}" ]
+   then
+      buildinfo="`"${MULLE_SDE}" -s buildinfo search`"
+      if [ ! -z "${buildinfo}" ]
+      then
+         cmdline="`concat "${cmdline}" "--info-dir '${buildinfo}'" `"
+      fi
+   fi
+
    while [ $# -ne 0 ]
    do
       cmdline="${cmdline} '$1'"
