@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_TEST_VERSION="3.0.7"
+MULLE_TEST_VERSION="3.0.8"
 
 # version is in mulle-test-env
 
@@ -267,7 +267,7 @@ _init()
 
    local _libexec_dir
 
-   _get_libexec_dir "$0" "mulle-match" "mulle-test-run.sh"
+   _get_libexec_dir "$0" "mulle-test" "mulle-test-run.sh"
 
    MULLE_TEST_LIBEXEC_DIR="${_libexec_dir}"
 

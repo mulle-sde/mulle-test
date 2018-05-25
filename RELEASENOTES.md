@@ -1,3 +1,7 @@
+### 3.0.8
+
+* fix extremely stupid init bug
+
 ### 3.0.7
 
 * fix dependencies
