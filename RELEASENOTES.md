@@ -1,3 +1,7 @@
+### 3.0.11
+
+* fix wrong function call
+
 ### 3.0.10
 
 * load a .mulle-test/etc/environment.sh config if present

@@ -288,6 +288,7 @@ _run_test()
    if [ -f "${envfile}" ]
    then
       . "${envfile}" || fail "\"${envfile}\" read failed"
+      log_fluff "Read environment file \"${envfile}\" "
    fi
 
    case "${ext}" in
@@ -790,7 +791,6 @@ run_main()
    setup_platform "${MULLE_UNAME}" # after tooling
    setup_library_type "${LIBRARY_TYPE}"
    setup_environment "${MULLE_UNAME}"
-   setup_config_environment "${MULLE_UNAME}"
 
    local envfile
 
@@ -798,6 +798,7 @@ run_main()
    if [ -f "${envfile}" ]
    then
       . "${envfile}" || fail "\"${envfile}\" read failed"
+      log_fluff "Read environment file \"${envfile}\" "
    fi
 
    local RVAL_INTERNAL_ERROR=1
