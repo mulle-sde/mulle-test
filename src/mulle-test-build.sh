@@ -69,7 +69,7 @@ build_it()
    MULLE_SDE="${MULLE_SDE:-`command -v "mulle-sde"`}"
    if [ ! -z "${MULLE_SDE}" ]
    then
-      buildinfo="`"${MULLE_SDE}" -s buildinfo search`"
+      buildinfo="`"${MULLE_SDE}" ${MULLE_TECHNICAL_FLAGS} buildinfo search`"
       if [ ! -z "${buildinfo}" ]
       then
          cmdline="`concat "${cmdline}" "--info-dir '${buildinfo}'" `"

@@ -281,6 +281,15 @@ _run_test()
    [ -z "${ext}" ] && internal_fail "ext must not be ? empty"
    [ -z "${root}" ] && internal_fail "root must not be empty"
 
+   # this is OK since we are in a subshell here
+   local envfile
+
+   envfile=".mulle-test/etc/environment.sh"
+   if [ -f "${envfile}" ]
+   then
+      . "${envfile}" || fail "\"${envfile}\" read failed"
+   fi
+
    case "${ext}" in
       cmake)
          run_cmake_test "${name}" "" "${root}"
@@ -781,6 +790,15 @@ run_main()
    setup_platform "${MULLE_UNAME}" # after tooling
    setup_library_type "${LIBRARY_TYPE}"
    setup_environment "${MULLE_UNAME}"
+   setup_config_environment "${MULLE_UNAME}"
+
+   local envfile
+
+   envfile=".mulle-test/etc/environment.sh"
+   if [ -f "${envfile}" ]
+   then
+      . "${envfile}" || fail "\"${envfile}\" read failed"
+   fi
 
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2

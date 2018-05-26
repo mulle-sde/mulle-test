@@ -1,3 +1,7 @@
+### 3.0.10
+
+* load a .mulle-test/etc/environment.sh config if present
+
 ### 3.0.9
 
 * need a little mulle-sde support
