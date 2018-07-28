@@ -116,7 +116,12 @@ _check_test_output()
    then
       if [ ! -f "${errors}" ]
       then
-         log_error "TEST CRASHED: ${info_text}, ${errput})"
+         if [ ${rval} -ne 1 ]
+         then
+            log_error "TEST CRASHED: ${info_text}, ${errput})"
+         else
+            log_error "TEST FAILED: ${info_text}, ${errput})"
+         fi
          return ${RVAL_FAILURE}
       fi
 
@@ -233,7 +238,7 @@ test_execute()
 
    local srcfile
 
-   srcfile="${name}${ext}"
+   srcfile="`colon_concat "${name}" "${ext}" `"
 
    local random
 

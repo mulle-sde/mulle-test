@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_TEST_VERSION="3.0.11"
+MULLE_TEST_VERSION="3.0.12"
 
 # version is in mulle-test-env
 
@@ -82,12 +82,18 @@ cd_test_dir()
    # shellcheck source=src/mulle-test-locate.sh
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
 
-   if ! testdir="`locate_main "$@"`"
+   TEST_DIR="${TEST_DIR:-test}"
+   if ! testdir="`locate_test_dir "${TEST_DIR}"`"
    then
-      fail "Did not find a \"${TEST_DIR:-test}\" directory"
+      fail "Did not find a \"${TEST_DIR}\" directory (${MULLE_START_PWD})"
    fi
 
-   exekutor cd "${testdir}"
+   exekutor cd "${testdir}" || return 1
+
+   if [ -z "${MULLE_VIRTUAL_ROOT}" ] && [ -e .mulle-sde-required ]
+   then
+      fail "Tests must be run inside mulle-sde. Use \`mulle-env -c 'mulle-test ...'\`"
+   fi
 }
 
 

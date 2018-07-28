@@ -113,7 +113,6 @@ locate_test_dir()
 
    local testdir="$1"
 
-
    # ez shortcut
 
    if [ -d "${testdir}" ]

@@ -516,7 +516,7 @@ run_all_tests()
          return 1
       fi
    else
-      log_warning "No tests found in ${PWD}"
+      log_warning "No tests found in ${PWD} with extensions ${PROJECT_EXTENSIONS}"
    fi
 }
 

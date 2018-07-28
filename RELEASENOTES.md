@@ -1,3 +1,7 @@
+### 3.0.12
+
+* fix some ugliness
+
 ### 3.0.11
 
 * fix wrong function call

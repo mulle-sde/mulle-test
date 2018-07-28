@@ -1,5 +1,0 @@
-#! /usr/bin/env bash
-
-[ -z "${MULLE_VIRTUAL_ROOT}" ] && echo "Must be called from mulle-sde subshell" >&2 && exit 1
-
-mulle-test build  "$@"
