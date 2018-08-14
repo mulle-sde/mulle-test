@@ -75,6 +75,9 @@ _locate_library()
    library_path="`locate_path "../lib/${filename}"`"
    [ ! -z "${library_path}" ] && echo "${library_path}" && return
 
+   library_path="`locate_path "${DEPENDENCY_DIR}/Debug/lib/${filename}"`"
+   [ ! -z "${library_path}" ] && echo "${library_path}" && return
+
    library_path="`locate_path "${DEPENDENCY_DIR}/lib/${filename}"`"
    [ ! -z "${library_path}" ] && echo "${library_path}" && return
 

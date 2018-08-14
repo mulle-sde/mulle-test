@@ -45,24 +45,16 @@ emit_include_cflags()
       cflags="-I${quote}${LIBRARY_INCLUDE}${quote}"
    fi
 
+
    if [ ! -z "${DEPENDENCY_DIR}" ]
    then
-      if [ -z "${cflags}" ]
-      then
-         cflags="-I${quote}${DEPENDENCY_DIR}/include${quote}"
-      else
-         cflags="${cflags} -I${quote}${DEPENDENCY_DIR}/include${quote}"
-      fi
+      cflags="`concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/Debug/include${quote}" `"
+      cflags="`concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/include${quote}" `"
    fi
 
    if [ ! -z "${ADDICTION_DIR}" ]
    then
-      if [ -z "${cflags}" ]
-      then
-         cflags="-I${quote}${ADDICTION_DIR}/include${quote}"
-      else
-         cflags="${cflags} -I${quote}${ADDICTION_DIR}/include${quote}"
-      fi
+      cflags="`concat "${cflags}" "-I${quote}${ADDICTION_DIR}/include${quote}" `"
    fi
 
    if [ ! -z "${cflags}" ]

@@ -173,7 +173,7 @@ MULLE_TEST_ALLOCATOR_TRACE=2 \
 MULLE_OBJC_TRACE_ENABLED=YES \
 MULLE_OBJC_WARN_ENABLED=YES \
 DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
-${DEBUGGER} ${a_out_ext}" >&2
+${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2
          if [ "${stdin}" != "/dev/null" ]
          then
             echo "run ${stdin}" >&2
@@ -187,7 +187,7 @@ MULLE_TEST_ALLOCATOR_TRACE=2 \
 MULLE_OBJC_TRACE_ENABLED=YES \
 MULLE_OBJC_WARN_ENABLED=YES \
 LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}\" \
-${DEBUGGER} ${a_out_ext}" >&2
+${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2
          if [ "${stdin}" != "/dev/null" ]
          then
             echo "run ${stdin}" >&2

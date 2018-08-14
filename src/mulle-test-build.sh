@@ -69,10 +69,12 @@ build_it()
    MULLE_SDE="${MULLE_SDE:-`command -v "mulle-sde"`}"
    if [ ! -z "${MULLE_SDE}" ]
    then
-      buildinfo="`"${MULLE_SDE}" ${MULLE_TECHNICAL_FLAGS} buildinfo search`"
-      if [ ! -z "${buildinfo}" ]
+      local makeinfo
+
+      makeinfo="`"${MULLE_SDE}" ${MULLE_TECHNICAL_FLAGS} makeinfo search`"
+      if [ ! -z "${makeinfo}" ]
       then
-         cmdline="`concat "${cmdline}" "--info-dir '${buildinfo}'" `"
+         cmdline="`concat "${cmdline}" "--info-dir '${makeinfo}'" `"
       fi
    fi
 

@@ -1,3 +1,7 @@
+### 3.0.13
+
+* fix some wordings to track changes in mulle-sde
+
 ### 3.0.12
 
 * fix some ugliness

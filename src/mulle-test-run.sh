@@ -205,7 +205,10 @@ run_common_test()
    rval=$?
    if [ "${rval}" -ne 0 ]
    then
-      a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
+      if [ "${BUILD_TYPE}" != "Debug" ]
+      then
+         a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
+      fi
 
       "${FAIL_TEST}" "${srcfile}" "${a_out_ext}" "${ext}"
    fi
@@ -706,9 +709,55 @@ setup_environment()
 }
 
 
+include_required()
+{
+   if [ -z "${MULLE_PATH_SH}" ]
+   then
+      . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-path.sh"
+   fi
+   if [ -z "${MULLE_FILE_SH}" ]
+   then
+      . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-file.sh"
+   fi
+
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-environment.sh"
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-mingw.sh"
+
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-cmake.sh"
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-compiler.sh"
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-execute.sh"
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-flagbuilder.sh"
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-logging.sh"
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-regexsearch.sh"
+}
+
+setup()
+{
+   setup_language "${MULLE_UNAME}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+   setup_tooling "${MULLE_UNAME}"
+   setup_platform "${MULLE_UNAME}" # after tooling
+   setup_library_type "${LIBRARY_TYPE}"
+   setup_environment "${MULLE_UNAME}"
+
+   local envfile
+
+   envfile=".mulle-test/etc/environment.sh"
+   if [ -f "${envfile}" ]
+   then
+      . "${envfile}" || fail "\"${envfile}\" read failed"
+      log_fluff "Read environment file \"${envfile}\" "
+   fi
+}
+
+
 run_main()
 {
    log_entry "run_main" "$@"
+
+   include_required
+
+   setup
 
    local def_makeflags
    local OPTION_REQUIRE_LIBRARY="YES"
@@ -765,41 +814,6 @@ run_main()
 
       shift
    done
-
-   if [ -z "${MULLE_PATH_SH}" ]
-   then
-      . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-path.sh"
-   fi
-   if [ -z "${MULLE_FILE_SH}" ]
-   then
-      . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-file.sh"
-   fi
-
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-environment.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-mingw.sh"
-
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-cmake.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-compiler.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-execute.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-flagbuilder.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-logging.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-regexsearch.sh"
-
-   setup_language "${MULLE_UNAME}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
-   setup_tooling "${MULLE_UNAME}"
-   setup_platform "${MULLE_UNAME}" # after tooling
-   setup_library_type "${LIBRARY_TYPE}"
-   setup_environment "${MULLE_UNAME}"
-
-   local envfile
-
-   envfile=".mulle-test/etc/environment.sh"
-   if [ -f "${envfile}" ]
-   then
-      . "${envfile}" || fail "\"${envfile}\" read failed"
-      log_fluff "Read environment file \"${envfile}\" "
-   fi
 
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2

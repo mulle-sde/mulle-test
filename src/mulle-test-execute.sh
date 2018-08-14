@@ -69,7 +69,7 @@ run_a_out()
       fail "Compiler unexpectedly did not produce ${a_out_ext}"
    fi
 
-   if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+   if [ "${MULLE_FLAG_LOG_ENVIRONMENT}" = "YES" ]
    then
       log_fluff "Environment:"
       env | sort >&2
@@ -238,7 +238,7 @@ test_execute()
 
    local srcfile
 
-   srcfile="`colon_concat "${name}" "${ext}" `"
+   srcfile="`concat "${name}" "${ext}" "." `"
 
    local random
 
