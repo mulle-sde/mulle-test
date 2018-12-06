@@ -32,51 +32,63 @@
 MULLE_TEST_FLAGBUILDER_SH="included"
 
 
-emit_include_cflags()
+r_emit_include_cflags()
 {
-   log_entry "emit_include_cflags" "$@"
+   log_entry "r_emit_include_cflags" "$@"
 
    local quote="$1"
 
    local cflags
+
+   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
+   then
+      log_trace2 "LIBRARY_INCLUDE: ${LIBRARY_INCLUDE}"
+      log_trace2 "DEPENDENCY_DIR:  ${DEPENDENCY_DIR}"
+      log_trace2 "ADDICTION_DIR:   ${ADDICTION_DIR}"
+   fi
 
    if [ ! -z "${LIBRARY_INCLUDE}" ]
    then
       cflags="-I${quote}${LIBRARY_INCLUDE}${quote}"
    fi
 
-
    if [ ! -z "${DEPENDENCY_DIR}" ]
    then
-      cflags="`concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/Debug/include${quote}" `"
-      cflags="`concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/include${quote}" `"
+      r_concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/Debug/include${quote}"
+      cflags="${RVAL}"
+      r_concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/include${quote}"
+      cflags="${RVAL}"
    fi
 
    if [ ! -z "${ADDICTION_DIR}" ]
    then
-      cflags="`concat "${cflags}" "-I${quote}${ADDICTION_DIR}/include${quote}" `"
+      r_concat "${cflags}" "-I${quote}${ADDICTION_DIR}/include${quote}"
+      cflags="${RVAL}"
    fi
 
-   if [ ! -z "${cflags}" ]
-   then
-      echo "${cflags}"
-   fi
+   RVAL="${cflags}"
 }
 
 
-emit_cflags()
+r_emit_cflags()
 {
-   log_entry "emit_cflags" "$@"
+   log_entry "r_emit_cflags" "$@"
 
    local srcfile="$1"
 
-   log_debug "PWD: ${PWD}"
+   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
+   then
+      log_trace2 "CFLAGS:          ${CFLAGS}"
+      log_trace2 "OTHER_CFLAGS:    ${OTHER_CFLAGS}"
+      log_trace2 "APPLE_SDKPATH:   ${APPLE_SDKPATH}"
+   fi
 
    local cflagsname
    local cflags
 
    cflags="${CFLAGS}"
-   cflagsname="`echo "${srcfile}" | sed 's/\.[^.]*$//'`.CFLAGS"
+   r_extensionless_basename "${srcfile}"
+   cflagsname="${RVAL}.CFLAGS"
 
    if [ -f "${cflagsname}.${MULLE_UNAME}" ]
    then
@@ -90,33 +102,28 @@ emit_cflags()
       fi
    fi
 
+   r_concat "${cflags}" "${OTHER_CFLAGS}"
+   cflags="${RVAL}"
+
    if [ ! -z "${APPLE_SDKPATH}" ]
    then
-      cflags="`concat "${cflags}" "-isysroot '${APPLE_SDKPATH}'" `"
+      r_concat "${cflags}" "-isysroot '${APPLE_SDKPATH}'"
+      cflags="${RVAL}"
    fi
-   echo "${cflags}"
+
+   RVAL="${cflags}"
 }
 
 
-emit_libraries()
+r_quoted_paths()
 {
-   log_entry "emit_libraries" "$@"
+   local i
+   local RVAL
 
-   local s
-
-   while [ $# -ne 0 ]
+   IFS=":"
+   for i in "$*"
    do
-      if [ -z "${s}" ]
-      then
-         s="$1"
-      else
-         s="${s};$1"
-      fi
-      shift
+      r_concat "${RVAL}" "'${i}'"
    done
-
-   if [ ! -z "${s}" ]
-   then
-      echo "${s}"
-   fi
+   IFS="${DEFAULT_IFS}"
 }

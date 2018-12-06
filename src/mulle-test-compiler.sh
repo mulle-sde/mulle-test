@@ -32,11 +32,37 @@
 MULLE_TEST_COMPILER_SH="included"
 
 
+r_libraryfile_cmdline()
+{
+   log_entry "r_libraryfile_cmdline" "$@"
+
+   local libraryfile="$1"
+
+   RVAL=""
+
+   if [ -z "${libraryfile}" ]
+   then
+      return
+   fi
+
+   local cmdline
+
+   r_fast_dirname "${libraryfile}"
+   cmdline="-L'${RVAL}'"
+
+   r_extensionless_basename "${libraryfile}"
+   libraryfile="${RVAL#lib}"
+
+   r_concat "${cmdline} -l'${libraryfile}'"
+}
+
+
+# do not exit
 fail_test_c()
 {
    log_entry "fail_test_c" "$@"
 
-   local sourcefile="$1"
+   local srcfile="$1"
    local a_out="$2"
    local ext="$3"
 
@@ -45,31 +71,39 @@ fail_test_c()
       return
    fi
 
-   if [ "${BUILD_TYPE}" != "Debug" ]
+   if [ "${MULLE_TEST_CONFIGURATION}" != "Debug" ]
    then
       local a_paths
+      local RVAL
 
-      a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
+      r_quoted_paths "${ADDITIONAL_LIBRARY_FILES}"
+      a_paths="${RVAL}"
 
       local cflags
       local incflags
 
-      cflags="`emit_cflags "${sourcefile}"`"
-      incflags="`emit_include_cflags "'"`"
+      r_emit_cflags "${srcfile}"
+      cflags="${RVAL}"
+      r_emit_include_cflags "'"
+      incflags="${RVAL}"
 
       log_info "DEBUG: "
-      log_info "Rebuilding as `basename -- ${a_out}` with -O0 and debug symbols..."
+      log_info "Rebuilding as `fast_basename ${a_out}` with -O0 and debug symbols..."
 
-      eval_exekutor "'${CC}'" \
-                    "${DEBUG_CFLAGS}" \
-                    -o "'${a_out}'" \
-                    "${cflags}" \
-                    "${incflags}" \
-                    "'${sourcefile}'" \
-                    "'${LIBRARY_PATH}'" \
-                    "${a_paths}" \
-                    "${LDFLAGS}" \
-                    "${RPATH_FLAGS}"
+      local cmdline
+
+      cmdline="'${CC}' ${cflags} ${incflags}"
+      cmdline="${cmdline} ${DEBUG_CFLAGS}"
+      cmdline="${cmdline} -o '${a_out}'"
+      cmdline="${cmdline} '${srcfile}'"
+
+      r_libraryfile_cmdline "${LIBRARY_FILE}"
+      r_concat "${cmdline}" "${RVAL}"
+      cmdline="${RVAL}"
+
+      cmdline="${cmdline} "${a_paths}" ${LDFLAGS} ${RPATH_FLAGS}"
+
+      eval_exekutor "${cmdline}"
    fi
 
    stdin="${name}.stdin"
@@ -83,8 +117,6 @@ fail_test_c()
    fi
 
    suggest_debugger_commandline "${a_out}" "${stdin}"
-
-   exit 1
 }
 
 
@@ -102,29 +134,38 @@ run_gcc_compiler()
 
    #hacque
    local a_paths
+   local RVAL
 
-   a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
+   r_quoted_paths "${ADDITIONAL_LIBRARY_FILES}"
+   a_paths="${RVAL}"
 
    local cflags
    local incflags
+   local RVAL
 
-   cflags="`emit_cflags "${srcfile}"`"
-   incflags="`emit_include_cflags "'"`"
+   r_emit_cflags "${srcfile}"
+   cflags="${RVAL}"
 
-   log_debug "LIBRARY_PATH=${LIBRARY_PATH}"
-   log_debug "ADDITIONAL_LIBRARY_PATHS=${a_paths}"
-   log_debug "LDFLAGS=${LDFLAGS}"
-   log_debug "RPATH_FLAGS=${RPATH_FLAGS}"
+   r_emit_include_cflags "'"
+   incflags="${RVAL}"
 
-   err_redirect_eval_exekutor "${errput}" "'${CC}'" \
-                                          "${cflags}" \
-                                          "${incflags}" \
-                                          -o "'${a_out}'" \
-                                          "'${srcfile}'" \
-                                          "'${LIBRARY_PATH}'" \
-                                          "${a_paths}" \
-                                          "${LDFLAGS}" \
-                                          "${RPATH_FLAGS}"
+   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
+   then
+      log_debug "LIBRARY_FILE=${LIBRARY_FILE}"
+      log_debug "ADDITIONAL_LIBRARY_FILES=${a_paths}"
+      log_debug "LDFLAGS=${LDFLAGS}"
+      log_debug "RPATH_FLAGS=${RPATH_FLAGS}"
+   fi
+
+   cmdline="'${CC}' ${cflags} ${incflags}"
+   cmdline="${cmdline} -o '${a_out}'"
+   cmdline="${cmdline} '${srcfile}'"
+   r_libraryfile_cmdline "${LIBRARY_FILE}"
+   r_concat "${cmdline}" "${RVAL}"
+   cmdline="${RVAL}"
+   cmdline="${cmdline} ${a_paths} ${LDFLAGS} ${RPATH_FLAGS}"
+
+   err_redirect_eval_exekutor "${errput}" "${cmdline}"
 }
 
 
@@ -147,7 +188,6 @@ run_compiler()
 #
 #
 #
-
 suggest_debugger_commandline()
 {
    log_entry "suggest_debugger_commandline" "$@"
@@ -168,8 +208,8 @@ suggest_debugger_commandline()
    case "${MULLE_UNAME}" in
       darwin)
          echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
-MULLE_OBJC_TEST_ALLOCATOR=1 \
-MULLE_TEST_ALLOCATOR_TRACE=2 \
+MULLE_OBJC_TESTALLOCATOR=1 \
+MULLE_TESTALLOCATOR_TRACE=2 \
 MULLE_OBJC_TRACE_ENABLED=YES \
 MULLE_OBJC_WARN_ENABLED=YES \
 DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
@@ -182,8 +222,8 @@ ${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2
 
       linux)
          echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
-MULLE_OBJC_TEST_ALLOCATOR=1 \
-MULLE_TEST_ALLOCATOR_TRACE=2 \
+MULLE_OBJC_TESTALLOCATOR=1 \
+MULLE_TESTALLOCATOR_TRACE=2 \
 MULLE_OBJC_TRACE_ENABLED=YES \
 MULLE_OBJC_WARN_ENABLED=YES \
 LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}\" \
@@ -206,6 +246,15 @@ check_compiler_output()
    local rval="$3"
    local pretty_source="$4"
    local ccdiag="$5"
+
+   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
+   then
+      log_fluff "-----------------------"
+      log_fluff "${errput}:"
+      log_fluff "-----------------------"
+      cat "${errput}" >&2
+      log_fluff "-----------------------"
+   fi
 
    if [ "${rval}" -eq 0 ]
    then

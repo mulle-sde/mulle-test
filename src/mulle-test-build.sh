@@ -36,45 +36,68 @@ MULLE_TEST_BUILD_SH="included"
 # build our project into the test environment. Just a glorified wrapper around
 # mulle-make
 #
-build_it()
+#
+# pwd must be ./tests
+#
+build_main()
 {
-   log_entry "build_it" "$@"
+   log_entry "build_main" "$@"
+
+   local flags="$1"; shift
+   local options="$1"; shift
 
    local prefix
    local cmdline
 
-   prefix="`pwd`"
+   prefix="${PWD}"
 
    local testdirname
+   local RVAL
 
-   testdirname="`fast_basename "${TEST_DIR:-test}"`"
-   if [ "`fast_basename "${prefix}"`" != "${testdirname}" ]
+   r_fast_basename "${MULLE_TEST_DIR:-test}"
+   testdirname="${RVAL}"
+
+   r_fast_basename "${prefix}"
+   if [ "${RVAL}" != "${testdirname}" ]
    then
       fail "Must be started from directory \"${testdirname}\""
    fi
 
    cmdline="${MULLE_MAKE:-mulle-make}"
 
-   cmdline="`concat "${cmdline}" "${MULLE_TECHNICAL_FLAGS}"`"
-   cmdline="`concat "${cmdline}" "${MULLE_MAKE_FLAGS}"`"
-   cmdline="`concat "${cmdline}" "${AUX_BUILD_FLAGS}"`"
+   r_concat "${cmdline}" "${MULLE_TECHNICAL_FLAGS}"
+   cmdline="${RVAL}"
+   r_concat "${cmdline}" "${MULLE_MAKE_FLAGS}"
+   cmdline="${RVAL}"
+   r_concat "${cmdline}" "${flags}"
+   cmdline="${RVAL}"
 
-   cmdline="${cmdline} install"
-   cmdline="`concat "${cmdline}" "${BUILD_OPTIONS}" `"
+   r_concat "${cmdline}" "install"
+   cmdline="${RVAL}"
 
-   cmdline="`concat "${cmdline}" "--build-dir build" `"
-   cmdline="`concat "${cmdline}" "--prefix '${prefix}'" `"
-   cmdline="`concat "${cmdline}" "-DSTANDALONE=ON" `"
+   r_concat "${cmdline}" "${options}"
+   cmdline="${RVAL}"
+   r_concat "${cmdline}" "--configuration '${MULLE_TEST_CONFIGURATION}'"
+   cmdline="${RVAL}"
+   r_concat "${cmdline}" "--build-dir build"
+   cmdline="${RVAL}"
+   r_concat "${cmdline}" "--prefix '${prefix}'"
+   cmdline="${RVAL}"
+   r_concat "${cmdline}" "-DSTANDALONE=ON"
+   cmdline="${RVAL}"
 
    MULLE_SDE="${MULLE_SDE:-`command -v "mulle-sde"`}"
    if [ ! -z "${MULLE_SDE}" ]
    then
       local makeinfo
 
-      makeinfo="`"${MULLE_SDE}" ${MULLE_TECHNICAL_FLAGS} makeinfo search`"
+      makeinfo="`rexekutor "${MULLE_SDE}" ${MULLE_TECHNICAL_FLAGS} definition search`"
       if [ ! -z "${makeinfo}" ]
       then
-         cmdline="`concat "${cmdline}" "--info-dir '${makeinfo}'" `"
+         log_fluff "Makeinfo \"${makeinfo}\" found"
+
+         r_concat "${cmdline}" "--definition-dir '${makeinfo}'"
+         cmdline="${RVAL}"
       fi
    fi
 
@@ -88,34 +111,4 @@ build_it()
 }
 
 
-#
-# pwd must be ./tests
-#
-build_main()
-{
-   log_entry "build_main" "$@"
-
-   local AUX_BUILD_FLAGS="-f"
-   local BUILD_OPTIONS=
-
-   while [ $# -ne 0 ]
-   do
-      case "$1" in
-         --no-clean)
-            BUILD_OPTIONS="`concat "${BUILD_OPTIONS}" "'$1'"`"
-            AUX_BUILD_FLAGS=
-         ;;
-
-         *)
-            break
-         ;;
-      esac
-
-      shift
-   done
-
-   options_setup_trace "${MULLE_TRACE}"
-
-   build_it "$@"
-}
 

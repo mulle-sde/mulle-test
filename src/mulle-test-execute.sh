@@ -77,12 +77,30 @@ run_a_out()
 
    case "${MULLE_UNAME}" in
       darwin)
-         ( full_redirekt_eval_exekutor "${input}" "${output}" "${errput}" MULLE_OBJC_TEST_ALLOCATOR=1 \
-         "${a_out_ext}" )
+         full_redirekt_eval_exekutor "${input}" \
+"${output}" \
+"${errput}" \
+RPATH_FLAGS="'${RPATH_FLAGS}'" \
+MULLE_OBJC_TESTALLOCATOR=1 \
+"${a_out_ext}"
+      ;;
+
+      linux)
+         full_redirekt_eval_exekutor "${input}" \
+"${output}" \
+"${errput}" \
+LD_LIBRARY_PATH="'${LD_LIBRARY_PATH}'" \
+MULLE_OBJC_TESTALLOCATOR=1 \
+"${a_out_ext}"
       ;;
 
       *)
-         ( full_redirekt_eval_exekutor "${input}" "${output}" "${errput}" MULLE_OBJC_TEST_ALLOCATOR=1 "${a_out_ext}" )
+         full_redirekt_eval_exekutor "${input}" \
+"${output}" \
+"${errput}" \
+PATH="'${PATH}'" \
+MULLE_OBJC_TESTALLOCATOR=1
+"${a_out_ext}"
       ;;
    esac
 }
@@ -120,7 +138,7 @@ _check_test_output()
          then
             log_error "TEST CRASHED: ${info_text}, ${errput})"
          else
-            log_error "TEST FAILED: ${info_text}, ${errput})"
+            log_error "TEST FAILED: ${info_text}, ${errput}) (returned ${rval})"
          fi
          return ${RVAL_FAILURE}
       fi
@@ -235,10 +253,10 @@ test_execute()
    [ -z "${stdout}" ] && internal_fail "stdout must not be empty"
    [ -z "${stderr}" ] && internal_fail "stderr must not be empty"
 
-
    local srcfile
 
-   srcfile="`concat "${name}" "${ext}" "." `"
+   r_concat "${name}" "${ext}" "."
+   srcfile="${RVAL}"
 
    local random
 
@@ -253,7 +271,8 @@ test_execute()
 
    local pretty_source
 
-   pretty_source="`relative_path_between "${PWD}/${srcfile}" "${root}"`" || exit 1
+   r_relative_path_between "${PWD}/${srcfile}" "${root}" || exit 1
+   pretty_source="${RVAL}"
 
    #
    # run test executable "${a_out}" feeding it "${stdin}" as input
@@ -265,8 +284,26 @@ test_execute()
    log_debug "Check test \"${name}\" output"
 
    redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
+   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
+   then
+      log_fluff "-----------------------"
+      log_fluff "${output}:"
+      log_fluff "-----------------------"
+      cat "${output}" >&2
+      log_fluff "-----------------------"
+   fi
+
    redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${errput}.tmp"
    exekutor rm "${output}.tmp" "${errput}.tmp"
+
+   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
+   then
+      log_fluff "-----------------------"
+      log_fluff "${errput}:"
+      log_fluff "-----------------------"
+      cat "${errput}" >&2
+      log_fluff "-----------------------"
+   fi
 
    check_test_output  "${stdout}" \
                       "${stderr}" \
@@ -355,8 +392,10 @@ test_execute_main()
    local ext
    local directory
 
-   directory="`fast_dirname "${sourcefile}"`"
-   name="`fast_basename "${sourcefile}"`"
+   r_fast_dirname "${sourcefile}"
+   directory="${RVAL}"
+   r_fast_basename "${sourcefile}"
+   name="${RVAL}"
    name="${sourcefile%.*}"
    ext="${sourcefile##*.}"
 

@@ -32,32 +32,31 @@
 MULLE_TEST_LOCATE_SH="included"
 
 
-locate_path()
+r_locate_path()
 {
-   log_entry "locate_path" "$@"
+   log_entry "r_locate_path" "$@"
 
    local path="$1"
 
-   local found
-   found="`ls -1 "${path}" 2> /dev/null | tail -1`"
+   RVAL="`ls -1 "${path}" 2> /dev/null | tail -1`"
 
    if [ ! -z "${MULLE_TEST_TRACE_LOOKUP}" ]
    then
-      if [ -z "${found}" ]
+      if [ -z "${RVAL}" ]
       then
          log_fluff "\"${path}\" does not exist"
       else
-         log_fluff "Found \"${found}\""
+         log_fluff "Found \"${RVAL}\""
       fi
    fi
 
-   echo "${found}"
+   [ ! -z "${RVAL}" ]
 }
 
 
-_locate_library()
+_r_locate_library()
 {
-   log_entry "_locate_library" "$@"
+   log_entry "_r_locate_library" "$@"
 
    local filename="$1"
 
@@ -65,80 +64,66 @@ _locate_library()
 
    if [ ! -z "${LIB_PATH}" ]
    then
-      library_path="`locate_path "${LIB_PATH}/${filename}"`"
+      r_locate_path "${LIB_PATH}/${filename}" && return
    fi
-   [ ! -z "${library_path}" ] && echo "${library_path}" && return
 
-   library_path="`locate_path "./lib/${filename}"`"
-   [ ! -z "${library_path}" ] && echo "${library_path}" && return
-
-   library_path="`locate_path "../lib/${filename}"`"
-   [ ! -z "${library_path}" ] && echo "${library_path}" && return
-
-   library_path="`locate_path "${DEPENDENCY_DIR}/Debug/lib/${filename}"`"
-   [ ! -z "${library_path}" ] && echo "${library_path}" && return
-
-   library_path="`locate_path "${DEPENDENCY_DIR}/lib/${filename}"`"
-   [ ! -z "${library_path}" ] && echo "${library_path}" && return
-
-   library_path="`locate_path "${ADDICTIONS_DIR}/lib/${filename}"`"
-   [ ! -z "${library_path}" ] && echo "${library_path}" && return
-
-   library_path="`locate_path "./build/Products/Debug/${filename}"`"
-   [ ! -z "${library_path}" ] && echo "${library_path}" && return
-
-   library_path="`locate_path "../build/Products/Debug/${filename}"`"
-   [ ! -z "${library_path}" ] && echo "${library_path}" && return
-
-   echo "${library_path}"
+   r_locate_path "./lib/${filename}" && return
+   r_locate_path "../lib/${filename}" && return
+   r_locate_path "${DEPENDENCY_DIR}/Debug/lib/${filename}" && return
+   r_locate_path "${DEPENDENCY_DIR}/lib/${filename}" && return
+   r_locate_path "${ADDICTIONS_DIR}/lib/${filename}" && return
+   r_locate_path "./build/Products/Debug/${filename}" && return
+   r_locate_path "../build/Products/${filename}"
 }
 
 
-locate_library()
+r_locate_library()
 {
-   log_entry "locate_library" "$@"
+   log_entry "r_locate_library" "$@"
 
    local filename="$1"
    local library_path="$2"
 
    if [ -z "${library_path}" ]
    then
-      _locate_library "${filename}"
+      _r_locate_library "${filename}"
    else
-      echo "${library_path}"
+      RVAL="$2"
    fi
+
+   [ ! -z "${RVAL}" ]
 }
 
 
-locate_test_dir()
+r_locate_test_dir()
 {
-   log_entry "locate_test_dir" "$@"
+   log_entry "r_locate_test_dir" "$@"
 
    local testdir="$1"
 
    # ez shortcut
 
-   if [ -d "${testdir}" ]
+   if [ ! -d "${testdir}" ]
    then
-      echo "${testdir}"
-      return 0
+      r_fast_basename "${testdir}"
+      testdirname="${RVAL}"
+
+      testdir="${MULLE_VIRTUAL_ROOT:-${PWD}}/${testdirname}"
+      if [ ! -d "${testdir}" ]
+      then
+         RVAL=
+         return 1
+      fi
    fi
 
-   testdirname="`fast_basename "${testdir}"`"
-   testdir="${MULLE_VIRTUAL_ROOT:-`pwd -P`}/${testdirname}"
-   if [ -d "${testdir}" ]
-   then
-      echo "${testdir}"
-      return 0
-   fi
-
-   return 1
+   RVAL="${testdir}"
+   return 0
 }
 
 
-locate_main()
+r_locate_main()
 {
-   log_entry "locate_main" "$@"
+   log_entry "r_locate_main" "$@"
 
-   locate_test_dir "${TEST_DIR:-test}"
+   r_locate_test_dir "${MULLE_TEST_DIR:-test}"
 }

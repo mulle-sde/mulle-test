@@ -29,7 +29,7 @@
 #   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #   POSSIBILITY OF SUCH DAMAGE.
 #
-[ "${TRACE}" = "YES" ] && set -x && : "$0" "$@"
+[ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
 MULLE_TEST_VERSION="3.0.13"
@@ -41,9 +41,13 @@ usage()
 {
    cat <<EOF >&2
 Usage:
-   ${MULLE_EXECUTABLE_NAME} [flags] <command>
+   ${MULLE_EXECUTABLE_NAME} [flags] <command> <options> -- <build> -- <run>
 
-   Run tests.
+   Run tests. Commands take options. Some commands take additional build and
+   run options. Notice the -- separator.
+
+   Prepare your test environment with \'mulle-sde craft\'.
+
 
 Flags:
 EOF
@@ -59,12 +63,18 @@ EOF
    cat <<EOF >&2
 
 Commands:
-   build             : build libraries for tests
-   clean             : remove folders: bin,build,include,lib,libexec,
-                                       share,Frameworks
-   run               : run tests
-   test              : first build then run tests
-   test-dir          : locate test folder
+   clean                    : remove folders: bin,build,include,lib,libexec,
+                                             share,Frameworks
+   run                      : run tests
+   test-dir                 : locate test folder
+
+Environment:
+   MULLE_TEST_CONFIGURATION : configuration to compile files (Debug)
+   MULLE_TEST_DIR           : tests direcetory (test)
+   PROJECT_LANGUAGE         : language of the tests (c)
+   PROJECT_DIALECT          : dialect of the tests, can be objc
+   PROJECT_EXTENSIONS       : file extensions of the test files
+
 EOF
 
    exit 1
@@ -77,23 +87,142 @@ cd_test_dir()
 
    local testdir
 
-   MULLE_START_PWD="${PWD}"
-
    # shellcheck source=src/mulle-test-locate.sh
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
 
-   TEST_DIR="${TEST_DIR:-test}"
-   if ! testdir="`locate_test_dir "${TEST_DIR}"`"
+   local RVAL
+
+   MULLE_TEST_DIR="${MULLE_TEST_DIR:-test}"
+
+   if ! r_locate_test_dir "${MULLE_TEST_DIR}"
    then
-      fail "Did not find a \"${TEST_DIR}\" directory (${MULLE_START_PWD})"
+      fail "Did not find a \"${MULLE_TEST_DIR}\" directory (${MULLE_USER_PWD})"
    fi
 
-   exekutor cd "${testdir}" || return 1
+   exekutor cd "${RVAL}" || return 1
 
    if [ -z "${MULLE_VIRTUAL_ROOT}" ] && [ -e .mulle-sde-required ]
    then
-      fail "Tests must be run inside mulle-sde. Use \`mulle-env -c 'mulle-test ...'\`"
+      fail "Tests must be run inside mulle-sde. Use \`mulle-sde run mulle-test ...'\`"
    fi
+}
+
+
+#
+# grab arguments < args> -- <args> -- <ignore>
+#
+stage_build()
+{
+   log_entry "stage_build" "$@"
+
+   local flags="$1"; shift
+   local options="$1"; shift
+
+   local args
+   local match
+   local cmdline
+
+   match="NO"
+
+   while [ $# -ne 0 ]
+   do
+      if [ "$1" = "--" ]
+      then
+         shift
+         if [ "${match}" = "YES" ]
+         then
+            break
+         fi
+         match="YES"
+         continue
+      fi
+
+      if [ -z "${args}" ]
+      then
+         args="'$1'"
+      else
+         args="${args} '$1'"
+      fi
+      shift
+   done
+
+   if [ -x "build-test" ]
+   then
+      cmdline="exekutor ./build-test"
+   else
+      # shellcheck source=src/mulle-test-build.sh
+      . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-build.sh"
+
+      cmdline="build_main"
+   fi
+
+   eval "${cmdline}" "'${flags}'" "'${options}'" "${args}" || exit 1
+}
+
+
+#
+# grab arguments < args> -- <ignore> -- <args>
+#
+stage_run()
+{
+   log_entry "stage_run" "$@"
+
+   local flags="$1"; shift
+   local options="$1"; shift
+
+   local args
+   local match
+
+   match="NO"
+
+   while [ $# -ne 0 ]
+   do
+      if [ "$1" = "--" ]
+      then
+         shift
+         case "${match}" in
+            "NO")
+               match="YES"
+               continue
+            ;;
+
+            "YES")
+               match="FINAL"
+               continue
+            ;;
+
+            "FINAL")
+               break
+            ;;
+         esac
+
+         match="YES"
+         continue
+      fi
+
+      if [ "${match}" != "YES" ]
+      then
+         if [ -z "${args}" ]
+         then
+            args="'$1'"
+         else
+            args="${args} '$1'"
+         fi
+      fi
+      shift
+   done
+
+   if [ -x "run-test" ]
+   then
+      cmdline="exekutor ./run-test"
+   else
+      # shellcheck source=src/mulle-test-run.sh
+      . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-run.sh"
+
+      cmdline="run_main"
+   fi
+
+   eval "${cmdline}" "'${flags}'" "'${options}'" "${args}" || exit 1
 }
 
 
@@ -117,7 +246,12 @@ main()
    local MULLE_FLAG_DEFER="DEFAULT"
    local FLAG_OUTSIDE_ENV="NO"
 
-   #
+   local BUILD_FLAGS="-f"
+   local BUILD_OPTIONS="--clean"
+   local RUN_FLAGS
+   local RUN_OPTIONS
+   local RVAL
+
    # simple option handling
    #
    while [ $# -ne 0 ]
@@ -137,11 +271,33 @@ main()
             MULLE_FLAG_MAGNUM_FORCE="BOTH"
          ;;
 
+         --configuration)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            MULLE_TEST_CONFIGURATION="$1"
+         ;;
+
+         --debug)
+            MULLE_TEST_CONFIGURATION='Debug'
+         ;;
+
+         --release)
+            MULLE_TEST_CONFIGURATION='Release'
+         ;;
+
+         # single build option (hackish)
+         --no-clean)
+            r_concat "${BUILD_OPTIONS}" "'$1'"
+            BUILD_OPTIONS="${RVAL}"
+            BUILD_FLAGS=
+         ;;
+
          --dir-name)
             [ $# -eq 1 ] && fail "Missing argument to \"$1\""
             shift
 
-            TEST_DIR="$1"
+            MULLE_TEST_DIR="$1"
          ;;
 
          --project-language)
@@ -166,6 +322,10 @@ main()
             fi
          ;;
 
+         --)
+            break
+         ;;
+
          -*)
             log_error "${MULLE_EXECUTABLE_FAIL_PREFIX}: Unknown option \"$1\""
             usage "${MULLE_TRACE}"
@@ -181,65 +341,24 @@ main()
 
    options_setup_trace "${MULLE_TRACE}"
 
+   MULLE_TEST_CONFIGURATION=${MULLE_TEST_CONFIGURATION:-Debug}
+
    local cmd="$1"
    [ $# -eq 0 ] || shift
 
-   case "${cmd:-test}" in
-      build)
-         cd_test_dir || exit 1
-
-         # shellcheck source=src/mulle-test-build.sh
-         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-build.sh"
-         build_main "$@"
-      ;;
-
-      clean)
-         cd_test_dir || exit 1
-
-         rmdir_safer bin
-         rmdir_safer build
-         rmdir_safer include
-         rmdir_safer lib
-         rmdir_safer libexec
-         rmdir_safer share
-         rmdir_safer Frameworks
-      ;;
-
+   case "${cmd:-run}" in
       run)
          cd_test_dir || exit 1
 
-         # shellcheck source=src/mulle-test-run.sh
-         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-run.sh"
-         run_main "$@"
-      ;;
-
-      test)
-         cd_test_dir || exit 1
-
-         if [ -x "build-test" ]
-         then
-            exekutor ./build-test "$@"
-         else
-            # shellcheck source=src/mulle-test-build.sh
-            . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-build.sh"
-            build_main "$@" || exit 1
-         fi
-
-         # shellcheck source=src/mulle-test-run.sh
-         if [ -x "run-test" ]
-         then
-            exekutor ./run-test "$@"
-         else
-            . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-run.sh"
-
-            run_main "$@"
-         fi
+         mulle-sde craft
+         stage_run "${RUN_FLAGS}" "${RUN_OPTIONS}" "$@"
       ;;
 
       test-dir)
          # shellcheck source=src/mulle-test-locate.sh
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
-         locate_main "$@"
+         r_locate_main "$@"
+         echo "${RVAL}"
       ;;
 
       *)
@@ -301,5 +420,5 @@ case "$PATH" in
    ;;
 esac
 
-_init
+_init "$@"
 main "$@"

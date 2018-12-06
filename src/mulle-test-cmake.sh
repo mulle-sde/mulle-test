@@ -36,47 +36,52 @@ eval_mulle_make()
 {
    log_entry "eval_mulle_make" "$@"
 
+   local build_type="$1"
+
    # fix for mingw, which demangles the first -I path
    # but not subsequent ones
    #
    # (where is this fix ?)
    #
    local cmake_c_flags
+   local RVAL
 
-   cmake_c_flags="`emit_include_cflags`"
+   r_emit_include_cflags
+   cmake_c_flags="${RVAL}"
+
+   r_concat "${cmake_c_flags}" "${OTHER_CFLAGS}"
+   cmake_c_flags="${RVAL}"
 
    local cmake_libraries
+   local RVAL
 
-   cmake_libraries="`emit_libraries "${LIBRARY_PATH}" ${ADDITIONAL_LIBRARY_PATHS}`"
+   local a_paths
+   local RVAL
 
-   export CC
-   export CXX
+   cmake_libraries="${LIBRARY_FILE}:${ADDITIONAL_LIBRARY_FILES}"
+   cmake_libraries="${cmake_libraries//:/;}"
+   cmake_libraries="${cmake_libraries%%;}"
+   cmake_libraries="${cmake_libraries##;}"
 
-#   local cmake_definitions
-#
-#   if [ ! -z "${CC}" ]
-#   then
-#      cmake_definitions="${cmake_definitions} -DCMAKE_C_COMPILER='${CC}'"
-#   fi
-#   if [ ! -z "${CXX}" ]
-#   then
-#      cmake_definitions="${cmake_definitions} -DCMAKE_CXX_COMPILER='${CXX}'"
-#   fi
-
-    eval_exekutor ${MULLE_MAKE:-mulle-make} "${MULLE_TECHNICAL_FLAGS}" \
-               "${MULLE_MAKE_FLAGS}" \
-               build -K \
-                  --info-dir "'${MULLE_VIRTUAL_ROOT}/.mulle-make'" \
-                  "${cmake_definitions}" \
-                  -DCMAKE_BUILD_TYPE="'$1'" \
-                  -DCMAKE_RULE_MESSAGES="OFF" \
-                  -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
-                  -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
-                  -DTEST_LIBRARIES="'${cmake_libraries}'" \
-                  -DCMAKE_EXE_LINKER_FLAGS="'${RPATH_FLAGS}'"
+   # TODO: build commandline nicer
+   eval_exekutor CC="${CC}" \
+                 CXX="${CXX}" \
+                 ${MULLE_MAKE:-mulle-make} \
+                    "${MULLE_TECHNICAL_FLAGS}" \
+                    "${MULLE_MAKE_FLAGS}" \
+                 build --clean \
+                    --info-dir "'${MULLE_VIRTUAL_ROOT}/.mulle-make'" \
+                    "${cmake_definitions}" \
+                    -DCMAKE_BUILD_TYPE="'${build_type}'" \
+                    -DCMAKE_RULE_MESSAGES="'OFF'" \
+                    -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
+                    -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
+                    -DTEST_LIBRARIES="'${cmake_libraries}'" \
+                    -DCMAKE_EXE_LINKER_FLAGS="'${RPATH_FLAGS}'"
 }
 
 
+# do not exit
 fail_test_cmake()
 {
    log_entry "fail_test_cmake" "$@"
@@ -89,22 +94,23 @@ fail_test_cmake()
    [ -z "${a_out_ext}" ] && internal_fail "a_out_ext is empty"
 
    #hacque
-   local a_paths
    local executable
+   local RVAL
 
-   executable="`fast_basename "${a_out_ext}"`"
-   a_paths="`/bin/echo -n "${ADDITIONAL_LIBRARY_PATHS}" | tr '\012' ' '`"
+   r_fast_basename "${a_out_ext}"
+   executable="${RVAL}"
 
    if [ -z "${MULLE_FLAG_MAGNUM_FORCE}" ]
    then
-      if [ "${BUILD_TYPE}" != "Debug" ]
+      if [ "${MULLE_TEST_CONFIGURATION}" != "Debug" ]
       then
          log_info "DEBUG: " >&2
-         log_info "Rebuilding as `basename -- ${a_out_ext}` with -O0 and debug symbols..."
+         log_info "Rebuilding as \"${executable}\" with -O0 and debug symbols..."
 
          local directory
 
-         directory="`dirname -- "${srcfile}"`"
+         r_fast_dirname "${srcfile}"
+         directory="${RVAL}"
 
          exekutor cd "${directory}" &&
          eval_mulle_make "Debug" &&
@@ -112,8 +118,6 @@ fail_test_cmake()
 
          suggest_debugger_commandline "${a_out_ext}" "${stdin}"
       fi
-
-      exit 1
    fi
 }
 
@@ -130,14 +134,16 @@ run_cmake()
 
    local directory
    local executable
+   local RVAL
 
-   executable="`fast_basename "${a_out_ext}"`"
-
-   directory="`fast_dirname "${srcfile}"`"
+   r_fast_basename "${a_out_ext}"
+   executable="${RVAL}"
+   r_fast_dirname "${srcfile}"
+   directory="${RVAL}"
    (
       exekutor cd "${directory}"
 
-      eval_mulle_make "${BUILD_TYPE}" &&
+      eval_mulle_make "${MULLE_TEST_CONFIGURATION}" &&
       exekutor cp -p "build/${executable}" "./${executable}"
    ) || exit 1
 }

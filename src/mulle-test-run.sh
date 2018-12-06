@@ -44,17 +44,17 @@ usage()
 {
    cat <<EOF >&2
 usage:
-   mulle-test run [options] [tests]
+   mulle-test run [options] [test]
 
    You may optionally specify a source test file, to run
    only that test.
 
    Options:
-         -f  : keep going, if tests fail
-         -q  : quiet
-         -t  : shell trace
-         -v  : verbose
-         -V  : show commands
+      -l  : be linient, keep going if tests fail
+      -q  : quiet
+      -t  : shell trace
+      -v  : verbose
+      -V  : show commands
 EOF
    exit 1
 }
@@ -176,7 +176,8 @@ run_common_test()
    random="`make_tmp_file "${name}"`" || exit 1
 
    cc_errput="${random}.ccerr"
-   pretty_source="`relative_path_between "${PWD}/${srcfile}" "${root}"`" || exit 1
+   r_relative_path_between "${PWD}/${srcfile}" "${root}"
+   pretty_source="${RVAL}" || exit 1
 
    log_info "${TEST_PATH_PREFIX}${pretty_source}"
 
@@ -200,12 +201,12 @@ run_common_test()
 
    log_verbose "Run test"
 
-   test_execute_main "${a_out}" "${srcfile}"
+   test_execute_main "${a_out_ext}" "${srcfile}"
 
    rval=$?
    if [ "${rval}" -ne 0 ]
    then
-      if [ "${BUILD_TYPE}" != "Debug" ]
+      if [ "${MULLE_TEST_CONFIGURATION}" != "Debug" ]
       then
          a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
       fi
@@ -324,6 +325,7 @@ run_test_in_directory()
    local root="$4"
 
    local rval
+   local RVAL
 
    RUNS="`expr "$RUNS" + 1`"
    (
@@ -339,17 +341,17 @@ run_test_in_directory()
       ;;
 
       ${RVAL_INTERNAL_ERROR})
-         log_debug "internal problems exit"
-         exit 1
+         fail "Test exited due to internal problems (assert, crasher)"
       ;;
 
       *)
          FAILS="`expr "${FAILS}" + 1`"
-         if [ "${MULLE_FLAG_MAGNUM_FORCE}" != "YES" ]
+         if [ "${OPTION_LENIENT}" != 'YES' ]
          then
             local pretty_source
 
-            pretty_source="`relative_path_between "${PWD}/${name}" "${root}"`" || exit 1
+            r_relative_path_between "${PWD}/${name}" "${root}"
+            pretty_source="${RVAL}"
 
             fail "Test \"${TEST_PATH_PREFIX}${pretty_source}\" failed ($rval)"
          fi
@@ -369,6 +371,7 @@ run_test_matching_extensions_in_directory()
 
    local name
    local ext
+   local RVAL
 
    IFS=":"
    for ext in ${extensions}
@@ -377,7 +380,9 @@ run_test_matching_extensions_in_directory()
       ext=".${ext}"
       case "${filename}" in
          *${ext})
-            name="`basename -- "${filename}" "${ext}"`"
+            r_extensionless_basename "${filename}"
+            name="${RVAL}"
+
             run_test_in_directory "${name}" "${ext}" "${directory}" "${root}"
             return $?
          ;;
@@ -467,9 +472,15 @@ run_named_test()
    log_entry "run_named_test" "$@"
 
    local path="$1"
+   local root="$2"
 
-   local RUNS=0
-   local FAILS=0
+   local RVAL
+
+   if ! is_absolutepath "${path}"
+   then
+      r_filepath_concat "${root}" "${path}"
+      path="${RVAL}"
+   fi
 
    if [ ! -e "${path}" ]
    then
@@ -478,7 +489,7 @@ run_named_test()
 
    if [ -d "${path}" ]
    then
-      scan_directory "${path}" "${PWD}" "${PROJECT_EXTENSIONS}"
+      scan_directory "${path}" "${root}" "${PROJECT_EXTENSIONS}"
       return $?
    fi
 
@@ -490,12 +501,17 @@ run_named_test()
    local directory
    local filename
 
-   directory="`fast_dirname "${path}"`"
-   filename="`fast_basename "${path}"`"
+   r_fast_dirname "${path}"
+   directory="${RVAL}"
+   r_fast_basename "${path}"
+   filename="${RVAL}"
+
+   local RUNS=0
+   local FAILS=0
 
    run_test_matching_extensions_in_directory "${filename}" \
                                              "${directory}" \
-                                             "${PWD}" \
+                                             "${root}" \
                                              "${PROJECT_EXTENSIONS}"
 }
 
@@ -507,7 +523,7 @@ run_all_tests()
    local RUNS=0
    local FAILS=0
 
-   scan_directory "${PWD}" "${PWD}" "${PROJECT_EXTENSIONS}"
+   scan_directory "${PWD}" "${MULLE_USER_PWD}" "${PROJECT_EXTENSIONS}"
 
    if [ "$RUNS" -ne 0 ]
    then
@@ -524,247 +540,28 @@ run_all_tests()
 }
 
 
-setup_library_environment()
-{
-   log_entry "setup_library_environment" "$@"
-
-   LIBRARY_PATH="$1"
-
-   #
-   # figure out where the headers are
-   #
-   LIBRARY_FILENAME="`basename -- "${LIBRARY_PATH}"`"
-   LIBRARY_DIR="`dirname -- "${LIBRARY_PATH}"`"
-   LIBRARY_ROOT="`dirname -- "${LIBRARY_DIR}"`"
-
-   if [ -d "${LIBRARY_ROOT}/usr/local/include" ]
-   then
-      LIBRARY_INCLUDE="${LIBRARY_INCLUDE}/usr/local/include"
-   else
-      LIBRARY_INCLUDE="${LIBRARY_ROOT}/include"
-   fi
-
-   LIBRARY_PATH="`absolutepath "${LIBRARY_PATH}"`"
-   LIBRARY_INCLUDE="`absolutepath "${LIBRARY_INCLUDE}"`"
-
-   LIBRARY_DIR="`dirname -- ${LIBRARY_PATH}`"
-
-   case "${platform}" in
-      darwin)
-         RPATH_FLAGS="-Wl,-rpath ${LIBRARY_DIR}"
-
-         log_verbose "RPATH_FLAGS=${RPATH_FLAGS}"
-      ;;
-
-      linux)
-         LD_LIBRARY_PATH="${LIBRARY_DIR}:${LD_LIBRARY_PATH}"
-         export LD_LIBRARY_PATH
-
-         log_verbose "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
-      ;;
-
-      mingw*)
-         PATH="${LIBRARY_DIR}:${PATH}"
-         export PATH
-
-         log_verbose "PATH=${PATH}"
-      ;;
-   esac
-
-   #
-   # manage additional libraries, expected to be in same path as library
-   #
-   local i
-   local path
-   local filename
-
-   IFS="
-"
-   for i in ${ADDITIONAL_LIBS}
-   do
-      IFS="${DEFAULT_IFS}"
-
-      filename="${LIB_PREFIX}${i}${LIB_SUFFIX}${LIB_EXTENSION}"
-      path="`locate_library "${filename}"`" || exit 1
-      path="`absolutepath "${path}"`"
-
-      log_verbose "Additional library: ${path}"
-      ADDITIONAL_LIBRARY_PATHS="`concat "${ADDITIONAL_LIBRARY_PATHS}" "${path}"`"
-   done
-   IFS="${DEFAULT_IFS}"
-}
-
-
-setup_environment()
-{
-   log_entry "setup_environment" "$@"
-
-   local platform="$1"
-
-   MAKEFLAGS="${MAKEFLAGS:-${def_makeflags}}"
-
-   if [ -z "${DEBUGGER}" ]
-   then
-      DEBUGGER=lldb
-   fi
-
-   DEBUGGER="`which "${DEBUGGER}" 2> /dev/null`"
-
-   if [ -z "${DEBUGGER_LIBRARY_PATH}" ]
-   then
-      DEBUGGER_LIBRARY_PATH="`dirname -- "${DEBUGGER}"`/../lib"
-   fi
-
-   RESTORE_CRASHDUMP=`suppress_crashdumping`
-   trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
-
-   if [ -z "${PROJECT_DIR}" ]
-   then
-      PROJECT_DIR="`fast_dirname "${PWD}"`"
-      log_fluff "PROJECT_DIR assumed to be \"${PROJECT_DIR}\""
-
-      if [ -z "${DEPENDENCY_DIR}" -a -d "${PROJECT_DIR}/dependency" ]
-      then
-         DEPENDENCY_DIR="${PROJECT_DIR}/dependency"
-         log_fluff "DEPENDENCY_DIR assumed to be \"${DEPENDENCY_DIR}\""
-      fi
-      if [ -z "${ADDICTION_DIR}" -a -d "${PROJECT_DIR}/addiction" ]
-      then
-         ADDICTION_DIR="${PROJECT_DIR}/addiction"
-         log_fluff "ADDICTION_DIR assumed to be \"${ADDICTION_DIR}\""
-      fi
-   fi
-
-   if [ -z "${PROJECT_NAME}" ]
-   then
-      PROJECT_NAME="`fast_basename "${PROJECT_DIR}"`"
-      PROJECT_NAME="${PROJECT_NAME%%.*}"
-
-      log_fluff "PROJECT_NAME assumed to be \"${PROJECT_NAME}\""
-   fi
-
-   if [ -z "${PROJECT_LANGUAGE}" ]
-   then
-      PROJECT_LANGUAGE="c"
-      log_fluff "PROJECT_LANGUAGE assumed to be \"c\""
-   fi
-
-   LIBRARY_SHORTNAME="${LIBRARY_SHORTNAME:-${PROJECT_NAME}}"
-   [ -z "${LIBRARY_SHORTNAME}" ] && fail "PROJECT_NAME not set"
-
-   LIBRARY_FILENAME="${LIB_PREFIX}${LIBRARY_SHORTNAME}${LIB_SUFFIX}${LIB_EXTENSION}"
-   LIBRARY_PATH="`locate_library "${LIBRARY_FILENAME}" "${LIBRARY_PATH}"`"
-
-   if [ -z "${LIBRARY_PATH}" ]
-   then
-      if [ "${OPTION_REQUIRE_LIBRARY}" = "YES" ]
-      then
-         log_error "error: ${LIBRARY_FILENAME} can not be found."
-
-         log_info "Maybe you have not run \"build-test.sh\" yet ?
-
-   You commonly need a shared library target in your CMakeLists.txt that
-   links in all the platform dependencies for your platform. This library
-   should be installed into \"./lib\" (and headers into \"./include\").
-
-   By convention a \"build-test.sh\" script does this using the
-   \"CMakeLists.txt\" file of your project."
-
-         exit 1
-      fi
-   else
-      setup_library_environment "${LIBRARY_PATH}"
-   fi
-
-   #
-   # read os-specific-libraries, to link
-   #
-   local os_specific
-
-   os_specific="include/${PROJECT_NAME}/link/os-specific-libraries.txt"
-
-   if [ -f "${os_specific}" ]
-   then
-      IFS="
-"
-      for path in `egrep -v '^#' "${os_specific}"`
-      do
-         IFS="${DEFAULT_IFS}"
-
-         log_verbose "Additional library: ${path}"
-         ADDITIONAL_LIBRARY_PATHS="`concat "${ADDITIONAL_LIBRARY_PATHS}" "${path}"`"
-      done
-      IFS="${DEFAULT_IFS}"
-   else
-      log_warning "${os_specific} not found"
-   fi
-
-
-   if [ -z "${CC}" ]
-   then
-      fail "CC for C compiler not defined"
-   fi
-
-   assert_binary "$CC" "CC"
-}
-
-
-include_required()
-{
-   if [ -z "${MULLE_PATH_SH}" ]
-   then
-      . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-path.sh"
-   fi
-   if [ -z "${MULLE_FILE_SH}" ]
-   then
-      . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-file.sh"
-   fi
-
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-environment.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-mingw.sh"
-
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-cmake.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-compiler.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-execute.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-flagbuilder.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-logging.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-regexsearch.sh"
-}
-
-setup()
-{
-   setup_language "${MULLE_UNAME}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
-   setup_tooling "${MULLE_UNAME}"
-   setup_platform "${MULLE_UNAME}" # after tooling
-   setup_library_type "${LIBRARY_TYPE}"
-   setup_environment "${MULLE_UNAME}"
-
-   local envfile
-
-   envfile=".mulle-test/etc/environment.sh"
-   if [ -f "${envfile}" ]
-   then
-      . "${envfile}" || fail "\"${envfile}\" read failed"
-      log_fluff "Read environment file \"${envfile}\" "
-   fi
-}
-
-
 run_main()
 {
    log_entry "run_main" "$@"
 
+   local flags="$1" ; shift
+   local options="$1"; shift
+
+   if [ -z "${MULLE_TEST_ENVIRONMENT_SH}" ]
+   then
+      . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-environment.sh"
+   fi
+
    include_required
 
-   setup
-
-   local def_makeflags
+   local DEFAULT_MAKEFLAGS
    local OPTION_REQUIRE_LIBRARY="YES"
+   local OPTION_LIBRARY_FILE
+   local OPTION_LENIENT='NO'
 
-   CFLAGS="${CFLAGS:-${RELEASE_CFLAGS}}"
-   BUILD_TYPE="${BUILD_TYPE:-Release}"
-   def_makeflags="-s"
+   DEFAULT_MAKEFLAGS="-s"
+
+   setup_project "${MULLE_UNAME}"
 
    while [ $# -ne 0 ]
    do
@@ -773,23 +570,28 @@ run_main()
             usage
          ;;
 
-         -f)
-            MULLE_FLAG_MAGNUM_FORCE="YES"
+         -l|--lenient)
+            OPTION_LENIENT="YES"
          ;;
 
          -V)
-            def_makeflags="VERBOSE=1"
+            DEFAULT_MAKEFLAGS="VERBOSE=1"
             MULLE_FLAG_LOG_EXEKUTOR="YES"
          ;;
 
+         --configuration)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            MULLE_TEST_CONFIGURATION="$1"
+         ;;
+
          --debug)
-            BUILD_TYPE=Debug
-            CFLAGS="${DEBUG_CFLAGS}"
+            MULLE_TEST_CONFIGURATION='Debug'
          ;;
 
          --release)
-            BUILD_TYPE=Release
-            CFLAGS="${RELEASE_CFLAGS}"
+            MULLE_TEST_CONFIGURATION='Release'
          ;;
 
          --path-prefix)
@@ -803,6 +605,13 @@ run_main()
             OPTION_REQUIRE_LIBRARY="NO"
          ;;
 
+         --library-file)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            OPTION_LIBRARY_FILE="$1"
+         ;;
+
          -*)
             fail "Unknown run option \"$1\""
          ;;
@@ -814,6 +623,19 @@ run_main()
 
       shift
    done
+
+   case "${MULLE_TEST_CONFIGURATION}" in
+   	'Debug')
+         CFLAGS="${DEBUG_CFLAGS}"
+      ;;
+
+      *)
+         CFLAGS="${RELEASE_CFLAGS}"
+      ;;
+	esac
+
+   setup_user "${MULLE_UNAME}"
+   setup_library "${MULLE_UNAME}" "${OPTION_LIBRARY_FILE}" "${OPTION_REQUIRE_LIBRARY}"
 
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2
@@ -831,7 +653,7 @@ run_main()
 
    while [ $# -ne 0 ]
    do
-      if ! run_named_test "$1"
+      if ! run_named_test "$1" "${MULLE_USER_PWD}"
       then
          return 1
       fi
