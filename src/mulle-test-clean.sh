@@ -29,87 +29,55 @@
 #   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #   POSSIBILITY OF SUCH DAMAGE.
 #
-MULLE_TEST_LOCATE_SH="included"
+MULLE_TEST_CLEAN_SH="included"
 
 
-_r_locate_test_dir()
+test_clean_usage()
 {
-   log_entry "_r_locate_test_dir" "$@"
+   [ "$#" -ne 0 ] && log_error "$1"
 
-   local testdir="$1"
+    cat <<EOF >&2
+Usage:
+   ${MULLE_USAGE_NAME} clean [domain]
 
-   local project_dir
+   By default cleans everything including produced .exe files and inferior
+   cmake build directories. If you want to remove the stash folder too,
+   specify "tidy" as the clean domain.
 
-   project_dir="`mulle-sde project-dir`"
-   if [ -z "${project_dir}" ]
-   then
-      RVAL=""
-      return 1
-   fi
-
-   local name
-
-   r_fast_basename "${project_dir}"
-   name="${RVAL}"
-
-   case "${name}" in
-      ${testdir}*)
-         RVAL="${project_dir}"
-         return 0
-      ;;
-   esac
-
-   if [ -d "${testdir}" ]
-   then
-      RVAL="${testdir}"
-      return 0
-   fi
-
-   local directory
-
-   directory="${project_dir}/${testdir}"
-   if [ -d "${directory}" ]
-   then
-      RVAL="${directory}"
-      return 0
-   fi
-
-   local name
-
-   r_fast_basename "${testdir}"
-   dir_name="${RVAL}"
-
-   directory="${project_dir}/${dir_name}"
-   if [ -d "${directory}" ]
-   then
-      RVAL="${directory}"
-      return 0
-   fi
-
-   RVAL=""
-   return 1
-}
-
-r_locate_test_dir()
-{
-   log_entry "r_locate_main" "$@"
-
-   if _r_locate_test_dir "$@"
-   then
-      if [ -f "${RVAL}/.mulle-sde/share/mulle-test" ]
-      then
-         return 0
-      fi
-   fi
-
-   RVAL=
-   return 1
+EOF
+   exit 1
 }
 
 
-r_locate_main()
+test_clean_main()
 {
-   log_entry "r_locate_main" "$@"
+   log_entry "test_clean_main" "$@"
 
-   r_locate_test_dir "${MULLE_TEST_DIR:-test}"
+   [ -z "${MULLE_TEST_CONFIGURATION}" ] && internal_fail "MULLE_TEST_CONFIGURATION is empty"
+
+   while [ $# -ne 0 ]
+   do
+      case "$1" in
+         -h|--help|help)
+            test_clean_usage
+         ;;
+
+         -*)
+            test_clean_usage "Unknown option \"$1\""
+         ;;
+
+         *)
+            break
+         ;;
+      esac
+
+      shift
+   done
+
+   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                      ${MULLE_SDE_FLAGS} \
+               clean \
+                  "${1:-all}" &&
+   exekutor find -d . -type d -name build -exec rm -rf {} \;
+   exekutor find . -type f -name "*.exe" -exec rm {} \;
 }

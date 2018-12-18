@@ -32,31 +32,6 @@
 MULLE_TEST_COMPILER_SH="included"
 
 
-r_libraryfile_cmdline()
-{
-   log_entry "r_libraryfile_cmdline" "$@"
-
-   local libraryfile="$1"
-
-   RVAL=""
-
-   if [ -z "${libraryfile}" ]
-   then
-      return
-   fi
-
-   local cmdline
-
-   r_fast_dirname "${libraryfile}"
-   cmdline="-L'${RVAL}'"
-
-   r_extensionless_basename "${libraryfile}"
-   libraryfile="${RVAL#lib}"
-
-   r_concat "${cmdline} -l'${libraryfile}'"
-}
-
-
 # do not exit
 fail_test_c()
 {
@@ -73,17 +48,17 @@ fail_test_c()
 
    if [ "${MULLE_TEST_CONFIGURATION}" != "Debug" ]
    then
-      local a_paths
       local RVAL
-
-      r_quoted_paths "${ADDITIONAL_LIBRARY_FILES}"
-      a_paths="${RVAL}"
 
       local cflags
       local incflags
 
       r_emit_cflags "${srcfile}"
       cflags="${RVAL}"
+
+      r_concat "${cflags} -DMULLE_TEST=1"
+      cflags="${RVAL}"
+
       r_emit_include_cflags "'"
       incflags="${RVAL}"
 
@@ -97,8 +72,7 @@ fail_test_c()
       cmdline="${cmdline} -o '${a_out}'"
       cmdline="${cmdline} '${srcfile}'"
 
-      r_libraryfile_cmdline "${LIBRARY_FILE}"
-      r_concat "${cmdline}" "${RVAL}"
+      r_concat "${cmdline}" "${LINK_COMMAND}"
       cmdline="${RVAL}"
 
       cmdline="${cmdline} "${a_paths}" ${LDFLAGS} ${RPATH_FLAGS}"
@@ -133,12 +107,6 @@ run_gcc_compiler()
    [ -z "${errput}" ]  && internal_fail "errput is empty"
 
    #hacque
-   local a_paths
-   local RVAL
-
-   r_quoted_paths "${ADDITIONAL_LIBRARY_FILES}"
-   a_paths="${RVAL}"
-
    local cflags
    local incflags
    local RVAL
@@ -146,13 +114,16 @@ run_gcc_compiler()
    r_emit_cflags "${srcfile}"
    cflags="${RVAL}"
 
+   r_concat "${cflags} -DMULLE_TEST=1"
+   cflags="${RVAL}"
+
    r_emit_include_cflags "'"
    incflags="${RVAL}"
 
+
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
-      log_debug "LIBRARY_FILE=${LIBRARY_FILE}"
-      log_debug "ADDITIONAL_LIBRARY_FILES=${a_paths}"
+      log_debug "LINK_COMMAND=${LINK_COMMAND}"
       log_debug "LDFLAGS=${LDFLAGS}"
       log_debug "RPATH_FLAGS=${RPATH_FLAGS}"
    fi
@@ -160,10 +131,9 @@ run_gcc_compiler()
    cmdline="'${CC}' ${cflags} ${incflags}"
    cmdline="${cmdline} -o '${a_out}'"
    cmdline="${cmdline} '${srcfile}'"
-   r_libraryfile_cmdline "${LIBRARY_FILE}"
-   r_concat "${cmdline}" "${RVAL}"
+   r_concat "${cmdline}" "${LINK_COMMAND}"
    cmdline="${RVAL}"
-   cmdline="${cmdline} ${a_paths} ${LDFLAGS} ${RPATH_FLAGS}"
+   cmdline="${cmdline} ${LDFLAGS} ${RPATH_FLAGS}"
 
    err_redirect_eval_exekutor "${errput}" "${cmdline}"
 }

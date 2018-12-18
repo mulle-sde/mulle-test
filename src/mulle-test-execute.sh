@@ -80,17 +80,17 @@ run_a_out()
          full_redirekt_eval_exekutor "${input}" \
 "${output}" \
 "${errput}" \
-RPATH_FLAGS="'${RPATH_FLAGS}'" \
 MULLE_OBJC_TESTALLOCATOR=1 \
 "${a_out_ext}"
       ;;
 
-      linux)
+
+      mingw*)
          full_redirekt_eval_exekutor "${input}" \
 "${output}" \
 "${errput}" \
-LD_LIBRARY_PATH="'${LD_LIBRARY_PATH}'" \
-MULLE_OBJC_TESTALLOCATOR=1 \
+PATH="'${PATH}'" \
+MULLE_OBJC_TESTALLOCATOR=1
 "${a_out_ext}"
       ;;
 
@@ -98,8 +98,8 @@ MULLE_OBJC_TESTALLOCATOR=1 \
          full_redirekt_eval_exekutor "${input}" \
 "${output}" \
 "${errput}" \
-PATH="'${PATH}'" \
-MULLE_OBJC_TESTALLOCATOR=1
+LD_LIBRARY_PATH="'${LD_LIBRARY_PATH}'" \
+MULLE_OBJC_TESTALLOCATOR=1 \
 "${a_out_ext}"
       ;;
    esac
@@ -201,6 +201,8 @@ _check_test_output()
          return ${RVAL_OUTPUT_DIFFERENCES}
       fi
    fi
+
+   return 0
 }
 
 
@@ -213,6 +215,7 @@ check_test_output()
 #   local errors="$3"
    local output="$4"
    local errput="$5"
+   local pretty_source="$7"
 
    local rval
 
@@ -221,7 +224,10 @@ check_test_output()
 
    if [ $rval -ne 0 ]
    then
+      log_error "${TEST_PATH_PREFIX}${pretty_source}"
       maybe_show_diagnostics "${errput}"
+   else
+      log_info "${TEST_PATH_PREFIX}${pretty_source}"
    fi
 
    if [ ${rval} = ${RVAL_OUTPUT_DIFFERENCES} ]
@@ -241,10 +247,11 @@ test_execute()
    local name="$2"
    local root="$3"
    local ext="$4"
-   local stdin="$5"
-   local stdout="$6"
-   local stderr="$7"
-   local errors="$8"
+   local pretty_source="$5"
+   local stdin="$6"
+   local stdout="$7"
+   local stderr="$8"
+   local errors="$9"
 
    [ -z "${a_out}" ]  && internal_fail "a_out must not be empty"
    [ -z "${name}" ]   && internal_fail "name must not be empty"
@@ -252,6 +259,7 @@ test_execute()
    [ -z "${stdin}" ]  && internal_fail "stdin must not be empty"
    [ -z "${stdout}" ] && internal_fail "stdout must not be empty"
    [ -z "${stderr}" ] && internal_fail "stderr must not be empty"
+   [ -z "${pretty_source}" ] && internal_fail "stderr must not be empty"
 
    local srcfile
 
@@ -269,11 +277,6 @@ test_execute()
    output="${random}.stdout"
    errput="${random}.stderr"
 
-   local pretty_source
-
-   r_relative_path_between "${PWD}/${srcfile}" "${root}" || exit 1
-   pretty_source="${RVAL}"
-
    #
    # run test executable "${a_out}" feeding it "${stdin}" as input
    # retrieve stdout and stderr into temporary files
@@ -281,7 +284,7 @@ test_execute()
    run_a_out "${a_out}" "${stdin}" "${output}.tmp" "${errput}.tmp"
    rval=$?
 
-   log_debug "Check test \"${name}\" output"
+   log_debug "Check test \"${name}\" output (rval: $rval)"
 
    redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
@@ -329,6 +332,8 @@ test_execute_main()
    local stderr
    local errors
 
+   local pretty_source
+
    while :
    do
       case "$1" in
@@ -364,6 +369,13 @@ test_execute_main()
             errors="$1"
          ;;
 
+         --pretty)
+            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            shift
+
+            pretty_source="$1"
+         ;;
+
          *)
             break
          ;;
@@ -383,7 +395,10 @@ test_execute_main()
    sourcefile="$1"
    shift
 
-   [ -z "${sourcefile}" ] && test_execute_usage "Sourcefile is empty"
+   [ -z "${sourcefile}" ] && test_execute_usage "sourcefile is empty"
+
+   pretty_source="${pretty_source:-${sourcefile}}"
+
 
    [ -x "${a_out}" ] || test_execute_usage "Improper executable
 \"${a_out}\" (not there or lacking execute permissions)"
@@ -460,6 +475,7 @@ test_execute_main()
                    "${name}" \
                    "${root}" \
                    "${ext}" \
+                   "${pretty_source}" \
                    "${stdin}" \
                    "${stdout}" \
                    "${stderr}" \

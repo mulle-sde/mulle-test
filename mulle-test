@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_TEST_VERSION="3.0.13"
+MULLE_TEST_VERSION="4.0.0"
 
 # version is in mulle-test-env
 
@@ -63,17 +63,18 @@ EOF
    cat <<EOF >&2
 
 Commands:
-   clean                    : remove folders: bin,build,include,lib,libexec,
-                                             share,Frameworks
+   build                    : force rebuild of project
+   clean                    : remove dependency, build and all .exe files
+   init                     : setup a test project for the current project
    run                      : run tests
    test-dir                 : locate test folder
 
 Environment:
    MULLE_TEST_CONFIGURATION : configuration to compile files (Debug)
    MULLE_TEST_DIR           : tests direcetory (test)
-   PROJECT_LANGUAGE         : language of the tests (c)
    PROJECT_DIALECT          : dialect of the tests, can be objc
    PROJECT_EXTENSIONS       : file extensions of the test files
+   PROJECT_LANGUAGE         : language of the tests (c)
 
 EOF
 
@@ -92,137 +93,71 @@ cd_test_dir()
 
    local RVAL
 
-   MULLE_TEST_DIR="${MULLE_TEST_DIR:-test}"
-
-   if ! r_locate_test_dir "${MULLE_TEST_DIR}"
+   if ! r_locate_test_dir "${MULLE_TEST_DIR:-test}"
    then
-      fail "Did not find a \"${MULLE_TEST_DIR}\" directory (${MULLE_USER_PWD})"
+      fail "Did not find a \"${MULLE_TEST_DIR:-test}\" directory (${MULLE_USER_PWD})"
    fi
 
    exekutor cd "${RVAL}" || return 1
-
-   if [ -z "${MULLE_VIRTUAL_ROOT}" ] && [ -e .mulle-sde-required ]
-   then
-      fail "Tests must be run inside mulle-sde. Use \`mulle-sde run mulle-test ...'\`"
-   fi
 }
 
 
-#
-# grab arguments < args> -- <args> -- <ignore>
-#
-stage_build()
+build_run()
 {
-   log_entry "stage_build" "$@"
+   log_entry "build_run" "$@"
 
-   local flags="$1"; shift
-   local options="$1"; shift
-
-   local args
-   local match
-   local cmdline
-
-   match="NO"
-
-   while [ $# -ne 0 ]
-   do
-      if [ "$1" = "--" ]
-      then
-         shift
-         if [ "${match}" = "YES" ]
-         then
-            break
-         fi
-         match="YES"
-         continue
-      fi
-
-      if [ -z "${args}" ]
-      then
-         args="'$1'"
-      else
-         args="${args} '$1'"
-      fi
-      shift
-   done
+   local cmd
 
    if [ -x "build-test" ]
    then
-      cmdline="exekutor ./build-test"
+      cmd="exekutor ./build-test ${MULLE_TECHNICAL_FLAGS}"
    else
-      # shellcheck source=src/mulle-test-build.sh
+      # shellcheck source=src/mulle-test-run.sh
       . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-build.sh"
 
-      cmdline="build_main"
+      cmd="build_main"
    fi
 
-   eval "${cmdline}" "'${flags}'" "'${options}'" "${args}" || exit 1
+   ${cmd} "$@"
 }
 
 
-#
-# grab arguments < args> -- <ignore> -- <args>
-#
 stage_run()
 {
    log_entry "stage_run" "$@"
 
-   local flags="$1"; shift
-   local options="$1"; shift
-
-   local args
-   local match
-
-   match="NO"
-
-   while [ $# -ne 0 ]
-   do
-      if [ "$1" = "--" ]
-      then
-         shift
-         case "${match}" in
-            "NO")
-               match="YES"
-               continue
-            ;;
-
-            "YES")
-               match="FINAL"
-               continue
-            ;;
-
-            "FINAL")
-               break
-            ;;
-         esac
-
-         match="YES"
-         continue
-      fi
-
-      if [ "${match}" != "YES" ]
-      then
-         if [ -z "${args}" ]
-         then
-            args="'$1'"
-         else
-            args="${args} '$1'"
-         fi
-      fi
-      shift
-   done
+   local cmd
 
    if [ -x "run-test" ]
    then
-      cmdline="exekutor ./run-test"
+      cmd="exekutor ./run-test ${MULLE_TECHNICAL_FLAGS}"
    else
       # shellcheck source=src/mulle-test-run.sh
       . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-run.sh"
 
-      cmdline="run_main"
+      cmd="run_main"
    fi
 
-   eval "${cmdline}" "'${flags}'" "'${options}'" "${args}" || exit 1
+   ${cmd} "$@"
+}
+
+
+exec_in_subshell_if_needed()
+{
+   log_entry "build_run" "$@"
+
+   if [ "${MULLE_VIRTUAL_ROOT}" != "${PWD}" ]
+   then
+      if [ ! -z "${MULLE_TEST_DIR}" ]
+      then
+         exekutor cd "${MULLE_TEST_DIR}" || exit 1
+      fi
+      exekutor exec mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                              ${MULLE_SDE_FLAGS} \
+                              run mulle-test "$@"
+   else
+      log_debug "Already in proper subshell"
+   fi
 }
 
 
@@ -252,6 +187,7 @@ main()
    local RUN_OPTIONS
    local RVAL
 
+   #
    # simple option handling
    #
    while [ $# -ne 0 ]
@@ -271,55 +207,11 @@ main()
             MULLE_FLAG_MAGNUM_FORCE="BOTH"
          ;;
 
-         --configuration)
-            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
-            shift
-
-            MULLE_TEST_CONFIGURATION="$1"
-         ;;
-
-         --debug)
-            MULLE_TEST_CONFIGURATION='Debug'
-         ;;
-
-         --release)
-            MULLE_TEST_CONFIGURATION='Release'
-         ;;
-
-         # single build option (hackish)
-         --no-clean)
-            r_concat "${BUILD_OPTIONS}" "'$1'"
-            BUILD_OPTIONS="${RVAL}"
-            BUILD_FLAGS=
-         ;;
-
-         --dir-name)
+         -d|--dir-name)
             [ $# -eq 1 ] && fail "Missing argument to \"$1\""
             shift
 
             MULLE_TEST_DIR="$1"
-         ;;
-
-         --project-language)
-            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
-            shift
-
-            if [ "$1" != "${PROJECT_LANGUAGE}" ]
-            then
-               PROJECT_LANGUAGE="$1"
-               PROJECT_EXTENSIONS=""
-            fi
-         ;;
-
-         --project-dialect)
-            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
-            shift
-
-            if [ "$1" != "${PROJECT_DIALECT}" ]
-            then
-               PROJECT_DIALECT="$1"
-               PROJECT_EXTENSIONS=""
-            fi
          ;;
 
          --)
@@ -343,20 +235,50 @@ main()
 
    MULLE_TEST_CONFIGURATION=${MULLE_TEST_CONFIGURATION:-Debug}
 
-   local cmd="$1"
-   [ $# -eq 0 ] || shift
+   local cmd="${1:-run}"
+   [ $# -ne 0 ] && shift
 
-   case "${cmd:-run}" in
+   case "${cmd}" in
+      build)
+         cd_test_dir  || exit 1
+
+         exec_in_subshell_if_needed "${cmd}" "$@"
+
+         mulle-sde clean "${PROJECT_NAME}" &&
+         build_run "$@"
+      ;;
+
+      clean)
+         cd_test_dir || exit 1
+
+         exec_in_subshell_if_needed "${cmd}" "$@"
+
+         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-clean.sh"
+
+         test_clean_main "$@"
+      ;;
+
+      init)
+         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-init.sh"
+         test_init_main "$@"
+      ;;
+
       run)
          cd_test_dir || exit 1
 
-         mulle-sde craft
-         stage_run "${RUN_FLAGS}" "${RUN_OPTIONS}" "$@"
+         exec_in_subshell_if_needed  ${MULLE_TECHNICAL_FLAGS} run "$@"
+
+         if [ ! -d dependency ]
+         then
+            build_run "$@" || exit 1
+         fi
+         stage_run "$@"
       ;;
 
       test-dir)
          # shellcheck source=src/mulle-test-locate.sh
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
+
          r_locate_main "$@"
          echo "${RVAL}"
       ;;

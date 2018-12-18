@@ -32,83 +32,53 @@
 MULLE_TEST_BUILD_SH="included"
 
 
-#
-# build our project into the test environment. Just a glorified wrapper around
-# mulle-make
-#
-#
-# pwd must be ./tests
-#
+build_usage()
+{
+   exit 1
+}
+
+
 build_main()
 {
    log_entry "build_main" "$@"
 
-   local flags="$1"; shift
-   local options="$1"; shift
-
-   local prefix
-   local cmdline
-
-   prefix="${PWD}"
-
-   local testdirname
-   local RVAL
-
-   r_fast_basename "${MULLE_TEST_DIR:-test}"
-   testdirname="${RVAL}"
-
-   r_fast_basename "${prefix}"
-   if [ "${RVAL}" != "${testdirname}" ]
-   then
-      fail "Must be started from directory \"${testdirname}\""
-   fi
-
-   cmdline="${MULLE_MAKE:-mulle-make}"
-
-   r_concat "${cmdline}" "${MULLE_TECHNICAL_FLAGS}"
-   cmdline="${RVAL}"
-   r_concat "${cmdline}" "${MULLE_MAKE_FLAGS}"
-   cmdline="${RVAL}"
-   r_concat "${cmdline}" "${flags}"
-   cmdline="${RVAL}"
-
-   r_concat "${cmdline}" "install"
-   cmdline="${RVAL}"
-
-   r_concat "${cmdline}" "${options}"
-   cmdline="${RVAL}"
-   r_concat "${cmdline}" "--configuration '${MULLE_TEST_CONFIGURATION}'"
-   cmdline="${RVAL}"
-   r_concat "${cmdline}" "--build-dir build"
-   cmdline="${RVAL}"
-   r_concat "${cmdline}" "--prefix '${prefix}'"
-   cmdline="${RVAL}"
-   r_concat "${cmdline}" "-DSTANDALONE=ON"
-   cmdline="${RVAL}"
-
-   MULLE_SDE="${MULLE_SDE:-`command -v "mulle-sde"`}"
-   if [ ! -z "${MULLE_SDE}" ]
-   then
-      local makeinfo
-
-      makeinfo="`rexekutor "${MULLE_SDE}" ${MULLE_TECHNICAL_FLAGS} definition search`"
-      if [ ! -z "${makeinfo}" ]
-      then
-         log_fluff "Makeinfo \"${makeinfo}\" found"
-
-         r_concat "${cmdline}" "--definition-dir '${makeinfo}'"
-         cmdline="${RVAL}"
-      fi
-   fi
+   [ -z "${MULLE_TEST_CONFIGURATION}" ] && internal_fail "MULLE_TEST_CONFIGURATION is empty"
 
    while [ $# -ne 0 ]
    do
-      cmdline="${cmdline} '$1'"
+      case "$1" in
+         -h|--help|help)
+            build_usage
+         ;;
+
+         --configuration)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            MULLE_TEST_CONFIGURATION="$1"
+         ;;
+
+         --debug)
+            MULLE_TEST_CONFIGURATION='Debug'
+         ;;
+
+         --release)
+            MULLE_TEST_CONFIGURATION='Release'
+         ;;
+
+         -*)
+               # ignore
+         ;;
+      esac
+
       shift
    done
 
-   CMAKEFLAGS="-DMULLE_TEST=ON" eval_exekutor "${cmdline}" ".."
+   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                      ${MULLE_SDE_FLAGS} \
+               craft \
+                  --configuration ${MULLE_TEST_CONFIGURATION} \
+                  -- \
+                  -DCFLAGS+=-DMULLE_TEST=1
 }
-
-
 

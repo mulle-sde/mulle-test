@@ -15,8 +15,9 @@ LANGUAGE="bash"           # c,cpp, objc, bash ...
 # DEPENDENCIES and BUILD_DEPENDENCIES will be evaled later!
 # So keep them single quoted.
 #
-DEPENDENCIES='${TOOLS_TAP}mulle-bashfunctions
+DEPENDENCIES='mulle-sde/mulle-sde
+mulle-sde/mulle-platform
 '
 
-DEBIAN_DEPENDENCIES="mulle-bashfunctions (>= 1.5.0), build-essential"
+DEBIAN_DEPENDENCIES="mulle-sde, mulle-platform, build-essential"
 

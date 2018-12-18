@@ -13,6 +13,6 @@ set( CPACK_STRIP_FILES false)
 
 
 set( CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/mulle-nat/mulle-test")
-set( CPACK_DEBIAN_PACKAGE_DEPENDS "mulle-make", "mulle-bashfunctions", "cmake (>= 3.0.0)")
+set( CPACK_DEBIAN_PACKAGE_DEPENDS "mulle-make", "mulle-platform", "mulle-bashfunctions", "cmake (>= 3.0.0)")
 set( CPACK_RPM_PACKAGE_VENDOR "Mulle kybernetiK")
 

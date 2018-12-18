@@ -33,21 +33,16 @@ MULLE_TEST_RUN_SH="included"
 
 
 
-#####################################################################
-# main
-#
-# if you really want to, you can also specify the LIB_EXTENSION as
-# .a, and then pass in the link dependencies as LDFLAGS. But is it
-# easier, than a shared library ?
-#
-usage()
+test_run_usage()
 {
-   cat <<EOF >&2
-usage:
-   mulle-test run [options] [test]
+   [ "$#" -ne 0 ] && log_error "$1"
 
-   You may optionally specify a source test file, to run
-   only that test.
+    cat <<EOF >&2
+Usage:
+   ${MULLE_USAGE_NAME} run [options] [test]
+
+   You may optionally specify a source test file, to only run that specific
+   test.
 
    Options:
       -l  : be linient, keep going if tests fail
@@ -179,12 +174,10 @@ run_common_test()
    r_relative_path_between "${PWD}/${srcfile}" "${root}"
    pretty_source="${RVAL}" || exit 1
 
-   log_info "${TEST_PATH_PREFIX}${pretty_source}"
-
    local rval
    local a_out_ext
 
-   log_verbose "Build test"
+   log_verbose "Build test ${pretty_source}"
 
    a_out_ext="${a_out}${EXE_EXTENSION}"
 
@@ -196,14 +189,25 @@ run_common_test()
 
    if [ "$rval" -ne 0 ]
    then
+      if [ ${RVAL_EXPECTED_FAILURE} = $rval ]
+      then
+         return 0
+      fi
+
+      log_debug "Compiler failure returns with $rval"
       return $rval
    fi
 
-   log_verbose "Run test"
+   log_verbose "Run test ${pretty_source}"
 
-   test_execute_main "${a_out_ext}" "${srcfile}"
+   test_execute_main --pretty "${pretty_source}" "${a_out_ext}" "${srcfile}"
 
    rval=$?
+   if [ ${RVAL_EXPECTED_FAILURE} = $rval ]
+   then
+      return 0
+   fi
+
    if [ "${rval}" -ne 0 ]
    then
       if [ "${MULLE_TEST_CONFIGURATION}" != "Debug" ]
@@ -214,6 +218,7 @@ run_common_test()
       "${FAIL_TEST}" "${srcfile}" "${a_out_ext}" "${ext}"
    fi
 
+   log_debug "Execute failure returns with $rval"
    return $rval
 }
 
@@ -315,24 +320,16 @@ _run_test()
 }
 
 
-run_test_in_directory()
+handle_return_value()
 {
-   log_entry "run_test_in_directory" "$@"
+   log_entry "handle_return_value" "$@"
 
-   local name="$1"
-   local ext="$2"
-   local directory="$3"
+   local rval=$1; shift
+
+   local directory="$1"
+   local name="$2"
+   local ext="$3"
    local root="$4"
-
-   local rval
-   local RVAL
-
-   RUNS="`expr "$RUNS" + 1`"
-   (
-      cd "${directory}" &&
-      _run_test "${name}" "${ext}" "${root}"
-   )
-   rval="$?"
 
    log_debug "Return value of _run_test: ${rval}"
 
@@ -345,7 +342,7 @@ run_test_in_directory()
       ;;
 
       *)
-         FAILS="`expr "${FAILS}" + 1`"
+         FAILS=$((FAILS + 1))
          if [ "${OPTION_LENIENT}" != 'YES' ]
          then
             local pretty_source
@@ -360,35 +357,63 @@ run_test_in_directory()
 }
 
 
+_run_test_in_directory()
+{
+   log_entry "_run_test_in_directory" "$@"
+
+   local directory="$1"; shift
+
+   (
+      cd "${directory}" &&
+      _run_test "$@"
+   )
+}
+
+
+run_test_in_directory()
+{
+   log_entry "run_test_in_directory" "$@"
+
+   if [ "${MULLE_TEST_SERIAL}" = 'NO' ]
+   then
+      _parallel_execute _run_test_in_directory "$@"
+      return 0
+   fi
+
+   RUNS="$((RUNS + 1))"
+   _run_test_in_directory "$@"
+   handle_return_value $? "$@"
+}
+
+
 run_test_matching_extensions_in_directory()
 {
    log_entry "run_test_matching_extensions_in_directory" "$@"
 
-   local filename="$1"
-   local directory="$2"
-   local root="$3"
-   local extensions="$4"
+   local directory="$1"
+   local filename="$2"
+   local extensions="$3"
+   local root="$4"
 
    local name
    local ext
    local RVAL
 
-   IFS=":"
+   IFS=":"; set -f
    for ext in ${extensions}
    do
-      IFS="${DEFAULT_IFS}"
+      IFS="${DEFAULT_IFS}"; set +f
       ext=".${ext}"
+
       case "${filename}" in
          *${ext})
             r_extensionless_basename "${filename}"
-            name="${RVAL}"
-
-            run_test_in_directory "${name}" "${ext}" "${directory}" "${root}"
+            run_test_in_directory "${directory}" "${RVAL}" "${ext}" "${root}"
             return $?
          ;;
       esac
    done
-   IFS="${DEFAULT_IFS}"
+   IFS="${DEFAULT_IFS}"; set +f
 }
 
 
@@ -399,9 +424,12 @@ _scan_directory()
    local root="$1"
    local extensions="$2"
 
+   local RVAL
+
    if [ -f CMakeLists.txt ]
    then
-      run_test_in_directory "`fast_basename "${PWD}"`" "cmake" "$PWD" "${root}"
+      r_fast_basename "${PWD}"
+      run_test_in_directory "${PWD}" "${RVAL}" "cmake" "${root}"
       return $?
    fi
 
@@ -416,7 +444,7 @@ _scan_directory()
       IFS="${DEFAULT_IFS}"
 
       case "${i}" in
-         _*|build|include|lib|bin|tmp|etc|share|stashes)
+         _*|build|dependency|tmp|old|stash)
             continue
          ;;
       esac
@@ -428,10 +456,10 @@ _scan_directory()
             return 1
          fi
       else
-         if ! run_test_matching_extensions_in_directory "${i}" \
-                                                        "${PWD}" \
-                                                        "${root}" \
-                                                        "${extensions}"
+         if ! run_test_matching_extensions_in_directory "${PWD}" \
+                                                        "${i}" \
+                                                        "${extensions}" \
+                                                        "${root}"
          then
             return 1
          fi
@@ -458,12 +486,65 @@ scan_directory()
    local old
    local rval
 
+   # preserve shell context (no subshell here)
    old="$PWD"
+
    rexekutor cd "${directory}" && _scan_directory "${root}" "${extensions}"
    rval=$?
-   rexekutor cd "${old}"
 
+   cd "${old}"
    return $rval
+}
+
+
+run_all_tests()
+{
+   log_entry "run_all_tests" "$@"
+
+   local RUNS
+   local FAILS
+
+   RUNS=0
+   FAILS=0
+
+   local _parallel_maxjobs
+   local _parallel_jobs
+   local _parallel_fails
+   local _parallel_statusfile
+
+   if [ "${MULLE_TEST_SERIAL}" = 'NO' ]
+   then
+      [ -z "${MULLE_PARALLEL_SH}" ] && \
+         . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-parallel.sh"
+
+      log_verbose "Run test parallel"
+      _parallel_begin "${OPTION_MAXJOBS}"
+   else
+      log_verbose "Run test serial"
+   fi
+
+   scan_directory "${PWD}" "${MULLE_USER_PWD}" "${PROJECT_EXTENSIONS}"
+
+   if [ "${MULLE_TEST_SERIAL}" = 'NO' ]
+   then
+      _parallel_end
+
+      RUNS="${_parallel_jobs}"
+      FAILS="${_parallel_fails}"
+   fi
+
+   if [ "${RUNS}" -ne 0 ]
+   then
+      if [ "${FAILS}" -eq 0 ]
+      then
+         log_info "All tests (${RUNS}) passed successfully"
+      else
+         log_error "${FAILS} tests out of ${RUNS} failed"
+         return 1
+      fi
+   else
+      log_warning "No tests found in ${PWD} with extensions ${PROJECT_EXTENSIONS}"
+   fi
 }
 
 
@@ -509,43 +590,16 @@ run_named_test()
    local RUNS=0
    local FAILS=0
 
-   run_test_matching_extensions_in_directory "${filename}" \
-                                             "${directory}" \
-                                             "${root}" \
-                                             "${PROJECT_EXTENSIONS}"
-}
-
-
-run_all_tests()
-{
-   log_entry "run_all_tests" "$@"
-
-   local RUNS=0
-   local FAILS=0
-
-   scan_directory "${PWD}" "${MULLE_USER_PWD}" "${PROJECT_EXTENSIONS}"
-
-   if [ "$RUNS" -ne 0 ]
-   then
-      if [ "${FAILS}" -eq 0 ]
-      then
-         log_info "All tests ($RUNS) passed successfully"
-      else
-         log_error "$FAILS tests out of $RUNS failed"
-         return 1
-      fi
-   else
-      log_warning "No tests found in ${PWD} with extensions ${PROJECT_EXTENSIONS}"
-   fi
+   run_test_matching_extensions_in_directory "${directory}" \
+                                             "${filename}" \
+                                             "${PROJECT_EXTENSIONS}" \
+                                             "${root}"
 }
 
 
 run_main()
 {
    log_entry "run_main" "$@"
-
-   local flags="$1" ; shift
-   local options="$1"; shift
 
    if [ -z "${MULLE_TEST_ENVIRONMENT_SH}" ]
    then
@@ -556,7 +610,6 @@ run_main()
 
    local DEFAULT_MAKEFLAGS
    local OPTION_REQUIRE_LIBRARY="YES"
-   local OPTION_LIBRARY_FILE
    local OPTION_LENIENT='NO'
 
    DEFAULT_MAKEFLAGS="-s"
@@ -567,7 +620,7 @@ run_main()
    do
       case "$1" in
          -h|--help|help)
-            usage
+            test_run_usage
          ;;
 
          -l|--lenient)
@@ -577,6 +630,13 @@ run_main()
          -V)
             DEFAULT_MAKEFLAGS="VERBOSE=1"
             MULLE_FLAG_LOG_EXEKUTOR="YES"
+         ;;
+
+         -j|--jobs)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            OPTION_MAXJOBS="$1"
          ;;
 
          --configuration)
@@ -594,22 +654,48 @@ run_main()
             MULLE_TEST_CONFIGURATION='Release'
          ;;
 
+         --project-language)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            if [ "$1" != "${PROJECT_LANGUAGE}" ]
+            then
+               PROJECT_LANGUAGE="$1"
+               PROJECT_EXTENSIONS=""
+            fi
+         ;;
+
+         --project-dialect)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            if [ "$1" != "${PROJECT_DIALECT}" ]
+            then
+               PROJECT_DIALECT="$1"
+               PROJECT_EXTENSIONS=""
+            fi
+         ;;
+
+         --project-extensions)
+            [ $# -eq 1 ] && test_run_usage "Missing argument to \"$1\""
+            shift
+
+            PROJECT_EXTENSIONS="$1"
+         ;;
+
          --path-prefix)
             shift
-            [ $# -eq 0 ] && usage
+            [ $# -eq 0 ] && test_run_usage
 
             TEST_PATH_PREFIX="$1"
          ;;
 
-         --no-library)
-            OPTION_REQUIRE_LIBRARY="NO"
+         --serial)
+            MULLE_TEST_SERIAL='YES'
          ;;
 
-         --library-file)
-            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
-            shift
-
-            OPTION_LIBRARY_FILE="$1"
+         --parallel)
+            MULLE_TEST_SERIAL='NO'
          ;;
 
          -*)
@@ -634,8 +720,11 @@ run_main()
       ;;
 	esac
 
-   setup_user "${MULLE_UNAME}"
-   setup_library "${MULLE_UNAME}" "${OPTION_LIBRARY_FILE}" "${OPTION_REQUIRE_LIBRARY}"
+   if ! LINK_COMMAND="`mulle-sde linkorder --output-format ld`"
+   then
+      fail "Can't get linkorder. Maybe rebuild with
+   ${C_RESET_BOLD}mulle-test build"
+   fi
 
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2
@@ -647,12 +736,14 @@ run_main()
 
    if [ "$RUN_ALL" = "YES" -o $# -eq 0 ]
    then
+      MULLE_TEST_SERIAL="${MULLE_TEST_SERIAL:-NO}"
       run_all_tests "$@"
       return $?
    fi
 
    while [ $# -ne 0 ]
    do
+      MULLE_TEST_SERIAL='YES'
       if ! run_named_test "$1" "${MULLE_USER_PWD}"
       then
          return 1

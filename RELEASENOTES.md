@@ -1,3 +1,11 @@
+# 4.0.0
+
+* big overhaul. the build part is now done with mulle-sde.
+* this means mulle-test is now dependent on mulle-sde, unless you use ./build-test scripts
+* started use of mulle-platform to query platform specifica (more to come)
+* last version before move to mulle-sde for build
+
+
 ### 3.0.13
 
 * fix some wordings to track changes in mulle-sde

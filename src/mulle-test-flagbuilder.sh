@@ -42,20 +42,17 @@ r_emit_include_cflags()
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
-      log_trace2 "LIBRARY_INCLUDE: ${LIBRARY_INCLUDE}"
       log_trace2 "DEPENDENCY_DIR:  ${DEPENDENCY_DIR}"
       log_trace2 "ADDICTION_DIR:   ${ADDICTION_DIR}"
    fi
 
-   if [ ! -z "${LIBRARY_INCLUDE}" ]
-   then
-      cflags="-I${quote}${LIBRARY_INCLUDE}${quote}"
-   fi
-
    if [ ! -z "${DEPENDENCY_DIR}" ]
    then
-      r_concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/Debug/include${quote}"
-      cflags="${RVAL}"
+      if [ "${MULLE_TEST_CONFIGURATION}" != "Release" ]
+      then
+         r_concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/${MULLE_TEST_CONFIGURATION}/include${quote}"
+         cflags="${RVAL}"
+      fi
       r_concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/include${quote}"
       cflags="${RVAL}"
    fi
@@ -112,18 +109,4 @@ r_emit_cflags()
    fi
 
    RVAL="${cflags}"
-}
-
-
-r_quoted_paths()
-{
-   local i
-   local RVAL
-
-   IFS=":"
-   for i in "$*"
-   do
-      r_concat "${RVAL}" "'${i}'"
-   done
-   IFS="${DEFAULT_IFS}"
 }

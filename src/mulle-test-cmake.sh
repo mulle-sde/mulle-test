@@ -52,18 +52,16 @@ eval_mulle_make()
    r_concat "${cmake_c_flags}" "${OTHER_CFLAGS}"
    cmake_c_flags="${RVAL}"
 
+   r_concat "${cmake_c_flags}" "-DMULLE_TEST=1"
+   cmake_c_flags="${RVAL}"
+
    local cmake_libraries
-   local RVAL
 
-   local a_paths
-   local RVAL
-
-   cmake_libraries="${LIBRARY_FILE}:${ADDITIONAL_LIBRARY_FILES}"
-   cmake_libraries="${cmake_libraries//:/;}"
-   cmake_libraries="${cmake_libraries%%;}"
-   cmake_libraries="${cmake_libraries##;}"
+   cmake_libraries="${LINK_COMMAND}"
 
    # TODO: build commandline nicer
+   # MEMO: unfortunately on linux, the order of linkage matters, but
+   #       the CMAKE_EXE_LINKER_FLAGS are prepended to our .o files (bummer)
    eval_exekutor CC="${CC}" \
                  CXX="${CXX}" \
                  ${MULLE_MAKE:-mulle-make} \
@@ -76,8 +74,8 @@ eval_mulle_make()
                     -DCMAKE_RULE_MESSAGES="'OFF'" \
                     -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
                     -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
-                    -DTEST_LIBRARIES="'${cmake_libraries}'" \
-                    -DCMAKE_EXE_LINKER_FLAGS="'${RPATH_FLAGS}'"
+                    -DCMAKE_EXE_LINKER_FLAGS="'${cmake_libraries} ${RPATH_FLAGS}'" \
+                    -DTEST_LIBRARIES="'${cmake_libraries} ${RPATH_FLAGS}'"
 }
 
 
