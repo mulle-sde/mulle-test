@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_TEST_VERSION="4.0.4"
+MULLE_EXECUTABLE_VERSION="4.0.5"
 
 # version is in mulle-test-env
 
@@ -214,6 +214,11 @@ main()
             MULLE_TEST_DIR="$1"
          ;;
 
+	 --version)
+	    echo "${MULLE_EXECUTABLE_VERSION}"
+	    exit 0
+         ;;
+
          --)
             break
          ;;
@@ -263,6 +268,11 @@ main()
          test_init_main "$@"
       ;;
 
+      libexec-dir)
+         echo "${MULLE_TEST_LIBEXEC_DIR}"
+         exit 0
+      ;;
+
       run)
          cd_test_dir || exit 1
 
@@ -281,6 +291,11 @@ main()
 
          r_locate_main "$@"
          echo "${RVAL}"
+      ;;
+
+      version)
+         echo "${MULLE_EXECUTABLE_VERSION}"
+         exit 0
       ;;
 
       *)

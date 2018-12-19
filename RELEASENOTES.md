@@ -1,3 +1,7 @@
+### 4.0.5
+
+* fix version info
+
 ### 4.0.4
 
 * use proper installer for mulle-test
