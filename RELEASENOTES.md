@@ -1,3 +1,7 @@
+### 4.0.4
+
+* use proper installer for mulle-test
+
 ### 4.0.3
 
 * fix installer for mulle-test
