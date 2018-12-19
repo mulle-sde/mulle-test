@@ -155,15 +155,18 @@ main()
    local bin
    local libexec
 
-   cd "`dirname -- "$0"`"
-   cd .. # compensate for installer being in bin
+   local directory
 
-   if [ ! -x mulle-test-env ]
+   directory="`dirname -- "$0"`"
+   cd "${directory}" || installer_fail "Could not cd to \"$directory\" ($PWD)" 
+   cd .. || installer_fail "Could not cd to \"..\" ($PWD)"  # compensate for installer being in bin
+
+   if [ ! -x mulle-test ]
    then
-      chmod 755 ./mulle-test-env
+      chmod 755 ./mulle-test
    fi
 
-   PROJECT_VERSION="`./mulle-test-env version`"
+   PROJECT_VERSION="`./mulle-test version`"
    [ -z "${PROJECT_VERSION}" ] && echo "tragisches versagen" >&2 && exit 1
 
    bin="${prefix}/bin"
