@@ -49,6 +49,20 @@ EOF
 }
 
 
+depth_find_pwd()
+{
+   case "${MULLE_UNAME}" in
+      darwin|freebsd)
+         exekutor find -d . "$@"
+      ;;
+
+      *)
+         exekutor find . -depth "$@"
+      ;;
+   esac
+}
+
+
 test_clean_main()
 {
    log_entry "test_clean_main" "$@"
@@ -78,6 +92,6 @@ test_clean_main()
                       ${MULLE_SDE_FLAGS} \
                clean \
                   "${1:-all}" &&
-   exekutor find -d . -type d -name build -exec rm -rf {} \;
+   depth_find_pwd -type d -name build -exec rm -rf {} \;
    exekutor find . -type f -name "*.exe" -exec rm {} \;
 }

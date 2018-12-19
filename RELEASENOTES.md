@@ -1,3 +1,7 @@
+### 4.0.1
+
+* fix brew formula, improve exekutor logging, remove find warning on linux
+
 # 4.0.0
 
 * big overhaul. the build part is now done with mulle-sde.

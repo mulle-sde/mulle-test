@@ -720,7 +720,11 @@ run_main()
       ;;
 	esac
 
-   if ! LINK_COMMAND="`mulle-sde linkorder --output-format ld`"
+   if ! LINK_COMMAND="`rexekutor mulle-sde \
+   										${MULLE_TECHNICAL_FLAGS} \
+   										${MULLE_SDE_FLAGS} \
+   								linkorder \
+   									--output-format ld`"
    then
       fail "Can't get linkorder. Maybe rebuild with
    ${C_RESET_BOLD}mulle-test build"

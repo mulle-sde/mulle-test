@@ -156,6 +156,7 @@ main()
    local libexec
 
    cd "`dirname -- "$0"`"
+   cd .. # compensate for installer being in bin
 
    if [ ! -x mulle-test-env ]
    then
