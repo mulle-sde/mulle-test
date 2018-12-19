@@ -1,3 +1,7 @@
+### 4.0.2
+
+* try to fix brew again
+
 ### 4.0.1
 
 * fix brew formula, improve exekutor logging, remove find warning on linux
