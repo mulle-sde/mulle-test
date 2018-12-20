@@ -92,7 +92,7 @@ _r_locate_test_dir()
 
 r_locate_test_dir()
 {
-   log_entry "r_locate_main" "$@"
+   log_entry "r_locate_test_dir" "$@"
 
    if _r_locate_test_dir "$@"
    then

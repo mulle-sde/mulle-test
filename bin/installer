@@ -158,7 +158,7 @@ main()
    local directory
 
    directory="`dirname -- "$0"`"
-   cd "${directory}" || installer_fail "Could not cd to \"$directory\" ($PWD)" 
+   cd "${directory}" || installer_fail "Could not cd to \"$directory\" ($PWD)"
    cd .. || installer_fail "Could not cd to \"..\" ($PWD)"  # compensate for installer being in bin
 
    if [ ! -x mulle-test ]
@@ -170,7 +170,7 @@ main()
    [ -z "${PROJECT_VERSION}" ] && echo "tragisches versagen" >&2 && exit 1
 
    bin="${prefix}/bin"
-   libexec="${prefix}/libexec/mulle-test/${PROJECT_VERSION}"
+   libexec="${prefix}/libexec/mulle-test"
 
    if [ ! -d "${bin}" ]
    then

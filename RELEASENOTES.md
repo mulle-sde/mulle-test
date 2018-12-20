@@ -1,3 +1,7 @@
+### 4.0.6
+
+* fix libexec install location
+
 ### 4.0.5
 
 * fix version info
