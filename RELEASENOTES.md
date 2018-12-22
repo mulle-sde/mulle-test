@@ -1,3 +1,7 @@
+### 4.0.8
+
+* fix parameter passing one more time
+
 ### 4.0.7
 
 * pass parameters on the command line to run and build

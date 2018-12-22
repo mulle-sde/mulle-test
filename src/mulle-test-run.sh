@@ -603,9 +603,9 @@ run_named_test()
 }
 
 
-run_main()
+test_run_main()
 {
-   log_entry "run_main" "$@"
+   log_entry "test_run_main" "$@"
 
    if [ -z "${MULLE_TEST_ENVIRONMENT_SH}" ]
    then
@@ -721,8 +721,12 @@ run_main()
             done
          ;;
 
+         --)
+            shift
+            break
+         ;;
+
          *)
-            # pass restforward
             break
          ;;
       esac

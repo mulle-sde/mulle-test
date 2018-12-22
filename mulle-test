@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="4.0.7"
+MULLE_EXECUTABLE_VERSION="4.0.8"
 
 # version is in mulle-test-env
 
@@ -111,9 +111,9 @@ cd_test_dir()
 }
 
 
-build_run()
+test_build_run()
 {
-   log_entry "build_run" "$@"
+   log_entry "test_build_run" "$@"
 
    local cmd
 
@@ -124,16 +124,16 @@ build_run()
       # shellcheck source=src/mulle-test-run.sh
       . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-build.sh"
 
-      cmd="build_main"
+      cmd="test_build_main"
    fi
 
    ${cmd} "$@"
 }
 
 
-stage_run()
+test_stage_run()
 {
-   log_entry "stage_run" "$@"
+   log_entry "test_stage_run" "$@"
 
    local cmd
 
@@ -144,7 +144,7 @@ stage_run()
       # shellcheck source=src/mulle-test-run.sh
       . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-run.sh"
 
-      cmd="run_main"
+      cmd="test_run_main"
    fi
 
    ${cmd} "$@"
@@ -261,7 +261,7 @@ main()
          exec_in_subshell_if_needed "${cmd}" "$@"
 
          mulle-sde clean "${PROJECT_NAME}" &&
-         build_run "$@"
+         test_build_run "$@"
       ;;
 
       clean)
@@ -292,9 +292,9 @@ main()
 
          if ! "${MULLE_CRAFT:-mulle-craft}" -s quickstatus
          then
-            build_run "${cmd}" "$@" || exit 1
+            test_build_run "${cmd}" "$@" || exit 1
          fi
-         stage_run "${cmd}" "$@"
+         test_stage_run "${cmd}" "$@"
       ;;
 
       run|-*)
@@ -304,9 +304,9 @@ main()
 
          if ! "${MULLE_CRAFT:-mulle-craft}" -s quickstatus
          then
-            build_run "$@" || exit 1
+            test_build_run "$@" || exit 1
          fi
-         stage_run "$@"
+         test_stage_run "$@"
       ;;
 
       test-dir)

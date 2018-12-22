@@ -32,29 +32,32 @@
 MULLE_TEST_BUILD_SH="included"
 
 
-build_usage()
+test_build_usage()
 {
+   fail "$*"
    exit 1
 }
 
 
-build_main()
+test_build_main()
 {
-   log_entry "build_main" "$@"
+   log_entry "test_build_main" "$@"
 
    [ -z "${MULLE_TEST_CONFIGURATION}" ] && internal_fail "MULLE_TEST_CONFIGURATION is empty"
 
    local args
 
+   args="'-DCFLAGS+=-DMULLE_TEST=1'"
+
    while [ $# -ne 0 ]
    do
       case "$1" in
          -h|--help|help)
-            build_usage
+            test_build_usage
          ;;
 
          --configuration)
-            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            [ $# -eq 1 ] && test_build_usage "Missing argument to \"$1\""
             shift
 
             MULLE_TEST_CONFIGURATION="$1"
@@ -93,7 +96,12 @@ build_main()
             done
          ;;
 
-         -*)
+         --)
+            shift
+            break
+         ;;
+
+         *)
             break
          ;;
       esac
@@ -101,12 +109,10 @@ build_main()
       shift
    done
 
-   r_concat "${args}" "'-DCFLAGS+=-DMULLE_TEST=1'"
-   args="${RVAL}"
-
    while [ $# -ne 0 ]
    do
       r_concat "${args}" "'$1'"
+      args="${RVAL}"
       shift
    done
 
