@@ -32,50 +32,91 @@
 MULLE_TEST_COMPILER_SH="included"
 
 
+r_c_commandline()
+{
+   log_entry "r_c_commandline" "$@"
+
+   local additionalflags="$1"; shift
+   local srcfile="$1"; shift
+   local a_out="$1"; shift
+
+   [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
+   [ -z "${a_out}" ]   && internal_fail "a_out is empty"
+
+   # skip -- passed on command line for now
+   while [ "$1" = "--" ]
+   do
+      shift
+   done
+
+   #hacque
+   local cflags
+   local incflags
+
+   r_emit_cflags "${srcfile}"
+   cflags="${RVAL}"
+
+   r_concat "${cflags} -DMULLE_TEST=1"
+   cflags="${RVAL}"
+
+   r_concat "${cflags}" "${OTHER_CFLAGS}"
+   cflags="${RVAL}"
+
+   r_concat "${cflags}" "${additionalflags}"
+   cflags="${RVAL}"
+
+   r_emit_include_cflags "'"
+   incflags="${RVAL}"
+
+   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
+   then
+      log_debug "LINK_COMMAND=${LINK_COMMAND}"
+      log_debug "LDFLAGS=${LDFLAGS}"
+      log_debug "RPATH_FLAGS=${RPATH_FLAGS}"
+   fi
+
+   cmdline="'${CC}' ${cflags} ${incflags}"
+
+   r_concat "${cmdline}" "$*"
+   cmdline="${RVAL}"
+
+   cmdline="${cmdline} -o '${a_out}'"
+   cmdline="${cmdline} '${srcfile}'"
+
+   r_concat "${cmdline}" "${LINK_COMMAND}"
+   cmdline="${RVAL}"
+
+   cmdline="${cmdline} ${LDFLAGS} ${RPATH_FLAGS}"
+
+   RVAL="${cmdline}"
+}
+
+
 # do not exit
 fail_test_c()
 {
    log_entry "fail_test_c" "$@"
 
-   local srcfile="$1"
-   local a_out="$2"
-   local ext="$3"
+   local srcfile="$1"; shift
+   local a_out="$1"; shift
+   local ext="$1"; shift
+   local name="$1"; shift
 
-   if [ -z "${MULLE_FLAG_MAGNUM_FORCE}" ]
+   if [ "${MULLE_FLAG_MAGNUM_FORCE}" = 'YES' ]
    then
+      log_debug "fail ignored due to -f"
       return
    fi
 
    if [ "${MULLE_TEST_CONFIGURATION}" != "Debug" ]
    then
-      local RVAL
+      local cmdline
 
-      local cflags
-      local incflags
-
-      r_emit_cflags "${srcfile}"
-      cflags="${RVAL}"
-
-      r_concat "${cflags} -DMULLE_TEST=1"
-      cflags="${RVAL}"
-
-      r_emit_include_cflags "'"
-      incflags="${RVAL}"
+      r_c_commandline "${DEBUG_CFLAGS}" "${srcfile}" "${a_out}" "$@"
+      cmdline="${RVAL}"
 
       log_info "DEBUG: "
       log_info "Rebuilding as `fast_basename ${a_out}` with -O0 and debug symbols..."
-
-      local cmdline
-
-      cmdline="'${CC}' ${cflags} ${incflags}"
-      cmdline="${cmdline} ${DEBUG_CFLAGS}"
-      cmdline="${cmdline} -o '${a_out}'"
-      cmdline="${cmdline} '${srcfile}'"
-
-      r_concat "${cmdline}" "${LINK_COMMAND}"
-      cmdline="${RVAL}"
-
-      cmdline="${cmdline} "${a_paths}" ${LDFLAGS} ${RPATH_FLAGS}"
 
       eval_exekutor "${cmdline}"
    fi
@@ -98,42 +139,15 @@ run_gcc_compiler()
 {
    log_entry "run_gcc_compiler" "$@"
 
-   local srcfile="$1"
-   local a_out="$2"
-   local errput="$3"
+   local srcfile="$1"; shift
+   local a_out="$1"; shift
+   local errput="$1"; shift
 
-   [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
-   [ -z "${a_out}" ]   && internal_fail "a_out is empty"
-   [ -z "${errput}" ]  && internal_fail "errput is empty"
-
-   #hacque
-   local cflags
-   local incflags
+   local cmdline
    local RVAL
 
-   r_emit_cflags "${srcfile}"
-   cflags="${RVAL}"
-
-   r_concat "${cflags} -DMULLE_TEST=1"
-   cflags="${RVAL}"
-
-   r_emit_include_cflags "'"
-   incflags="${RVAL}"
-
-
-   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
-   then
-      log_debug "LINK_COMMAND=${LINK_COMMAND}"
-      log_debug "LDFLAGS=${LDFLAGS}"
-      log_debug "RPATH_FLAGS=${RPATH_FLAGS}"
-   fi
-
-   cmdline="'${CC}' ${cflags} ${incflags}"
-   cmdline="${cmdline} -o '${a_out}'"
-   cmdline="${cmdline} '${srcfile}'"
-   r_concat "${cmdline}" "${LINK_COMMAND}"
+   r_c_commandline "" "${srcfile}" "${a_out}" "$@"
    cmdline="${RVAL}"
-   cmdline="${cmdline} ${LDFLAGS} ${RPATH_FLAGS}"
 
    err_redirect_eval_exekutor "${errput}" "${cmdline}"
 }
@@ -261,7 +275,6 @@ check_compiler_output()
 
    return ${RVAL_FAILURE}
 }
-
 
 
 assert_binary()

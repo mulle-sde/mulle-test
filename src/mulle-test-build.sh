@@ -44,6 +44,8 @@ build_main()
 
    [ -z "${MULLE_TEST_CONFIGURATION}" ] && internal_fail "MULLE_TEST_CONFIGURATION is empty"
 
+   local args
+
    while [ $# -ne 0 ]
    do
       case "$1" in
@@ -59,26 +61,60 @@ build_main()
          ;;
 
          --debug)
-            MULLE_TEST_CONFIGURATION='Debug'
+            MULLE_TEST_CONFIGURATION="'Debug'"
          ;;
 
          --release)
             MULLE_TEST_CONFIGURATION='Release'
          ;;
 
+         --run-args)
+            while [ $# -ne 0 ]
+            do
+               shift
+            done
+         ;;
+
+         --build-args)
+            while [ $# -ne 0 ]
+            do
+               if [ "$1" == "--run-args" ]
+               then
+                  while [ $# -ne 0 ]
+                  do
+                     shift
+                  done
+                  break
+               fi
+
+               r_concat "${args}" "'$1'"
+               args="${RVAL}"
+               shift
+            done
+         ;;
+
          -*)
-               # ignore
+            break
          ;;
       esac
 
       shift
    done
 
-   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} \
-               craft \
-                  --configuration ${MULLE_TEST_CONFIGURATION} \
-                  -- \
-                  -DCFLAGS+=-DMULLE_TEST=1
+   r_concat "${args}" "'-DCFLAGS+=-DMULLE_TEST=1'"
+   args="${RVAL}"
+
+   while [ $# -ne 0 ]
+   do
+      r_concat "${args}" "'$1'"
+      shift
+   done
+
+   eval_exekutor mulle-sde "${MULLE_TECHNICAL_FLAGS}" \
+                           "${MULLE_SDE_FLAGS}" \
+                    craft \
+                        --configuration '${MULLE_TEST_CONFIGURATION}' \
+                        -- \
+                        "${args}"
 }
 

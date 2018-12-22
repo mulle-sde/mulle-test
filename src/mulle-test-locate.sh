@@ -32,9 +32,9 @@
 MULLE_TEST_LOCATE_SH="included"
 
 
-_r_locate_test_dir()
+r_locate_test_dir()
 {
-   log_entry "_r_locate_test_dir" "$@"
+   log_entry "r_locate_test_dir" "$@"
 
    local testdir="$1"
 
@@ -87,22 +87,6 @@ _r_locate_test_dir()
    fi
 
    RVAL=""
-   return 1
-}
-
-r_locate_test_dir()
-{
-   log_entry "r_locate_test_dir" "$@"
-
-   if _r_locate_test_dir "$@"
-   then
-      if [ -f "${RVAL}/.mulle-sde/share/mulle-test" ]
-      then
-         return 0
-      fi
-   fi
-
-   RVAL=
    return 1
 }
 

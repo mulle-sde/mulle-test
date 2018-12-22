@@ -145,10 +145,10 @@ run_common_test()
 {
    log_entry "run_common_test" "$@"
 
-   local a_out="$1"
-   local name="$2"
-   local ext="$3"
-   local root="$4"
+   local a_out="$1"; shift
+   local name="$1"; shift
+   local ext="$1"; shift
+   local root="$1"; shift
 
    [ -z "${a_out}" ] && internal_fail "a_out must not be empty"
    [ -z "${name}" ] && internal_fail "name must not be empty"
@@ -181,7 +181,7 @@ run_common_test()
 
    a_out_ext="${a_out}${EXE_EXTENSION}"
 
-   "${TEST_BUILDER}" "${srcfile}" "${a_out_ext}" "${cc_errput}"
+   "${TEST_BUILDER}" "${srcfile}" "${a_out_ext}" "${cc_errput}" "$@"
    rval="$?"
 
    check_compiler_output "${srcfile}" "${cc_errput}" "${rval}" "${pretty_source}"
@@ -215,7 +215,7 @@ run_common_test()
          a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
       fi
 
-      "${FAIL_TEST}" "${srcfile}" "${a_out_ext}" "${ext}"
+      "${FAIL_TEST}" "${srcfile}" "${a_out_ext}" "${ext}" "${name}" "$@"
    fi
 
    log_debug "Execute failure returns with $rval"
@@ -282,9 +282,9 @@ _run_test()
 {
    log_entry "_run_test" "$@"
 
-   local name="$1"
-   local ext="$2"
-   local root="$3"
+   local name="$1"; shift
+   local ext="$1"; shift
+   local root="$1"; shift
 
    [ -z "${name}" ] && internal_fail "name must not be empty"
    [ -z "${ext}" ] && internal_fail "ext must not be ? empty"
@@ -302,19 +302,19 @@ _run_test()
 
    case "${ext}" in
       cmake)
-         run_cmake_test "${name}" "" "${root}"
+         run_cmake_test "${name}" "" "${root}" "$@"
       ;;
 
       .m|.aam)
-         run_m_test "${name}" "${ext}" "${root}"
+         run_m_test "${name}" "${ext}" "${root}" "$@"
       ;;
 
       .c)
-         run_c_test "${name}" "${ext}" "${root}"
+         run_c_test "${name}" "${ext}" "${root}" "$@"
       ;;
 
       .cxx|.cpp)
-         run_cpp_test "${name}" "${ext}" "${root}"
+         run_cpp_test "${name}" "${ext}" "${root}" "$@"
       ;;
    esac
 }
@@ -390,10 +390,10 @@ run_test_matching_extensions_in_directory()
 {
    log_entry "run_test_matching_extensions_in_directory" "$@"
 
-   local directory="$1"
-   local filename="$2"
-   local extensions="$3"
-   local root="$4"
+   local directory="$1"; shift
+   local filename="$1"; shift
+   local extensions="$1"; shift
+   local root="$1"; shift
 
    local name
    local ext
@@ -408,7 +408,11 @@ run_test_matching_extensions_in_directory()
       case "${filename}" in
          *${ext})
             r_extensionless_basename "${filename}"
-            run_test_in_directory "${directory}" "${RVAL}" "${ext}" "${root}"
+            run_test_in_directory "${directory}" \
+                                  "${RVAL}" \
+                                  "${ext}" \
+                                  "${root}" \
+                                  "$@"
             return $?
          ;;
       esac
@@ -421,15 +425,15 @@ _scan_directory()
 {
    log_entry "_scan_directory" "$@"
 
-   local root="$1"
-   local extensions="$2"
+   local root="$1"; shift
+   local extensions="$1"; shift
 
    local RVAL
 
    if [ -f CMakeLists.txt ]
    then
       r_fast_basename "${PWD}"
-      run_test_in_directory "${PWD}" "${RVAL}" "cmake" "${root}"
+      run_test_in_directory "${PWD}" "${RVAL}" "cmake" "${root}" "$@"
       return $?
    fi
 
@@ -451,7 +455,7 @@ _scan_directory()
 
       if [ -d "${i}" ]
       then
-         if ! scan_directory "${i}" "${root}" "${extensions}"
+         if ! scan_directory "${i}" "${root}" "${extensions}" "$@"
          then
             return 1
          fi
@@ -459,7 +463,8 @@ _scan_directory()
          if ! run_test_matching_extensions_in_directory "${PWD}" \
                                                         "${i}" \
                                                         "${extensions}" \
-                                                        "${root}"
+                                                        "${root}" \
+                                                        "$@"
          then
             return 1
          fi
@@ -475,9 +480,9 @@ scan_directory()
 {
    log_entry "scan_directory" "$@"
 
-   local directory="$1"
-   local root="$2"
-   local extensions="$3"
+   local directory="$1"; shift
+   local root="$1"; shift
+   local extensions="$1"; shift
 
    [ -z "${directory}" ] && internal_fail "directory must not be empty"
    [ ! -d "${directory}" ] && internal_fail "directory \"${directory}\" does not exist"
@@ -489,7 +494,7 @@ scan_directory()
    # preserve shell context (no subshell here)
    old="$PWD"
 
-   rexekutor cd "${directory}" && _scan_directory "${root}" "${extensions}"
+   rexekutor cd "${directory}" && _scan_directory "${root}" "${extensions}" "$@"
    rval=$?
 
    cd "${old}"
@@ -517,13 +522,13 @@ run_all_tests()
       [ -z "${MULLE_PARALLEL_SH}" ] && \
          . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-parallel.sh"
 
-      log_verbose "Run test parallel"
+      log_verbose "Parallel testing"
       _parallel_begin "${OPTION_MAXJOBS}"
    else
-      log_verbose "Run test serial"
+      log_verbose "Serial testing"
    fi
 
-   scan_directory "${PWD}" "${MULLE_USER_PWD}" "${PROJECT_EXTENSIONS}"
+   scan_directory "${PWD}" "${MULLE_USER_PWD}" "${PROJECT_EXTENSIONS}" "$@"
 
    if [ "${MULLE_TEST_SERIAL}" = 'NO' ]
    then
@@ -552,8 +557,8 @@ run_named_test()
 {
    log_entry "run_named_test" "$@"
 
-   local path="$1"
-   local root="$2"
+   local root="$1"; shift
+   local path="$1"; shift
 
    local RVAL
 
@@ -570,7 +575,7 @@ run_named_test()
 
    if [ -d "${path}" ]
    then
-      scan_directory "${path}" "${root}" "${PROJECT_EXTENSIONS}"
+      scan_directory "${path}" "${root}" "${PROJECT_EXTENSIONS}" "$@"
       return $?
    fi
 
@@ -593,7 +598,8 @@ run_named_test()
    run_test_matching_extensions_in_directory "${directory}" \
                                              "${filename}" \
                                              "${PROJECT_EXTENSIONS}" \
-                                             "${root}"
+                                             "${root}" \
+                                             "$@"
 }
 
 
@@ -698,11 +704,25 @@ run_main()
             MULLE_TEST_SERIAL='NO'
          ;;
 
-         -*)
-            fail "Unknown run option \"$1\""
+         --run-args)
+            shift
+            break
+         ;;
+
+         --build-args)
+            # remove build-only flags, which must appear first
+            while [ $# -ne 0 ]
+            do
+               if [ "$1" == "--run-args" ]
+               then
+                  continue
+               fi
+               shift
+            done
          ;;
 
          *)
+            # pass restforward
             break
          ;;
       esac
@@ -738,21 +758,17 @@ run_main()
 
    local HAVE_WARNED="NO"
 
-   if [ "$RUN_ALL" = "YES" -o $# -eq 0 ]
+   if [ "$RUN_ALL" = "YES" -o $# -eq 0 -o "${1:0:1}" = '-' ]
    then
       MULLE_TEST_SERIAL="${MULLE_TEST_SERIAL:-NO}"
       run_all_tests "$@"
       return $?
    fi
 
-   while [ $# -ne 0 ]
-   do
-      MULLE_TEST_SERIAL='YES'
-      if ! run_named_test "$1" "${MULLE_USER_PWD}"
-      then
-         return 1
-      fi
-      shift
-   done
+   MULLE_TEST_SERIAL='YES'
+   if ! run_named_test "${MULLE_USER_PWD}" "$@"
+   then
+      return 1
+   fi
 }
 

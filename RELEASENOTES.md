@@ -1,3 +1,7 @@
+### 4.0.7
+
+* pass parameters on the command line to run and build
+
 ### 4.0.6
 
 * fix libexec install location

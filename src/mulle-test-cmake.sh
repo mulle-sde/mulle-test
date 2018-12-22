@@ -36,7 +36,7 @@ eval_mulle_make()
 {
    log_entry "eval_mulle_make" "$@"
 
-   local build_type="$1"
+   local build_type="$1"; shift
 
    # fix for mingw, which demangles the first -I path
    # but not subsequent ones
@@ -75,7 +75,9 @@ eval_mulle_make()
                     -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
                     -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
                     -DCMAKE_EXE_LINKER_FLAGS="'${cmake_libraries} ${RPATH_FLAGS}'" \
-                    -DTEST_LIBRARIES="'${cmake_libraries} ${RPATH_FLAGS}'"
+                    -DTEST_LIBRARIES="'${cmake_libraries} ${RPATH_FLAGS}'" \
+                    "$@"
+
 }
 
 
@@ -84,12 +86,18 @@ fail_test_cmake()
 {
    log_entry "fail_test_cmake" "$@"
 
-   local sourcefile="$1"
-   local a_out_ext="$2"
-   local ext="$3"
+   local sourcefile="$1"; shift
+   local a_out_ext="$1"; shift
+   local ext="$1"; shift
+   local name="$1"; shift
 
    [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
    [ -z "${a_out_ext}" ] && internal_fail "a_out_ext is empty"
+
+   if [ "${MULLE_FLAG_MAGNUM_FORCE}" = 'YES' ]
+   then
+      return
+   fi
 
    #hacque
    local executable
@@ -98,24 +106,21 @@ fail_test_cmake()
    r_fast_basename "${a_out_ext}"
    executable="${RVAL}"
 
-   if [ -z "${MULLE_FLAG_MAGNUM_FORCE}" ]
+   if [ "${MULLE_TEST_CONFIGURATION}" != "Debug" ]
    then
-      if [ "${MULLE_TEST_CONFIGURATION}" != "Debug" ]
-      then
-         log_info "DEBUG: " >&2
-         log_info "Rebuilding as \"${executable}\" with -O0 and debug symbols..."
+      log_info "DEBUG: " >&2
+      log_info "Rebuilding as \"${executable}\" with -O0 and debug symbols..."
 
-         local directory
+      local directory
 
-         r_fast_dirname "${srcfile}"
-         directory="${RVAL}"
+      r_fast_dirname "${srcfile}"
+      directory="${RVAL}"
 
-         exekutor cd "${directory}" &&
-         eval_mulle_make "Debug" &&
-         exekutor cp -p "build/${executable}" "./${executable}.debug"
+      exekutor cd "${directory}" &&
+      eval_mulle_make "Debug" "$@" &&
+      exekutor cp -p "build/${executable}" "./${executable}.debug"
 
-         suggest_debugger_commandline "${a_out_ext}" "${stdin}"
-      fi
+      suggest_debugger_commandline "${a_out_ext}" "${stdin}"
    fi
 }
 
@@ -124,8 +129,9 @@ run_cmake()
 {
    log_entry "run_cmake" "$@"
 
-   local srcfile="$1"
-   local a_out_ext="$2"
+   local srcfile="$1"; shift
+   local a_out_ext="$1"; shift
+   local errput="$1"; shift # unused
 
    [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
    [ -z "${a_out_ext}" ] && internal_fail "a_out_ext is empty"
@@ -141,7 +147,7 @@ run_cmake()
    (
       exekutor cd "${directory}"
 
-      eval_mulle_make "${MULLE_TEST_CONFIGURATION}" &&
+      eval_mulle_make "${MULLE_TEST_CONFIGURATION}" "$@" &&
       exekutor cp -p "build/${executable}" "./${executable}"
    ) || exit 1
 }
