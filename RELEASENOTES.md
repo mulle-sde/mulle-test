@@ -1,3 +1,7 @@
+### 4.0.9
+
+* improve whole-archive output
+
 ### 4.0.8
 
 * fix parameter passing one more time

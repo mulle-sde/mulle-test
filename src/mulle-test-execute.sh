@@ -80,7 +80,7 @@ run_a_out()
          full_redirekt_eval_exekutor "${input}" \
 "${output}" \
 "${errput}" \
-MULLE_OBJC_TESTALLOCATOR=1 \
+MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
 "${a_out_ext}"
       ;;
 
@@ -90,7 +90,7 @@ MULLE_OBJC_TESTALLOCATOR=1 \
 "${output}" \
 "${errput}" \
 PATH="'${PATH}'" \
-MULLE_OBJC_TESTALLOCATOR=1
+MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
 "${a_out_ext}"
       ;;
 
@@ -99,7 +99,7 @@ MULLE_OBJC_TESTALLOCATOR=1
 "${output}" \
 "${errput}" \
 LD_LIBRARY_PATH="'${LD_LIBRARY_PATH}'" \
-MULLE_OBJC_TESTALLOCATOR=1 \
+MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
 "${a_out_ext}"
       ;;
    esac

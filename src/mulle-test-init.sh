@@ -183,6 +183,10 @@ test_init_main()
    (
       unset MULLE_VIRTUAL_ROOT
 
+      #
+      # mulle-testallocator markes as all-load, because we need it
+      # always linked in
+      #
       exekutor cd "${OPTION_DIRECTORY}" &&
       mkdir_if_missing ".mulle-sde/share" &&
       exekutor redirect_exekutor ".mulle-sde/share/mulle-test" date &&
@@ -195,6 +199,7 @@ test_init_main()
       exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                          ${MULLE_SDE_FLAGS} \
                    dependency add \
+                        --marks all-load \
                         --github mulle-core \
                         mulle-testallocator &&
       exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \

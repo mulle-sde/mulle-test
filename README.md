@@ -1,4 +1,9 @@
-# ☑︎ mulle-test, Cross platform tests
+# mulle-test
+
+☑︎ Runs tests and compares results against expectations
+
+![Last version](https://img.shields.io/github/tag/mulle-sde/mulle-test.svg)
+
 
 **mulle-test** tests your C or Objective C library.
 

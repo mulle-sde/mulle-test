@@ -177,7 +177,7 @@ run_common_test()
    local rval
    local a_out_ext
 
-   log_verbose "Build test ${pretty_source}"
+   log_fluff "Build test ${pretty_source}"
 
    a_out_ext="${a_out}${EXE_EXTENSION}"
 
@@ -448,7 +448,8 @@ _scan_directory()
       IFS="${DEFAULT_IFS}"
 
       case "${i}" in
-         _*|build|dependency|tmp|old|stash)
+         _*|addiction|bin|build|craftinfo|dependency|include|lib|libexec|old|stash|tmp)
+            log_debug "Ignoring $i because it's surely not a test directory"
             continue
          ;;
       esac
@@ -617,6 +618,7 @@ test_run_main()
    local DEFAULT_MAKEFLAGS
    local OPTION_REQUIRE_LIBRARY="YES"
    local OPTION_LENIENT='NO'
+   local OPTION_TESTALLOCATOR="YES"
 
    DEFAULT_MAKEFLAGS="-s"
 
@@ -643,6 +645,10 @@ test_run_main()
             shift
 
             OPTION_MAXJOBS="$1"
+         ;;
+
+         --no-testallocator)
+            OPTION_TESTALLOCATOR="NO"
          ;;
 
          --configuration)
@@ -744,11 +750,28 @@ test_run_main()
       ;;
 	esac
 
+   local format
+
+   case "${MULLE_UNAME}" in
+      darwin)
+         format="force-load"
+      ;;
+
+      mingw*)
+         format="whole-archive-win"
+      ;;
+
+      *)
+         format="whole-archive"
+      ;;
+   esac
+
    if ! LINK_COMMAND="`rexekutor mulle-sde \
    										${MULLE_TECHNICAL_FLAGS} \
    										${MULLE_SDE_FLAGS} \
    								linkorder \
-   									--output-format ld`"
+   									--output-format ld \
+                              --whole-archive-format "${format}"`"
    then
       fail "Can't get linkorder. Maybe rebuild with
    ${C_RESET_BOLD}mulle-test build"
