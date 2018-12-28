@@ -1,3 +1,7 @@
+### 4.0.10
+
+* ensure mulle-testallocator is first, dont ignore quickstatus errors anymore
+
 ### 4.0.9
 
 * improve whole-archive output

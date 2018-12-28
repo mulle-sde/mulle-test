@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="4.0.9"
+MULLE_EXECUTABLE_VERSION="4.0.10"
 
 # version is in mulle-test-env
 
@@ -172,6 +172,18 @@ exec_in_subshell_if_needed()
 }
 
 
+get_quickstatus()
+{
+   local rval
+
+   "${MULLE_CRAFT:-mulle-craft}" -s quickstatus
+   rval=$?
+
+   [ $rval -eq 1 ] && exit 1
+   return $rval
+}
+
+
 main()
 {
    local MULLE_FLAG_MAGNUM_FORCE="NONE"
@@ -290,7 +302,7 @@ main()
 
          exec_in_subshell_if_needed "${cmd}" "$@"
 
-         if ! "${MULLE_CRAFT:-mulle-craft}" -s quickstatus
+         if ! get_quickstatus
          then
             test_build_run "${cmd}" "$@" || exit 1
          fi
@@ -302,7 +314,7 @@ main()
 
          exec_in_subshell_if_needed "${cmd}" "$@"
 
-         if ! "${MULLE_CRAFT:-mulle-craft}" -s quickstatus
+         if ! get_quickstatus
          then
             test_build_run "$@" || exit 1
          fi

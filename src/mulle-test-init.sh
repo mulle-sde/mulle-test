@@ -140,13 +140,13 @@ test_init_main()
    if [ -z "${PROJECT_DIALECT}" ]
    then
       PROJECT_DIALECT="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS}  environment get PROJECT_DIALECT`"
+                      ${MULLE_SDE_FLAGS} environment get PROJECT_DIALECT`"
    fi
 
    if [ -z "${PROJECT_EXTENSIONS}" ]
    then
       PROJECT_EXTENSIONS="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS}  environment get PROJECT_EXTENSIONS`"
+                      ${MULLE_SDE_FLAGS} environment get PROJECT_EXTENSIONS`"
    fi
 
    if [ -z "${PROJECT_NAME}" ]
@@ -185,23 +185,24 @@ test_init_main()
 
       #
       # mulle-testallocator markes as all-load, because we need it
-      # always linked in
+      # always linked in. Also link it first, so its constructor gets
+      # executed first
       #
       exekutor cd "${OPTION_DIRECTORY}" &&
       mkdir_if_missing ".mulle-sde/share" &&
       exekutor redirect_exekutor ".mulle-sde/share/mulle-test" date &&
       exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                          ${MULLE_SDE_FLAGS} \
-                  dependency add \
-                        --github "${PROJECT_GITHUB_NAME:-unknown}" \
-                        --marks "only-standalone" \
-                        "${PROJECT_NAME}" &&
-      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         ${MULLE_SDE_FLAGS} \
                    dependency add \
                         --marks all-load \
                         --github mulle-core \
                         mulle-testallocator &&
+      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                         ${MULLE_SDE_FLAGS} \
+                  dependency add \
+                        --github "${PROJECT_GITHUB_NAME:-unknown}" \
+                        --marks "only-standalone" \
+                        "${PROJECT_NAME}" &&
       exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                          ${MULLE_SDE_FLAGS} \
                   environment --global \
