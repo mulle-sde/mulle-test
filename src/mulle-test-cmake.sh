@@ -44,8 +44,6 @@ eval_mulle_make()
    # (where is this fix ?)
    #
    local cmake_c_flags
-   local RVAL
-
    r_emit_include_cflags
    cmake_c_flags="${RVAL}"
 
@@ -59,16 +57,17 @@ eval_mulle_make()
 
    cmake_libraries="${LINK_COMMAND}"
 
-   # TODO: build commandline nicer
+   # TODO: build commandline nicer (definitions need MULLE_HOSTNAME check)
    # MEMO: unfortunately on linux, the order of linkage matters, but
    #       the CMAKE_EXE_LINKER_FLAGS are prepended to our .o files (bummer)
+
    eval_exekutor CC="${CC}" \
                  CXX="${CXX}" \
                  ${MULLE_MAKE:-mulle-make} \
                     "${MULLE_TECHNICAL_FLAGS}" \
                     "${MULLE_MAKE_FLAGS}" \
                  build --clean \
-                    --info-dir "'${MULLE_VIRTUAL_ROOT}/.mulle-make'" \
+                    --info-dir "'${MULLE_VIRTUAL_ROOT}/.mulle/etc/craft/definition'" \
                     "${cmake_definitions}" \
                     -DCMAKE_BUILD_TYPE="'${build_type}'" \
                     -DCMAKE_RULE_MESSAGES="'OFF'" \
@@ -101,8 +100,6 @@ fail_test_cmake()
 
    #hacque
    local executable
-   local RVAL
-
    r_fast_basename "${a_out_ext}"
    executable="${RVAL}"
 
@@ -138,8 +135,6 @@ run_cmake()
 
    local directory
    local executable
-   local RVAL
-
    r_fast_basename "${a_out_ext}"
    executable="${RVAL}"
    r_fast_dirname "${srcfile}"

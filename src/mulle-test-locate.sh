@@ -32,6 +32,25 @@
 MULLE_TEST_LOCATE_SH="included"
 
 
+r_locate_script_test_dir()
+{
+   log_entry "r_locate_script_test_dir" "$@"
+
+   local i
+
+   for i in "$@" . test tests
+   do
+      if [ -x "${i}/run-test" ]
+      then
+         r_absolutepath "$i"
+         return 0
+      fi
+   done
+   RVAL=""
+   return 1
+}
+
+
 r_locate_test_dir()
 {
    log_entry "r_locate_test_dir" "$@"
@@ -43,8 +62,13 @@ r_locate_test_dir()
    project_dir="`mulle-sde project-dir`"
    if [ -z "${project_dir}" ]
    then
-      RVAL=""
-      return 1
+      # not a mulle project, lets just check that there isn't a run-test
+      # script there, wh
+      if ! r_locate_script_test_dir "$@"
+      then
+         return 1
+      fi
+      return 2  # make it a script test (relaxed)
    fi
 
    local name

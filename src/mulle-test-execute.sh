@@ -80,7 +80,8 @@ run_a_out()
          full_redirekt_eval_exekutor "${input}" \
 "${output}" \
 "${errput}" \
-MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_TESTALLOCATOR_ENABLED="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
 "${a_out_ext}"
       ;;
 
@@ -90,7 +91,8 @@ MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
 "${output}" \
 "${errput}" \
 PATH="'${PATH}'" \
-MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_TESTALLOCATOR_ENABLED="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
 "${a_out_ext}"
       ;;
 
@@ -99,7 +101,8 @@ MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
 "${output}" \
 "${errput}" \
 LD_LIBRARY_PATH="'${LD_LIBRARY_PATH}'" \
-MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_TESTALLOCATOR_ENABLED="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
 "${a_out_ext}"
       ;;
    esac
@@ -119,6 +122,9 @@ _check_test_output()
    local pretty_source="$7"  # environment
    local a_out="$8"
    local ext="$9"
+
+   [ -z "${RVAL_FAILURE}" ] && internal_fail "RVAL_FAILURE undefined"
+   [ -z "${RVAL_OUTPUT_DIFFERENCES}" ] && internal_fail "RVAL_OUTPUT_DIFFERENCES undefined"
 
    [ -z "${stdout}" ] && internal_fail "stdout must not be empty"
    [ -z "${stderr}" ] && internal_fail "stderr must not be empty"
@@ -219,6 +225,8 @@ check_test_output()
 
    local rval
 
+   [ -z "${RVAL_OUTPUT_DIFFERENCES}" ] && internal_fail "RVAL_OUTPUT_DIFFERENCES undefined"
+
    _check_test_output "$@"
    rval=$?
 
@@ -230,7 +238,7 @@ check_test_output()
       log_info "${TEST_PATH_PREFIX}${pretty_source}"
    fi
 
-   if [ ${rval} = ${RVAL_OUTPUT_DIFFERENCES} ]
+   if [ ${rval} -eq ${RVAL_OUTPUT_DIFFERENCES} ]
    then
       maybe_show_output "${output}"
    fi

@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="4.0.10"
+MULLE_EXECUTABLE_VERSION="4.1.0"
 
 # version is in mulle-test-env
 
@@ -91,14 +91,17 @@ cd_test_dir()
    # shellcheck source=src/mulle-test-locate.sh
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
 
-   local RVAL
+   r_locate_test_dir "${MULLE_TEST_DIR:-test}"
+   rval=$?
 
-   if ! r_locate_test_dir "${MULLE_TEST_DIR:-test}"
+   if [ $rval -eq 1 ]
    then
-      fail "Did not find a \"${MULLE_TEST_DIR:-test}\" directory (${MULLE_USER_PWD})"
+      fail "Did not find a \"${MULLE_TEST_DIR:-test}\" directory (${MULLE_USER_PWD})
+${C_INFO}Initialize tests with:
+${C_RESET_BOLD}   mulle-sde test init"
    fi
 
-   if [ ! -f "${RVAL}/.mulle-sde/share/mulle-test" ]
+   if [ -d "${RVAL}/.mulle/share/sde" -a ! -f "${RVAL}/.mulle/share/sde/mulle-test" ]
    then
       fail "\"${MULLE_TEST_DIR:-test}\" is not a mulle-sde project marked for mulle-test"
    fi
@@ -106,8 +109,10 @@ cd_test_dir()
    if [ "${PWD}" != "${RVAL}" ]
    then
       log_fluff "Going to test directory \"${RVAL}\" ($PWD)"
-      exekutor cd "${RVAL}" || return 1
+      exekutor cd "${RVAL}" || exit 1
    fi
+
+   return $rval
 }
 
 
@@ -121,11 +126,18 @@ test_build_run()
    then
       cmd="exekutor ./build-test ${MULLE_TECHNICAL_FLAGS}"
    else
+      if [ ! -d ".mulle/share/sde" ]
+      then
+         log_debug "No .mulle/share/sde folder and no build-test script, so don't run build"
+         return
+      fi
       # shellcheck source=src/mulle-test-run.sh
       . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-build.sh"
 
       cmd="test_build_main"
    fi
+
+   log_verbose "Build test dependencies"
 
    ${cmd} "$@"
 }
@@ -146,6 +158,8 @@ test_stage_run()
 
       cmd="test_run_main"
    fi
+
+   log_verbose "Run tests"
 
    ${cmd} "$@"
 }
@@ -174,12 +188,21 @@ exec_in_subshell_if_needed()
 
 get_quickstatus()
 {
+   log_entry "get_quickstatus" "$@"
+
    local rval
 
-   "${MULLE_CRAFT:-mulle-craft}" -s quickstatus
+   rexekutor "${MULLE_CRAFT:-mulle-craft}" -s \
+                  ${MULLE_TECHNICAL_FLAGS} \
+                  ${MULLE_CRAFT_FLAGS} \
+               quickstatus
    rval=$?
 
-   [ $rval -eq 1 ] && exit 1
+   if [ $rval -eq 1 ]
+   then
+      exit 1
+   fi
+
    return $rval
 }
 
@@ -208,8 +231,6 @@ main()
    local BUILD_OPTIONS="--clean"
    local RUN_FLAGS
    local RUN_OPTIONS
-   local RVAL
-
    #
    # simple option handling
    #
@@ -242,15 +263,6 @@ main()
             exit 0
          ;;
 
-         --)
-            break
-         ;;
-
-         -*)
-            log_error "${MULLE_EXECUTABLE_FAIL_PREFIX}: Unknown option \"$1\""
-            usage "${MULLE_TRACE}"
-         ;;
-
          *)
             break
          ;;
@@ -263,23 +275,38 @@ main()
 
    MULLE_TEST_CONFIGURATION=${MULLE_TEST_CONFIGURATION:-Debug}
 
-   local cmd="${1:-run}"
-   [ $# -ne 0 ] && shift
+   local cmd="$1"
+
+   case "$cmd" in
+      "")
+         cmd=run
+         [ $# -ne 0 ] && shift
+      ;;
+
+      -*)
+         cmd=run
+      ;;
+
+      *)
+         shift
+      ;;
+   esac
 
    case "${cmd}" in
       build)
-         cd_test_dir  || exit 1
-
-         exec_in_subshell_if_needed "${cmd}" "$@"
-
-         mulle-sde clean "${PROJECT_NAME}" &&
+         if cd_test_dir
+         then
+            exec_in_subshell_if_needed "${cmd}" "$@"
+            mulle-sde clean "${PROJECT_NAME}" || return 1
+         fi
          test_build_run "$@"
       ;;
 
       clean)
-         cd_test_dir || exit 1
-
-         exec_in_subshell_if_needed "${cmd}" "$@"
+         if cd_test_dir
+         then
+            exec_in_subshell_if_needed "${cmd}" "$@"
+         fi
 
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-clean.sh"
 
@@ -296,27 +323,14 @@ main()
          exit 0
       ;;
 
-      # pass this as default run command options
-      -*)
-         cd_test_dir || exit 1
-
-         exec_in_subshell_if_needed "${cmd}" "$@"
-
-         if ! get_quickstatus
+      run)
+         if cd_test_dir
          then
-            test_build_run "${cmd}" "$@" || exit 1
+            exec_in_subshell_if_needed "${cmd}" "$@"
          fi
-         test_stage_run "${cmd}" "$@"
-      ;;
-
-      run|-*)
-         cd_test_dir || exit 1
-
-         exec_in_subshell_if_needed "${cmd}" "$@"
-
          if ! get_quickstatus
          then
-            test_build_run "$@" || exit 1
+            test_build_run "$@"
          fi
          test_stage_run "$@"
       ;;

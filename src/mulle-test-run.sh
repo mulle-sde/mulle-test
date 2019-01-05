@@ -397,8 +397,6 @@ run_test_matching_extensions_in_directory()
 
    local name
    local ext
-   local RVAL
-
    IFS=":"; set -f
    for ext in ${extensions}
    do
@@ -427,8 +425,6 @@ _scan_directory()
 
    local root="$1"; shift
    local extensions="$1"; shift
-
-   local RVAL
 
    if [ -f CMakeLists.txt ]
    then
@@ -560,8 +556,6 @@ run_named_test()
 
    local root="$1"; shift
    local path="$1"; shift
-
-   local RVAL
 
    if ! is_absolutepath "${path}"
    then

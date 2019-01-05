@@ -6,3 +6,5 @@
 #
 VERSIONFILE=mulle-test
 VERSIONNAME=MULLE_EXECUTABLE_VERSION
+VERSIONFILEMIRRORS="\
+src/mulle-nat/mulle-test/version"

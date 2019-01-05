@@ -144,8 +144,6 @@ run_gcc_compiler()
    local errput="$1"; shift
 
    local cmdline
-   local RVAL
-
    r_c_commandline "" "${srcfile}" "${a_out}" "$@"
    cmdline="${RVAL}"
 
@@ -192,9 +190,10 @@ suggest_debugger_commandline()
    case "${MULLE_UNAME}" in
       darwin)
          echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
-MULLE_TESTALLOCATOR=1 \
+MULLE_TESTALLOCATOR_ENABLED=1 \
 MULLE_TESTALLOCATOR_TRACE=2 \
-MULLE_OBJC_TRACE_ENABLED=YES \
+MULLE_OBJC_PEDANTIC_EXIT=YES \
+MULLE_OBJC_TRACE_ENABLED=NO \
 MULLE_OBJC_WARN_ENABLED=YES \
 DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
 ${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2
@@ -206,9 +205,10 @@ ${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2
 
       linux)
          echo "MULLE_OBJC_AUTORELEASEPOOL_TRACE=15 \
-MULLE_TESTALLOCATOR=1 \
+MULLE_TESTALLOCATOR_ENABLED=1 \
 MULLE_TESTALLOCATOR_TRACE=2 \
-MULLE_OBJC_TRACE_ENABLED=YES \
+MULLE_OBJC_PEDANTIC_EXIT=YES \
+MULLE_OBJC_TRACE_ENABLED=NO \
 MULLE_OBJC_WARN_ENABLED=YES \
 LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}\" \
 ${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2

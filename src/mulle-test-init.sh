@@ -128,8 +128,8 @@ test_init_main()
    [ $# -eq 0 ] || test_init_usage
 
 
-   [ ! -d ".mulle-sde" ] && \
-         log_warnig "Test folder should be top level of a mulle-sde project"
+   [ ! -d ".mulle/share/sde" ] && \
+         log_warning "Test folder should be top level of a mulle-sde project"
 
    if [ -z "${PROJECT_LANGUAGE}" ]
    then
@@ -154,8 +154,6 @@ test_init_main()
       PROJECT_NAME="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                       ${MULLE_SDE_FLAGS} environment get PROJECT_NAME`"
    fi
-
-   local RVAL
 
    if [ -z "${PROJECT_NAME}" ]
    then
@@ -186,23 +184,32 @@ test_init_main()
       #
       # mulle-testallocator markes as all-load, because we need it
       # always linked in. Also link it first, so its constructor gets
-      # executed first
+      # executed first. This only happens when it is a dynamic library though.
+      #
+      # Mark both as no-descend so that we don't accidentally link
+      # stuff twice (one to exe and once to shlib)
       #
       exekutor cd "${OPTION_DIRECTORY}" &&
-      mkdir_if_missing ".mulle-sde/share" &&
-      exekutor redirect_exekutor ".mulle-sde/share/mulle-test" date &&
+      mkdir_if_missing ".mulle/share/sde" &&
+      exekutor redirect_exekutor ".mulle/share/sde/mulle-test" date &&
       exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                          ${MULLE_SDE_FLAGS} \
                    dependency add \
-                        --marks all-load \
-                        --github mulle-core \
-                        mulle-testallocator &&
+                        --marks "all-load,no-descend,no-singlephase,no-static-link" \
+                        --github "mulle-core" \
+                        "mulle-testallocator" &&
       exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                          ${MULLE_SDE_FLAGS} \
                   dependency add \
                         --github "${PROJECT_GITHUB_NAME:-unknown}" \
-                        --marks "only-standalone" \
+                        --marks "no-all-load,only-standalone,no-descend" \
                         "${PROJECT_NAME}" &&
+      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                         ${MULLE_SDE_FLAGS} \
+                   dependency add \
+                        --marks "no-all-load,no-singlephase" \
+                        --github "mulle-core" \
+                        "mulle-stacktrace" &&
       exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                          ${MULLE_SDE_FLAGS} \
                   environment --global \
