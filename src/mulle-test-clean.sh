@@ -92,6 +92,10 @@ test_clean_main()
                       ${MULLE_SDE_FLAGS} \
                clean \
                   "${1:-all}" &&
+
+   log_verbose "Cleaning individual test build directories"
    depth_find_pwd -type d -name build -exec rm -rf {} \;
+
+   log_verbose "Cleaning test executables"
    exekutor find . -type f -name "*.exe" -exec rm {} \;
 }

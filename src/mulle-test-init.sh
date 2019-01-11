@@ -61,12 +61,72 @@ EOF
    exit 1
 }
 
+#
+# We need to make sure that mulle_default_allocator only exists once.
+# Therefore compile mulle_allocator as a shared library.
+#
+_test_init_standalone()
+{
+   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                      ${MULLE_SDE_FLAGS} \
+                dependency add \
+                     --marks "no-import,no-singlephase,no-static-link,only-os-darwin" \
+                     --github "mulle-core" \
+                     "mulle-testallocator" &&
+
+   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                      ${MULLE_SDE_FLAGS} \
+               dependency add \
+                     --github "${PROJECT_GITHUB_NAME:-unknown}" \
+                     --marks "no-all-load,only-standalone" \
+                     "${PROJECT_NAME}" &&
+
+   exekutor mulle-sourcetree ${MULLE_TECHNICAL_FLAGS} \
+                             ${MULLE_SOURCETREE_FLAGS} \
+                duplicate \
+                     --marks "no-import,no-os-darwin,no-singlephase,no-static-link" \
+                     mulle-testallocator  &&
+
+   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                      ${MULLE_SDE_FLAGS} \
+                dependency add \
+                     --marks "no-import,no-singlephase,no-static-link" \
+                     --github "mulle-c" \
+                     "mulle-allocator" &&
+
+   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                      ${MULLE_SDE_FLAGS} \
+                dependency add \
+                     --marks "no-all-load,no-import,no-singlephase" \
+                     --github "mulle-core" \
+                     "mulle-stacktrace"
+}
+
+
+_test_init_normal()
+{
+   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                      ${MULLE_SDE_FLAGS} \
+                dependency add \
+                     --marks "no-import,no-singlephase,no-static-link" \
+                     --github "mulle-core" \
+                     "mulle-testallocator" &&
+
+   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                      ${MULLE_SDE_FLAGS} \
+               dependency add \
+                     --github "${PROJECT_GITHUB_NAME:-unknown}" \
+                     "${PROJECT_NAME}"
+}
+
+
 
 test_init_main()
 {
    log_entry "test_init_main" "$@"
 
    local OPTION_DIRECTORY="test"
+   local OPTION_STANDALONE=NO
 
    while :
    do
@@ -117,6 +177,10 @@ test_init_main()
             PROJECT_GITHUB_NAME="$1"
           ;;
 
+         --standalone)
+            OPTION_STANDALONE="YES"
+         ;;
+
          *)
             break
          ;;
@@ -165,13 +229,17 @@ test_init_main()
    then
       PROJECT_GITHUB_NAME="${LOGNAME}"
    fi
+
    #
    # also set project language and dialect from main project
+   # use wild, since we don't want to copy all the tools and optionaltools
+   # over and have them get out of sync eventually
    #
    exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                       ${MULLE_SDE_FLAGS} \
                       -s \
                init --no-motd \
+                    --style mulle/wild \
                     --project-name "${PROJECT_NAME}" \
                     --project-language "${PROJECT_LANGUAGE:-c}" \
                     --project-dialect "${PROJECT_DIALECT:-c}" \
@@ -186,34 +254,26 @@ test_init_main()
       # always linked in. Also link it first, so its constructor gets
       # executed first. This only happens when it is a dynamic library though.
       #
-      # Mark both as no-descend so that we don't accidentally link
-      # stuff twice (one to exe and once to shlib)
+      # More tricky stuff is needed to make this work on darwin and linux
+      # including a "duplicate" entry for darwinthat is ignored by linux
+      # The main thing, is that mulle-testallocator must be before standalone
+      # on darwin and behind on linux
       #
       exekutor cd "${OPTION_DIRECTORY}" &&
       mkdir_if_missing ".mulle/share/sde" &&
       exekutor redirect_exekutor ".mulle/share/sde/mulle-test" date &&
+      if [ "${OPTION_STANDALONE}" = YES ]
+      then
+         _test_init_standalone || exit 1
+      else
+         _test_init_normal || exit 1
+      fi
+
       exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                          ${MULLE_SDE_FLAGS} \
-                   dependency add \
-                        --marks "all-load,no-descend,no-singlephase,no-static-link" \
-                        --github "mulle-core" \
-                        "mulle-testallocator" &&
-      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         ${MULLE_SDE_FLAGS} \
-                  dependency add \
-                        --github "${PROJECT_GITHUB_NAME:-unknown}" \
-                        --marks "no-all-load,only-standalone,no-descend" \
-                        "${PROJECT_NAME}" &&
-      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         ${MULLE_SDE_FLAGS} \
-                   dependency add \
-                        --marks "no-all-load,no-singlephase" \
-                        --github "mulle-core" \
-                        "mulle-stacktrace" &&
-      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         ${MULLE_SDE_FLAGS} \
-                  environment --global \
-                     set \
-                        MULLE_FETCH_SEARCH_PATH '${MULLE_VIRTUAL_ROOT}/../..'
+               environment \
+                  --global \
+                  set MULLE_FETCH_SEARCH_PATH '${MULLE_VIRTUAL_ROOT}/../..'
+
    )
 }

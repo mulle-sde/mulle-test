@@ -73,7 +73,7 @@ eval_mulle_make()
                     -DCMAKE_RULE_MESSAGES="'OFF'" \
                     -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
                     -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
-                    -DCMAKE_EXE_LINKER_FLAGS="'${cmake_libraries} ${RPATH_FLAGS}'" \
+                    -DCMAKE_EXE_LINKER_FLAGS="'${RPATH_FLAGS}'" \
                     -DTEST_LIBRARIES="'${cmake_libraries} ${RPATH_FLAGS}'" \
                     "$@"
 

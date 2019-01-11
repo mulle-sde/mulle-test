@@ -64,6 +64,7 @@ EOF
 
 Commands:
    build                    : force rebuild of project
+   rebuild                  : clean all then build
    clean                    : remove dependency, build and all .exe files
    init                     : setup a test project for the current project
    run                      : run tests
@@ -175,11 +176,14 @@ exec_in_subshell_if_needed()
       then
          exekutor cd "${MULLE_TEST_DIR}" || exit 1
       fi
-      exekutor exec mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                              ${MULLE_SDE_FLAGS} \
-                              run mulle-test ${MULLE_TECHNICAL_FLAGS} \
-                                             ${MULLE_TEST_FLAGS} \
-                                            "$@"
+      if [ -d "${PWD}/.mulle/share/env" ]
+      then
+         exekutor exec mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                                 ${MULLE_SDE_FLAGS} \
+                           run mulle-test ${MULLE_TEST_FLAGS} "$@"
+      else
+         fail "Not a proper initialized test directory (${PWD#${MULLE_USER_PWD}/})"
+      fi
    else
       log_debug "Already in proper subshell"
    fi
@@ -298,6 +302,15 @@ main()
          then
             exec_in_subshell_if_needed "${cmd}" "$@"
             mulle-sde clean "${PROJECT_NAME}" || return 1
+         fi
+         test_build_run "$@"
+      ;;
+
+      rebuild)
+         if cd_test_dir
+         then
+            exec_in_subshell_if_needed "${cmd}" "$@"
+            mulle-sde clean all || return 1
          fi
          test_build_run "$@"
       ;;

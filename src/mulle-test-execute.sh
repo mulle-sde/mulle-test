@@ -77,11 +77,20 @@ run_a_out()
 
    case "${MULLE_UNAME}" in
       darwin)
+         local libgmalloc
+
+         if [ -z "${MULLE_TEST_NO_LIBGMALLOC}" -a -f /usr/lib/libgmalloc.dylib ]
+         then
+            libgmalloc="DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib"
+         fi
+
          full_redirekt_eval_exekutor "${input}" \
 "${output}" \
 "${errput}" \
-MULLE_TESTALLOCATOR_ENABLED="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_TESTALLOCATOR_FIRST_LEAK="'YES'" \
 MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
+${libgmalloc} \
 "${a_out_ext}"
       ;;
 
@@ -91,7 +100,8 @@ MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
 "${output}" \
 "${errput}" \
 PATH="'${PATH}'" \
-MULLE_TESTALLOCATOR_ENABLED="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_TESTALLOCATOR_FIRST_LEAK="'YES'" \
 MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
 "${a_out_ext}"
       ;;
@@ -101,7 +111,8 @@ MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
 "${output}" \
 "${errput}" \
 LD_LIBRARY_PATH="'${LD_LIBRARY_PATH}'" \
-MULLE_TESTALLOCATOR_ENABLED="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
+MULLE_TESTALLOCATOR_FIRST_LEAK="'YES'" \
 MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
 "${a_out_ext}"
       ;;

@@ -756,7 +756,7 @@ test_run_main()
       ;;
 
       *)
-         format="whole-archive"
+         format="whole-archive-as-needed"
       ;;
    esac
 
@@ -767,8 +767,7 @@ test_run_main()
    									--output-format ld \
                               --whole-archive-format "${format}"`"
    then
-      fail "Can't get linkorder. Maybe rebuild with
-   ${C_RESET_BOLD}mulle-test build"
+      exit 1 # linkorder should have complained sufficiently
    fi
 
    local RVAL_INTERNAL_ERROR=1
