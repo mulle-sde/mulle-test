@@ -96,6 +96,9 @@ test_build_main()
             done
          ;;
 
+         --valgrind)
+         ;;
+
          --)
             shift
             break

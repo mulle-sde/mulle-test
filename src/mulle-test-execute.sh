@@ -114,6 +114,7 @@ LD_LIBRARY_PATH="'${LD_LIBRARY_PATH}'" \
 MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
 MULLE_TESTALLOCATOR_FIRST_LEAK="'YES'" \
 MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
+${VALGRIND} ${VALGRIND_OPTIONS} \
 "${a_out_ext}"
       ;;
    esac
@@ -177,21 +178,21 @@ _check_test_output()
    then
       local result
 
-      result=`exekutor diff -q "${stdout}" "${output}"`
+      result=`exekutor "${DIFF}" -q "${stdout}" "${output}"`
       if [ "${result}" != "" ]
       then
-         white=`exekutor diff -q -w "${stdout}" "${output}"`
+         white=`exekutor "${DIFF}" -q -w "${stdout}" "${output}"`
          if [ "$white" != "" ]
          then
             log_error "FAILED: \"${TEST_PATH_PREFIX}${pretty_source}\" produced unexpected output"
             log_info  "DIFF: (${output} vs. ${stdout})"
-            exekutor diff -y "${output}" "${stdout}" >&2
+            exekutor "${DIFF}" -y "${output}" "${stdout}" >&2
          else
             log_error "FAILED: \"${TEST_PATH_PREFIX}${pretty_source}\" produced different whitespace output"
             log_info  "DIFF: (${TEST_PATH_PREFIX}${stdout} vs. ${output})"
             redirect_exekutor "${output}.actual.hex" od -a "${output}"
             redirect_exekutor "${output}.expect.hex" od -a "${stdout}"
-            exekutor diff -y "${output}.expect.hex" "${output}.actual.hex" >&2
+            exekutor "${DIFF}" -y "${output}.expect.hex" "${output}.actual.hex" >&2
          fi
 
          return ${RVAL_OUTPUT_DIFFERENCES}
@@ -209,12 +210,12 @@ _check_test_output()
 
    if [ "${stderr}" != "-" ]
    then
-      result=`exekutor diff -w "${stderr}" "${errput}"`
+      result=`exekutor "${DIFF}" -w "${stderr}" "${errput}"`
       if [ "${result}" != "" ]
       then
          log_warning "WARNING: \"${TEST_PATH_PREFIX}${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
          exekutor echo "" >&2
-         exekutor diff "${stderr}" "${errput}" >&2
+         exekutor "${DIFF}" "${stderr}" "${errput}" >&2
          return ${RVAL_OUTPUT_DIFFERENCES}
       fi
    fi
@@ -395,6 +396,10 @@ test_execute_main()
             pretty_source="$1"
          ;;
 
+         --valgrind)
+            VALGRIND="valgrind -q --track-origins=yes"
+         ;;
+
          *)
             break
          ;;
@@ -421,6 +426,9 @@ test_execute_main()
 
    [ -x "${a_out}" ] || test_execute_usage "Improper executable
 \"${a_out}\" (not there or lacking execute permissions)"
+
+   DIFF="`command -v diff`"
+   [ -z "${DIFF}" ] && fail "There is no diff installed on this system"
 
    local name
    local ext

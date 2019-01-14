@@ -721,6 +721,10 @@ test_run_main()
             done
          ;;
 
+         --valgrind)
+            VALGRIND="valgrind -q --track-origins=yes"
+         ;;
+
          --)
             shift
             break
