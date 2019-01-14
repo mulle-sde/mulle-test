@@ -774,6 +774,10 @@ test_run_main()
       exit 1 # linkorder should have complained sufficiently
    fi
 
+   [ -z "${MULLE_TEST_DIR}" ] && internal_fail "MULLE_TEST_DIR undefined"
+
+   MULLE_TEST_VAR_DIR="${MULLE_TEST_DIR:-${PWD}}/.mulle/var/${MULLE_HOSTNAME}/test"
+
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2
    local RVAL_OUTPUT_DIFFERENCES=3

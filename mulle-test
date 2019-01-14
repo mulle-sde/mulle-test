@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="4.1.0"
+MULLE_EXECUTABLE_VERSION="4.1.1"
 
 # version is in mulle-test-env
 
@@ -72,7 +72,7 @@ Commands:
 
 Environment:
    MULLE_TEST_CONFIGURATION : configuration to compile files (Debug)
-   MULLE_TEST_DIR           : tests direcetory (test)
+   MULLE_TEST_DIR           : tests directory (test)
    PROJECT_DIALECT          : dialect of the tests, can be objc
    PROJECT_EXTENSIONS       : file extensions of the test files
    PROJECT_LANGUAGE         : language of the tests (c)
@@ -87,30 +87,31 @@ cd_test_dir()
 {
    log_entry "cd_test_dir" "$@"
 
-   local testdir
-
    # shellcheck source=src/mulle-test-locate.sh
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
 
-   r_locate_test_dir "${MULLE_TEST_DIR:-test}"
+   MULLE_TEST_DIR="${MULLE_TEST_DIR:-test}"
+   r_locate_test_dir "${MULLE_TEST_DIR}"
    rval=$?
 
    if [ $rval -eq 1 ]
    then
-      fail "Did not find a \"${MULLE_TEST_DIR:-test}\" directory (${MULLE_USER_PWD})
+      fail "Did not find a \"${MULLE_TEST_DIR}\" directory (${MULLE_USER_PWD})
 ${C_INFO}Initialize tests with:
 ${C_RESET_BOLD}   mulle-sde test init"
    fi
 
-   if [ -d "${RVAL}/.mulle/share/sde" -a ! -f "${RVAL}/.mulle/share/sde/mulle-test" ]
+   r_absolutepath "${RVAL}"
+   MULLE_TEST_DIR="${RVAL}"
+   if [ -d "${MULLE_TEST_DIR}/.mulle/share/sde" -a ! -f "${MULLE_TEST_DIR}/.mulle/share/sde/mulle-test" ]
    then
-      fail "\"${MULLE_TEST_DIR:-test}\" is not a mulle-sde project marked for mulle-test"
+      fail "\"${MULLE_TEST_DIR}\" is not a mulle-sde project marked for mulle-test"
    fi
 
-   if [ "${PWD}" != "${RVAL}" ]
+   if [ "${PWD}" != "${MULLE_TEST_DIR}" ]
    then
-      log_fluff "Going to test directory \"${RVAL}\" ($PWD)"
-      exekutor cd "${RVAL}" || exit 1
+      log_fluff "Going to test directory \"${MULLE_TEST_DIR}\" ($PWD)"
+      exekutor cd "${MULLE_TEST_DIR}" || exit 1
    fi
 
    return $rval

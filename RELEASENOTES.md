@@ -1,3 +1,9 @@
+### 4.1.1
+
+* experimentally add --valgrind option
+* use .mulle folder
+* make mulle-test on its own more powerful and convenient
+
 ## 4.1.0
 
 * use .mulle folder

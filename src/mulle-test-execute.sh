@@ -143,6 +143,7 @@ _check_test_output()
    [ -z "${output}" ] && internal_fail "output must not be empty"
    [ -z "${errput}" ] && internal_fail "errput must not be empty"
    [ -z "${a_out}" ]  && internal_fail "a_out must not be empty"
+   [ "${rval}" = "" ] && internal_fail "rval must not be empty"
 
    local info_text
 
@@ -233,9 +234,10 @@ check_test_output()
 #   local errors="$3"
    local output="$4"
    local errput="$5"
+# local rval=$?
    local pretty_source="$7"
-
-   local rval
+#   local a_out="$8"
+#   local ext="$9"
 
    [ -z "${RVAL_OUTPUT_DIFFERENCES}" ] && internal_fail "RVAL_OUTPUT_DIFFERENCES undefined"
 
@@ -287,15 +289,14 @@ test_execute()
    srcfile="${RVAL}"
 
    local random
-
-   random="`make_tmp_file "${name}"`" || exit 1
-
    local output
    local errput
    local errors
 
-   output="${random}.stdout"
-   errput="${random}.stderr"
+   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}.stdout" "f"
+   output="${RVAL}"
+
+   errput="${output%.stdout}.stderr"
 
    #
    # run test executable "${a_out}" feeding it "${stdin}" as input
@@ -317,7 +318,8 @@ test_execute()
    fi
 
    redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${errput}.tmp"
-   exekutor rm "${output}.tmp" "${errput}.tmp"
+   remove_file_if_present "${output}.tmp"
+   remove_file_if_present "${errput}.tmp"
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
@@ -328,6 +330,8 @@ test_execute()
       log_fluff "-----------------------"
    fi
 
+   local rc
+
    check_test_output  "${stdout}" \
                       "${stderr}" \
                       "${errors}" \
@@ -337,6 +341,16 @@ test_execute()
                       "${pretty_source}" \
                       "${a_out}" \
                       "${ext}"
+   rc=$?
+
+   remove_file_if_present "${output}"
+   remove_file_if_present "${errput}"
+   if [ $rc -eq 0 -a -z "${OPTION_DONT_REMOVE_EXE}" ]
+   then
+      remove_file_if_present "${a_out}"
+   fi
+
+   return $rc
 }
 
 
