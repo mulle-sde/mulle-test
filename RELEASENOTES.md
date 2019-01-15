@@ -1,3 +1,7 @@
+### 4.1.3
+
+* fix missing function
+
 ### 4.1.2
 
 * rename build to craft for consistency with mulle-sde

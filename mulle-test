@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="4.1.2"
+MULLE_EXECUTABLE_VERSION="4.1.3"
 
 # version is in mulle-test-env
 
@@ -141,7 +141,7 @@ test_craft_run()
          # shellcheck source=src/mulle-test-craft.sh
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-craft.sh"
 
-         cmd="test_build_main"
+         cmd="test_craft_main"
       fi
    fi
 
