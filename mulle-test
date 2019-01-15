@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="4.1.1"
+MULLE_EXECUTABLE_VERSION="4.1.2"
 
 # version is in mulle-test-env
 
@@ -118,28 +118,34 @@ ${C_RESET_BOLD}   mulle-sde test init"
 }
 
 
-test_build_run()
+test_craft_run()
 {
-   log_entry "test_build_run" "$@"
+   log_entry "test_craft_run" "$@"
 
    local cmd
 
-   if [ -x "./build-test" ]
+   if [ -x "./craft-test" ]
    then
-      cmd="exekutor ./build-test ${MULLE_TECHNICAL_FLAGS}"
+      cmd="exekutor ./craft-test ${MULLE_TECHNICAL_FLAGS}"
    else
-      if [ ! -d ".mulle/share/sde" ]
+      if [ -x "./build-test" ]
       then
-         log_debug "No .mulle/share/sde folder and no build-test script, so don't run build"
-         return
-      fi
-      # shellcheck source=src/mulle-test-run.sh
-      . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-build.sh"
+         cmd="exekutor ./build-test ${MULLE_TECHNICAL_FLAGS}"
+      else
+         if [ ! -d ".mulle/share/sde" ]
+         then
+            log_debug "No .mulle/share/sde folder and no build-test script, so don't run craft"
+            return
+         fi
 
-      cmd="test_build_main"
+         # shellcheck source=src/mulle-test-craft.sh
+         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-craft.sh"
+
+         cmd="test_build_main"
+      fi
    fi
 
-   log_verbose "Build test dependencies"
+   log_verbose "Craft test dependencies"
 
    ${cmd} "$@"
 }
@@ -298,22 +304,22 @@ main()
    esac
 
    case "${cmd}" in
-      build)
+      craft|build)
          if cd_test_dir
          then
             exec_in_subshell_if_needed "${cmd}" "$@"
             mulle-sde clean "${PROJECT_NAME}" || return 1
          fi
-         test_build_run "$@"
+         test_craft_run "$@"
       ;;
 
-      rebuild)
+      recraft|rebuild)
          if cd_test_dir
          then
             exec_in_subshell_if_needed "${cmd}" "$@"
             mulle-sde clean all || return 1
          fi
-         test_build_run "$@"
+         test_craft_run "$@"
       ;;
 
       clean)
@@ -344,7 +350,7 @@ main()
          fi
          if ! get_quickstatus
          then
-            test_build_run "$@"
+            test_craft_run "$@"
          fi
          test_stage_run "$@"
       ;;

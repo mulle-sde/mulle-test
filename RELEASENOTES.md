@@ -1,3 +1,7 @@
+### 4.1.2
+
+* rename build to craft for consistency with mulle-sde
+
 ### 4.1.1
 
 * experimentally add --valgrind option

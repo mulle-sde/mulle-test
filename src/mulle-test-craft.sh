@@ -29,19 +29,19 @@
 #   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #   POSSIBILITY OF SUCH DAMAGE.
 #
-MULLE_TEST_BUILD_SH="included"
+MULLE_TEST_CRAFT_SH="included"
 
 
-test_build_usage()
+test_craft_usage()
 {
    fail "$*"
    exit 1
 }
 
 
-test_build_main()
+test_craft_main()
 {
-   log_entry "test_build_main" "$@"
+   log_entry "test_craft_main" "$@"
 
    [ -z "${MULLE_TEST_CONFIGURATION}" ] && internal_fail "MULLE_TEST_CONFIGURATION is empty"
 
@@ -53,11 +53,11 @@ test_build_main()
    do
       case "$1" in
          -h|--help|help)
-            test_build_usage
+            test_craft_usage
          ;;
 
          --configuration)
-            [ $# -eq 1 ] && test_build_usage "Missing argument to \"$1\""
+            [ $# -eq 1 ] && test_craft_usage "Missing argument to \"$1\""
             shift
 
             MULLE_TEST_CONFIGURATION="$1"
