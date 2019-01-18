@@ -1,3 +1,7 @@
+### 4.1.4
+
+* add ENV variable `VALGRIND_TOOL`
+
 ### 4.1.3
 
 * fix missing function

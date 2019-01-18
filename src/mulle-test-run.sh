@@ -722,7 +722,7 @@ test_run_main()
          ;;
 
          --valgrind)
-            VALGRIND="valgrind -q --track-origins=yes"
+            VALGRIND="valgrind --tool="${VALGRIND_TOOL:-memcheck}" -q --track-origins=yes"
          ;;
 
          --)
