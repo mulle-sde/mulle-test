@@ -345,9 +345,10 @@ test_execute()
 
    remove_file_if_present "${output}"
    remove_file_if_present "${errput}"
-   if [ $rc -eq 0 -a -z "${OPTION_DONT_REMOVE_EXE}" ]
+   if [ $rc -eq 0 -a "${OPTION_REMOVE_EXE}" = 'YES' ]
    then
       remove_file_if_present "${a_out}"
+      rmdir_safer "${a_out}.dSYM"
    fi
 
    return $rc
@@ -367,6 +368,11 @@ test_execute_main()
    local errors
 
    local pretty_source
+
+   if [ -z "${OPTION_REMOVE_EXE}" ]
+   then
+      OPTION_REMOVE_EXE="${MULLE_TEST_REMOVE_EXE:-YES}"
+   fi
 
    while :
    do
@@ -408,6 +414,10 @@ test_execute_main()
             shift
 
             pretty_source="$1"
+         ;;
+
+         --keep-exe)
+            OPTION_REMOVE_EXE='NO'
          ;;
 
          --valgrind)

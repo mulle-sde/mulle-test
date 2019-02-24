@@ -437,8 +437,7 @@ _scan_directory()
 
    local i
 
-   IFS="
-"
+   IFS=$'\n'
    for i in `ls -1`
    do
       IFS="${DEFAULT_IFS}"
@@ -721,6 +720,11 @@ test_run_main()
             done
          ;;
 
+         --keep-exe)
+            # this passed "silently" to mulle-test-execute... ugly
+            OPTION_REMOVE_EXE='NO'
+         ;;
+
          --valgrind)
             VALGRIND="valgrind --tool="${VALGRIND_TOOL:-memcheck}" -q --track-origins=yes"
          ;;
@@ -769,6 +773,7 @@ test_run_main()
    										${MULLE_SDE_FLAGS} \
    								linkorder \
    									--output-format ld \
+                              --configuration "${MULLE_TEST_CONFIGURATION}" \
                               --whole-archive-format "${format}"`"
    then
       exit 1 # linkorder should have complained sufficiently
