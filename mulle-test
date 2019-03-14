@@ -285,6 +285,8 @@ main()
    options_setup_trace "${MULLE_TRACE}"
 
    MULLE_TEST_CONFIGURATION=${MULLE_TEST_CONFIGURATION:-Debug}
+   MULLE_TEST_VAR_DIR="${MULLE_TEST_DIR:-${PWD}}/.mulle/var/${MULLE_HOSTNAME}/test"
+
 
    local cmd="$1"
 

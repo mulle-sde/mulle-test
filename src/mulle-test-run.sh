@@ -597,6 +597,56 @@ run_named_test()
 }
 
 
+_get_link_command()
+{
+   local format
+
+   case "${MULLE_UNAME}" in
+      darwin)
+         format="force-load"
+      ;;
+
+      mingw*)
+         format="whole-archive-win"
+      ;;
+
+      *)
+         format="whole-archive-as-needed"
+      ;;
+   esac
+
+   exekutor mulle-sde \
+               ${MULLE_TECHNICAL_FLAGS} \
+               ${MULLE_SDE_FLAGS} \
+            linkorder \
+               --output-format ld \
+               --configuration "${MULLE_TEST_CONFIGURATION}" \
+               --whole-archive-format "${format}"
+}
+
+get_link_command()
+{
+   local linkorder_cache_filename
+
+   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"
+
+   linkorder_cache_filename="${MULLE_TEST_VAR_DIR}/linkorder"
+   if [ -f "${linkorder_cache_filename}" ]
+   then
+      cat "${linkorder_cache_filename}"
+      return 0
+   fi
+
+   local command
+
+   command="`_get_link_command`" || exit 1
+   mkdir_if_missing "${MULLE_TEST_VAR_DIR}"
+   redirect_exekutor "${linkorder_cache_filename}" echo "${command}"
+
+   [ ! -z "${command}" ] && echo "${command}"
+}
+
+
 test_run_main()
 {
    log_entry "test_run_main" "$@"
@@ -752,36 +802,7 @@ test_run_main()
       ;;
 	esac
 
-   local format
-
-   case "${MULLE_UNAME}" in
-      darwin)
-         format="force-load"
-      ;;
-
-      mingw*)
-         format="whole-archive-win"
-      ;;
-
-      *)
-         format="whole-archive-as-needed"
-      ;;
-   esac
-
-   if ! LINK_COMMAND="`rexekutor mulle-sde \
-   										${MULLE_TECHNICAL_FLAGS} \
-   										${MULLE_SDE_FLAGS} \
-   								linkorder \
-   									--output-format ld \
-                              --configuration "${MULLE_TEST_CONFIGURATION}" \
-                              --whole-archive-format "${format}"`"
-   then
-      exit 1 # linkorder should have complained sufficiently
-   fi
-
    [ -z "${MULLE_TEST_DIR}" ] && internal_fail "MULLE_TEST_DIR undefined"
-
-   MULLE_TEST_VAR_DIR="${MULLE_TEST_DIR:-${PWD}}/.mulle/var/${MULLE_HOSTNAME}/test"
 
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2
@@ -790,6 +811,8 @@ test_run_main()
    local RVAL_IGNORED_FAILURE=5
 
    local HAVE_WARNED="NO"
+
+   LINK_COMMAND="`get_link_command`" || exit 1
 
    if [ "$RUN_ALL" = "YES" -o $# -eq 0 -o "${1:0:1}" = '-' ]
    then

@@ -119,11 +119,19 @@ test_craft_main()
       shift
    done
 
-   eval_exekutor mulle-sde "${MULLE_TECHNICAL_FLAGS}" \
-                           "${MULLE_SDE_FLAGS}" \
-                    craft \
-                        --configuration '${MULLE_TEST_CONFIGURATION}' \
-                        -- \
-                        "${args}"
+   if ! eval_exekutor mulle-sde \
+                            "${MULLE_TECHNICAL_FLAGS}" \
+                            "${MULLE_SDE_FLAGS}" \
+                         craft \
+                            --configuration '${MULLE_TEST_CONFIGURATION}' \
+                            -- \
+                            "${args}"
+   then
+      return 1
+   fi
+
+   #
+   # cache linkorder for tests
+   #
 }
 

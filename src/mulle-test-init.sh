@@ -90,7 +90,7 @@ _test_init_standalone()
    exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                       ${MULLE_SDE_FLAGS} \
                 dependency add \
-                     --marks "no-import,no-singlephase,no-static-link" \
+                     --marks "no-all-load,no-import,no-singlephase" \
                      --github "mulle-c" \
                      "mulle-allocator" &&
 

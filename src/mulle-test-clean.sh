@@ -68,6 +68,7 @@ test_clean_main()
    log_entry "test_clean_main" "$@"
 
    [ -z "${MULLE_TEST_CONFIGURATION}" ] && internal_fail "MULLE_TEST_CONFIGURATION is empty"
+   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR is empty"
 
    while [ $# -ne 0 ]
    do
@@ -97,5 +98,10 @@ test_clean_main()
    depth_find_pwd -type d -name build -exec rm -rf {} \;
 
    log_verbose "Cleaning test executables"
+   exekutor find . -type f -name "*.exe" -exec rm {} \;
+
+   log_verbose "Cleaning var"
+   rmdir_safer "${MULLE_TEST_VAR_DIR}"
+
    exekutor find . -type f -name "*.exe" -exec rm {} \;
 }
