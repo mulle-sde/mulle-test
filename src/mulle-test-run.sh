@@ -646,77 +646,6 @@ run_named_test()
 }
 
 
-_get_link_command()
-{
-   log_entry "_get_link_command" "$@"
-
-   local format
-
-   case "${MULLE_UNAME}" in
-      darwin)
-         format="force-load"
-      ;;
-
-      mingw*)
-         format="whole-archive-win"
-      ;;
-
-      *)
-         format="whole-archive-as-needed"
-      ;;
-   esac
-
-   exekutor mulle-sde \
-               ${MULLE_TECHNICAL_FLAGS} \
-               ${MULLE_SDE_FLAGS} \
-            linkorder \
-               --output-format ld \
-               --configuration "Test" \
-               --whole-archive-format "${format}" \
-               "$@"  # shared libs only ATM
-}
-
-
-r_get_link_command()
-{
-   log_entry "r_get_link_command" "$@"
-
-   local withstartup="${1:-YES}"
-
-   local linkorder_cache_filename
-   local args
-
-   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"
-
-   linkorder_cache_filename="${MULLE_TEST_VAR_DIR}/linkorder"
-   if [ "${withstartup}" = 'NO' ]
-   then
-      args='--no-startup'
-      linkorder_cache_filename="${linkorder_cache_filename}-no-startup"
-   fi
-
-   if [ -f "${linkorder_cache_filename}" ]
-   then
-      log_fluff "Using cached linkorder"
-      RVAL="`cat ${linkorder_cache_filename}`"
-      return 0
-   fi
-
-   local command
-
-   log_verbose "Compiling linkorder"
-
-   command="`_get_link_command ${args}`" || exit 1
-
-   mkdir_if_missing "${MULLE_TEST_VAR_DIR}"
-   redirect_exekutor "${linkorder_cache_filename}" echo "${command}"
-
-   log_fluff "Linkorder has been cached in \"${linkorder_cache_filename}\""
-
-   RVAL="${command}"
-}
-
-
 test_run_main()
 {
    log_entry "test_run_main" "$@"
@@ -864,6 +793,8 @@ test_run_main()
    local RVAL_IGNORED_FAILURE=5
 
    local HAVE_WARNED="NO"
+
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
 
    r_get_link_command
    LINK_COMMAND="${RVAL}"

@@ -46,8 +46,9 @@ test_craft_main()
    local args
    local makeargs
    local craftargs
+   local OPTION_STANDALONE
 
-   makeargs="'-DCFLAGS+=-DMULLE_TEST=1' --library-style dynamic"
+   makeargs="-DCFLAGS+='-DMULLE_TEST=1'"
 
    while [ $# -ne 0 ]
    do
@@ -61,6 +62,10 @@ test_craft_main()
             do
                shift
             done
+         ;;
+
+         --standalone)
+            OPTION_STANDALONE='YES'
          ;;
 
          --build-args)
@@ -101,6 +106,11 @@ test_craft_main()
 
       shift
    done
+
+   if [ "${OPTION_STANDALONE}" != 'YES' ]
+   then
+      makeargs="${makeargs} --library-style dynamic"
+   fi
 
    while [ $# -ne 0 ]
    do

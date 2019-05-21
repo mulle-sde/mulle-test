@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="4.1.4"
+MULLE_EXECUTABLE_VERSION="4.2.0"
 
 # version is in mulle-test-env
 
@@ -302,7 +302,7 @@ main()
 
       *)
          case "${cmd}" in
-            craft|build|recraft|rebuild|clean|init|rerun|run|libexec-dir|test-dir|version)
+            craft|build|recraft|rebuild|clean|init|linkorder|rerun|run|libexec-dir|test-dir|version)
                shift;
             ;;
 
@@ -360,6 +360,17 @@ main()
       libexec-dir)
          echo "${MULLE_TEST_LIBEXEC_DIR}"
          exit 0
+      ;;
+
+      linkorder)
+         if cd_test_dir
+         then
+            exec_in_subshell_if_needed "${cmd}" "$@"
+         fi
+
+         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
+
+         test_linkorder_main "$@"
       ;;
 
       run|rerun)

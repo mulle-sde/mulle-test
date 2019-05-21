@@ -111,13 +111,6 @@ _test_init_shared()
 
    exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                       ${MULLE_SDE_FLAGS} \
-                dependency add \
-                     --marks "no-import,no-singlephase,no-static-link" \
-                     --github "mulle-core" \
-                     "mulle-testallocator" || return 1
-
-   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} \
                dependency add \
                      --github "${PROJECT_GITHUB_NAME:-unknown}" \
                      "${PROJECT_NAME}" || return 1
@@ -127,25 +120,44 @@ _test_init_shared()
    # it must be a dependency, because we need the fullpath for -force_load
    # but we don't want it to participate in building, fetching and linking
    #
-   # We also add `dl` for now, because its required 
-   # There should be a plugin test setup script to handle this properly 
+   # We also add `dl` for now, because its required
+   # There should be a plugin test setup script to handle this properly
    #
-   if [ ! -z "${startuplib}" ] 
+   if [ ! -z "${startuplib}" ]
    then
-      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         ${MULLE_SDE_FLAGS} \
-                  dependency add \
-                        --github "${PROJECT_GITHUB_NAME:-unknown}" \
-                        --marks "all-load,only-startup,no-build,no-cmakeinherit,no-delete,no-dependency,no-fs,no-share,no-update" \
-                        "${PREFERRED_STARTUP_LIBRARY}" &&
+      exekutor mulle-sourcetree ${MULLE_TECHNICAL_FLAGS} \
+                                ${MULLE_SOURCETREE_FLAGS} \
+                                 -N \
+                  add \
+                     --nodetype 'tar' \
+                     --marks 'no-build,no-cmakeinherit,no-delete,no-dependency,no-fs,no-import,no-share,no-update' \
+                     "${PREFERRED_STARTUP_LIBRARY}" \
+                      &&
 
       exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                          ${MULLE_SDE_FLAGS} \
                   library add \
                         --c \
-                        --userinfo 'aliases=dl,dlfcn' 
+                        --marks "only-os-mingw" \
+                        --userinfo 'aliases=dl,dlfcn' \
+                        'dlfcn' &&
+
+      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                         ${MULLE_SDE_FLAGS} \
+                  library add \
+                        --c \
+                        --marks "no-os-mingw" \
+                        --userinfo 'base64:YmFzZTY0OllXeHBZWE5sY3oxa2JDeGtiR1pqYmdwcGJtTnNkV1JsUFdSc1ptTnVMbWdLCg==' \
                         'dl'
    fi
+
+   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                      ${MULLE_SDE_FLAGS} \
+                dependency add \
+                     --marks "no-import,no-singlephase,no-static-link" \
+                     --github "mulle-core" \
+                     "mulle-testallocator" || return 1
+
 }
 
 

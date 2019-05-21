@@ -229,7 +229,7 @@ setup_platform()
       ;;
 
       linux)
-         LDFLAGS="${LDFLAGS} -ldl -lpthread"  # weak and lame
+#         LDFLAGS="${LDFLAGS} -ldl -lpthread"  # weak and lame
          CRLFCAT="cat"
       ;;
 

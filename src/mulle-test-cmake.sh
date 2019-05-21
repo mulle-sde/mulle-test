@@ -68,7 +68,7 @@ eval_mulle_make()
                     "${MULLE_MAKE_FLAGS}" \
                  build --clean \
                        --configuration "'${build_type}'" \
-                       --build-dir "${KITCHEN_DIR:-kitchen}" \
+                       --build-dir "${TEST_KITCHEN_DIR:-kitchen}" \
                        --info-dir "'${MULLE_VIRTUAL_ROOT}/.mulle/etc/craft/definition'" \
                        "${cmake_definitions}" \
                        -DCMAKE_RULE_MESSAGES="'OFF'" \
@@ -134,7 +134,7 @@ fail_test_cmake()
    (
       exekutor cd "${directory}" &&
       eval_mulle_make "Debug" "$@" &&
-      exekutor cp -p "${KITCHEN_DIR:-kitchen}/${produced}" "./${final}"
+      exekutor cp -p "${TEST_KITCHEN_DIR:-kitchen}/${produced}" "./${final}"
    )
    suggest_debugger_commandline "${final}" "${stdin}" "${is_exe}"
 }
@@ -181,9 +181,9 @@ run_cmake()
       #
       if [ "${is_exe}" = 'YES' ]
       then
-         exekutor cp -p "${KITCHEN_DIR:-kitchen}/${executable}" "./${executable}"
+         exekutor cp -p "${TEST_KITCHEN_DIR:-kitchen}/${executable}" "./${executable}"
       else
-         exekutor cp -p "${KITCHEN_DIR:-kitchen}/${shlib}" "./${shlib}"
+         exekutor cp -p "${TEST_KITCHEN_DIR:-kitchen}/${shlib}" "./${shlib}"
       fi
    ) || exit 1
 }
