@@ -48,11 +48,8 @@ r_emit_include_cflags()
 
    if [ ! -z "${DEPENDENCY_DIR}" ]
    then
-      if [ "${MULLE_TEST_CONFIGURATION}" != "Release" ]
-      then
-         r_concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/${MULLE_TEST_CONFIGURATION}/include${quote}"
-         cflags="${RVAL}"
-      fi
+      r_concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/Test/include${quote}"
+      cflags="${RVAL}"
       r_concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/include${quote}"
       cflags="${RVAL}"
    fi

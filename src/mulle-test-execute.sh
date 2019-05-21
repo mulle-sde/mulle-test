@@ -153,6 +153,7 @@ _check_test_output()
    then
       if [ ! -f "${errors}" ]
       then
+         cat "${errput}" >&2
          if [ ${rval} -ne 1 ]
          then
             log_error "TEST CRASHED: ${info_text}, ${errput})"
@@ -197,6 +198,8 @@ _check_test_output()
          fi
 
          return ${RVAL_OUTPUT_DIFFERENCES}
+      else
+         log_fluff "No differences in stdout found"
       fi
    else
       local contents
@@ -218,6 +221,8 @@ _check_test_output()
          exekutor echo "" >&2
          exekutor "${DIFF}" "${stderr}" "${errput}" >&2
          return ${RVAL_OUTPUT_DIFFERENCES}
+      else
+         log_fluff "No differences in stderr found"
       fi
    fi
 
@@ -447,6 +452,16 @@ test_execute_main()
 
    pretty_source="${pretty_source:-${sourcefile}}"
 
+   local directory
+
+   r_fast_dirname "${sourcefile}"
+   directory="${RVAL}"
+
+   if [ -e "${directory}/runner" ]
+   then
+      a_out="${directory}/runner"
+      OPTION_REMOVE_EXE='NO'
+   fi
 
    [ -x "${a_out}" ] || test_execute_usage "Improper executable
 \"${a_out}\" (not there or lacking execute permissions)"
@@ -456,10 +471,7 @@ test_execute_main()
 
    local name
    local ext
-   local directory
 
-   r_fast_dirname "${sourcefile}"
-   directory="${RVAL}"
    r_fast_basename "${sourcefile}"
    name="${RVAL}"
    name="${sourcefile%.*}"

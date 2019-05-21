@@ -43,32 +43,17 @@ test_craft_main()
 {
    log_entry "test_craft_main" "$@"
 
-   [ -z "${MULLE_TEST_CONFIGURATION}" ] && internal_fail "MULLE_TEST_CONFIGURATION is empty"
-
    local args
+   local makeargs
+   local craftargs
 
-   args="'-DCFLAGS+=-DMULLE_TEST=1'"
+   makeargs="'-DCFLAGS+=-DMULLE_TEST=1' --library-style dynamic"
 
    while [ $# -ne 0 ]
    do
       case "$1" in
          -h|--help|help)
             test_craft_usage
-         ;;
-
-         --configuration)
-            [ $# -eq 1 ] && test_craft_usage "Missing argument to \"$1\""
-            shift
-
-            MULLE_TEST_CONFIGURATION="$1"
-         ;;
-
-         --debug)
-            MULLE_TEST_CONFIGURATION="'Debug'"
-         ;;
-
-         --release)
-            MULLE_TEST_CONFIGURATION='Release'
          ;;
 
          --run-args)
@@ -90,13 +75,18 @@ test_craft_main()
                   break
                fi
 
-               r_concat "${args}" "'$1'"
-               args="${RVAL}"
+               r_concat "${craftargs}" "'$1'"
+               craftargs="${RVAL}"
                shift
             done
          ;;
 
+         --serial|--no-parallel|--parallel)
+            r_concat "${craftargs}" "'$1'"
+         ;;
+
          --valgrind)
+            # ignore, don't complain
          ;;
 
          --)
@@ -123,9 +113,10 @@ test_craft_main()
                             "${MULLE_TECHNICAL_FLAGS}" \
                             "${MULLE_SDE_FLAGS}" \
                          craft \
-                            --configuration '${MULLE_TEST_CONFIGURATION}' \
+                            --configuration 'Test' \
+                            "${craftargs}" \
                             -- \
-                            "${args}"
+                            "${makeargs}"
    then
       return 1
    fi

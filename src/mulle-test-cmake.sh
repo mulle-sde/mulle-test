@@ -67,15 +67,16 @@ eval_mulle_make()
                     "${MULLE_TECHNICAL_FLAGS}" \
                     "${MULLE_MAKE_FLAGS}" \
                  build --clean \
-                    --info-dir "'${MULLE_VIRTUAL_ROOT}/.mulle/etc/craft/definition'" \
-                    "${cmake_definitions}" \
-                    -DCMAKE_BUILD_TYPE="'${build_type}'" \
-                    -DCMAKE_RULE_MESSAGES="'OFF'" \
-                    -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
-                    -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
-                    -DCMAKE_EXE_LINKER_FLAGS="'${RPATH_FLAGS}'" \
-                    -DTEST_LIBRARIES="'${cmake_libraries} ${RPATH_FLAGS}'" \
-                    "$@"
+                       --configuration "'${build_type}'" \
+                       --build-dir "${KITCHEN_DIR:-kitchen}" \
+                       --info-dir "'${MULLE_VIRTUAL_ROOT}/.mulle/etc/craft/definition'" \
+                       "${cmake_definitions}" \
+                       -DCMAKE_RULE_MESSAGES="'OFF'" \
+                       -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
+                       -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
+                       -DCMAKE_EXE_LINKER_FLAGS="'${RPATH_FLAGS}'" \
+                       -DTEST_LIBRARIES="'${cmake_libraries} ${RPATH_FLAGS}'" \
+                       "$@"
 
 }
 
@@ -85,7 +86,7 @@ fail_test_cmake()
 {
    log_entry "fail_test_cmake" "$@"
 
-   local sourcefile="$1"; shift
+   local srcfile="$1"; shift
    local a_out_ext="$1"; shift
    local ext="$1"; shift
    local name="$1"; shift
@@ -98,27 +99,44 @@ fail_test_cmake()
       return
    fi
 
-   #hacque
-   local executable
-   r_fast_basename "${a_out_ext}"
-   executable="${RVAL}"
+   local is_exe='NO'
 
-   if [ "${MULLE_TEST_CONFIGURATION}" != "Debug" ]
+   if egrep -s -q '^[Aa][Dd][Dd]_[Ee][Xx][Ee][Cc][Uu][Tt][Aa][Bb][Ll][Ee]\(' "CMakeLists.txt"
    then
-      log_info "DEBUG: " >&2
-      log_info "Rebuilding as \"${executable}\" with -O0 and debug symbols..."
+      is_exe='YES'
+   fi
 
-      local directory
+   #hacque
+   local shlib
+   local produced
+   local final
 
-      r_fast_dirname "${srcfile}"
-      directory="${RVAL}"
+   r_extensionless_basename "${a_out_ext}"
+   r_extensionless_basename "${RVAL}"
 
+   if [ "${is_exe}" = 'YES' ]
+   then
+      produced="${RVAL}.exe"
+      final="${RVAL}.debug.exe"
+   else
+      produced="lib${RVAL}.so"
+      final="lib${RVAL}.debug.so"
+   fi
+
+   log_info "DEBUG: " >&2
+   log_info "Rebuilding \"${executable}\" with -O0 and debug symbols..."
+
+   local directory
+
+   r_fast_dirname "${srcfile}"
+   directory="${RVAL}"
+
+   (
       exekutor cd "${directory}" &&
       eval_mulle_make "Debug" "$@" &&
-      exekutor cp -p "build/${executable}" "./${executable}.debug"
-
-      suggest_debugger_commandline "${a_out_ext}" "${stdin}"
-   fi
+      exekutor cp -p "${KITCHEN_DIR:-kitchen}/${produced}" "./${final}"
+   )
+   suggest_debugger_commandline "${final}" "${stdin}" "${is_exe}"
 }
 
 
@@ -132,21 +150,41 @@ run_cmake()
 
    [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
    [ -z "${a_out_ext}" ] && internal_fail "a_out_ext is empty"
+   [ ! -f "CMakeLists.txt" ] && internal_fail "CMakeLists.txt is missing ($PWD)"
+
+   local is_exe='NO'
+
+   if egrep -s -q '^[Aa][Dd][Dd]_[Ee][Xx][Ee][Cc][Uu][Tt][Aa][Bb][Ll][Ee]\(' "CMakeLists.txt"
+   then
+      is_exe='YES'
+   fi
 
    local directory
    local executable
+   local shlib
+
    r_fast_basename "${a_out_ext}"
    executable="${RVAL}"
+
+   r_extensionless_basename "${a_out_ext}"
+   shlib="lib${RVAL}.so"
+
    r_fast_dirname "${srcfile}"
    directory="${RVAL}"
    (
       exekutor cd "${directory}"
 
-      eval_mulle_make "${MULLE_TEST_CONFIGURATION}" "$@" &&
-      exekutor cp -p "build/${executable}" "./${executable}"
+      eval_mulle_make "Test" "$@" || exit 1
+
+      #
+      # check if it produces a shlib or an exe
+      #
+      if [ "${is_exe}" = 'YES' ]
+      then
+         exekutor cp -p "${KITCHEN_DIR:-kitchen}/${executable}" "./${executable}"
+      else
+         exekutor cp -p "${KITCHEN_DIR:-kitchen}/${shlib}" "./${shlib}"
+      fi
    ) || exit 1
 }
-
-
-
 

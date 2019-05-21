@@ -32,7 +32,6 @@
 MULLE_TEST_RUN_SH="included"
 
 
-
 test_run_usage()
 {
    [ "$#" -ne 0 ] && log_error "$1"
@@ -45,11 +44,14 @@ Usage:
    test.
 
    Options:
-      -l  : be linient, keep going if tests fail
-      -q  : quiet
-      -t  : shell trace
-      -v  : verbose
-      -V  : show commands
+      -l         : be linient, keep going if tests fail
+      -q         : quiet
+      -t         : shell trace
+      -v         : verbose
+      -V         : show commands
+      --valgrind : run test using valgrind
+      --serial   : run test one after the other
+      --keep-exe : keep test executables around after a successful test
 EOF
    exit 1
 }
@@ -115,12 +117,16 @@ maybe_show_diagnostics()
 
    local contents
 
-   contents="`head -2 "${errput}"`" 2> /dev/null
-   if [ ! -z "${contents}" ]
-   then
-      log_info "DIAGNOSTICS:" >&2
-      cat "${errput}" >&2
-   fi
+#
+# may not be needed anymore since we compile with "grep" now
+#
+
+#   contents="`head -2 "${errput}"`" 2> /dev/null
+#   if [ ! -z "${contents}" ]
+#   then
+#      log_info "DIAGNOSTICS:" >&2
+#      cat "${errput}" >&2
+#   fi
 }
 
 
@@ -210,10 +216,7 @@ run_common_test()
 
    if [ "${rval}" -ne 0 ]
    then
-      if [ "${MULLE_TEST_CONFIGURATION}" != "Debug" ]
-      then
-         a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
-      fi
+      a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
 
       "${FAIL_TEST}" "${srcfile}" "${a_out_ext}" "${ext}" "${name}" "$@"
    fi
@@ -272,7 +275,7 @@ run_cpp_test()
 }
 
 
-# we are in the test directory
+# we are in the test directory and we are running in a subshell
 #
 # testname: is either the test.m or "" for Makefile
 # runtest : is where the user started the search, its only used for printing
@@ -287,17 +290,21 @@ _run_test()
    local root="$1"; shift
 
    [ -z "${name}" ] && internal_fail "name must not be empty"
-   [ -z "${ext}" ] && internal_fail "ext must not be ? empty"
+   [ -z "${ext}" ]  && internal_fail "ext must not be ? empty"
    [ -z "${root}" ] && internal_fail "root must not be empty"
 
-   # this is OK since we are in a subshell here
-   local envfile
+   # as we are running in a subshell this is OK
 
-   envfile=".mulle-test/etc/environment.sh"
-   if [ -f "${envfile}" ]
+   if [ -f "default.environment" ]
    then
-      . "${envfile}" || fail "\"${envfile}\" read failed"
-      log_fluff "Read environment file \"${envfile}\" "
+      . "default.environment" || fail "\"default.environment\" read failed"
+      log_fluff "Read environment file \"default.environment\" "
+   fi
+
+   if [ -f "${name}.environment" ]
+   then
+      . "${name}.environment" || fail "\"${name}.environment\" read failed"
+      log_fluff "Read environment file \"${name}.environment\" "
    fi
 
    case "${ext}" in
@@ -320,6 +327,22 @@ _run_test()
 }
 
 
+has_test_run_successfully()
+{
+   log_entry "has_test_run_successfully" "$@"
+
+   local directory="$1"
+   local name="$2"
+
+   if [ ! -z "${MULLE_TEST_SUCCESS_FILE}" ]
+   then
+      fgrep -s -q -x "${directory}/${name}" "${MULLE_TEST_SUCCESS_FILE}"
+      return $?
+   fi
+   return 1
+}
+
+
 handle_return_value()
 {
    log_entry "handle_return_value" "$@"
@@ -335,6 +358,10 @@ handle_return_value()
 
    case "${rval}" in
       0|${RVAL_EXPECTED_FAILURE})
+         if [ ! -z "${MULLE_TEST_SUCCESS_FILE}" ]
+         then
+            redirect_append_exekutor "${MULLE_TEST_SUCCESS_FILE}" echo "${directory}/${name}"
+         fi
       ;;
 
       ${RVAL_INTERNAL_ERROR})
@@ -362,10 +389,26 @@ _run_test_in_directory()
    log_entry "_run_test_in_directory" "$@"
 
    local directory="$1"; shift
+   local name="$1"
 
    (
-      cd "${directory}" &&
+      # this is OK since we are in a subshell here
+      cd "${directory}" || exit 1
+
       _run_test "$@"
+   )
+}
+
+_run_test_in_directory_parallel()
+{
+   log_entry "_run_test_in_directory_parallel" "$@"
+
+   local directory="$1"; shift
+
+   (
+      cd "${directory}" || exit 1
+      _run_test "$@"
+      handle_return_value $? "${directory}" "$@"
    )
 }
 
@@ -374,9 +417,15 @@ run_test_in_directory()
 {
    log_entry "run_test_in_directory" "$@"
 
+   if has_test_run_successfully "$@"
+   then
+      log_fluff "Test $2 already passed"
+      return 0
+   fi
+
    if [ "${MULLE_TEST_SERIAL}" = 'NO' ]
    then
-      _parallel_execute _run_test_in_directory "$@"
+      _parallel_execute _run_test_in_directory_parallel "$@"
       return 0
    fi
 
@@ -443,7 +492,7 @@ _scan_directory()
       IFS="${DEFAULT_IFS}"
 
       case "${i}" in
-         _*|addiction|bin|build|craftinfo|dependency|include|lib|libexec|old|stash|tmp)
+         _*|addiction|bin|build|kitchen|craftinfo|dependency|include|lib|libexec|old|stash|tmp)
             log_debug "Ignoring $i because it's surely not a test directory"
             continue
          ;;
@@ -599,6 +648,8 @@ run_named_test()
 
 _get_link_command()
 {
+   log_entry "_get_link_command" "$@"
+
    local format
 
    case "${MULLE_UNAME}" in
@@ -620,30 +671,49 @@ _get_link_command()
                ${MULLE_SDE_FLAGS} \
             linkorder \
                --output-format ld \
-               --configuration "${MULLE_TEST_CONFIGURATION}" \
-               --whole-archive-format "${format}"
+               --configuration "Test" \
+               --whole-archive-format "${format}" \
+               "$@"  # shared libs only ATM
 }
 
-get_link_command()
+
+r_get_link_command()
 {
+   log_entry "r_get_link_command" "$@"
+
+   local withstartup="${1:-YES}"
+
    local linkorder_cache_filename
+   local args
 
    [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"
 
    linkorder_cache_filename="${MULLE_TEST_VAR_DIR}/linkorder"
+   if [ "${withstartup}" = 'NO' ]
+   then
+      args='--no-startup'
+      linkorder_cache_filename="${linkorder_cache_filename}-no-startup"
+   fi
+
    if [ -f "${linkorder_cache_filename}" ]
    then
-      cat "${linkorder_cache_filename}"
+      log_fluff "Using cached linkorder"
+      RVAL="`cat ${linkorder_cache_filename}`"
       return 0
    fi
 
    local command
 
-   command="`_get_link_command`" || exit 1
+   log_verbose "Compiling linkorder"
+
+   command="`_get_link_command ${args}`" || exit 1
+
    mkdir_if_missing "${MULLE_TEST_VAR_DIR}"
    redirect_exekutor "${linkorder_cache_filename}" echo "${command}"
 
-   [ ! -z "${command}" ] && echo "${command}"
+   log_fluff "Linkorder has been cached in \"${linkorder_cache_filename}\""
+
+   RVAL="${command}"
 }
 
 
@@ -661,6 +731,7 @@ test_run_main()
    local DEFAULT_MAKEFLAGS
    local OPTION_REQUIRE_LIBRARY="YES"
    local OPTION_LENIENT='NO'
+   local OPTION_RERUN='NO'
    local OPTION_TESTALLOCATOR="YES"
 
    DEFAULT_MAKEFLAGS="-s"
@@ -692,21 +763,6 @@ test_run_main()
 
          --no-testallocator)
             OPTION_TESTALLOCATOR="NO"
-         ;;
-
-         --configuration)
-            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
-            shift
-
-            MULLE_TEST_CONFIGURATION="$1"
-         ;;
-
-         --debug)
-            MULLE_TEST_CONFIGURATION='Debug'
-         ;;
-
-         --release)
-            MULLE_TEST_CONFIGURATION='Release'
          ;;
 
          --project-language)
@@ -745,12 +801,16 @@ test_run_main()
             TEST_PATH_PREFIX="$1"
          ;;
 
-         --serial)
+         --serial|--no-parallel)
             MULLE_TEST_SERIAL='YES'
          ;;
 
          --parallel)
             MULLE_TEST_SERIAL='NO'
+         ;;
+
+         --rerun)
+            OPTION_RERUN='YES'
          ;;
 
          --run-args)
@@ -792,17 +852,10 @@ test_run_main()
       shift
    done
 
-   case "${MULLE_TEST_CONFIGURATION}" in
-   	'Debug')
-         CFLAGS="${DEBUG_CFLAGS}"
-      ;;
-
-      *)
-         CFLAGS="${RELEASE_CFLAGS}"
-      ;;
-	esac
+   CFLAGS="${TEST_CFLAGS}"
 
    [ -z "${MULLE_TEST_DIR}" ] && internal_fail "MULLE_TEST_DIR undefined"
+   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_DIR undefined"
 
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2
@@ -812,16 +865,28 @@ test_run_main()
 
    local HAVE_WARNED="NO"
 
-   LINK_COMMAND="`get_link_command`" || exit 1
+   r_get_link_command
+   LINK_COMMAND="${RVAL}"
+
+   r_get_link_command "NO"
+   NO_STARTUP_LINK_COMMAND="${RVAL}"
+
+   MULLE_TEST_SUCCESS_FILE="${MULLE_TEST_VAR_DIR}/passed.txt"
 
    if [ "$RUN_ALL" = "YES" -o $# -eq 0 -o "${1:0:1}" = '-' ]
    then
+      if [ "${OPTION_RERUN}" = 'NO' ]
+      then
+         remove_file_if_present "${MULLE_TEST_SUCCESS_FILE}"
+      fi
+
       MULLE_TEST_SERIAL="${MULLE_TEST_SERIAL:-NO}"
       run_all_tests "$@"
       return $?
    fi
 
    MULLE_TEST_SERIAL='YES'
+   MULLE_TEST_SUCCESS_FILE=""
    if ! run_named_test "${MULLE_USER_PWD}" "$@"
    then
       return 1

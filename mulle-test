@@ -68,10 +68,10 @@ Commands:
    clean                    : remove dependency, build and all .exe files
    init                     : setup a test project for the current project
    run                      : run tests
+   rerun                    : run failing tests again
    test-dir                 : locate test folder
 
 Environment:
-   MULLE_TEST_CONFIGURATION : configuration to compile files (Debug)
    MULLE_TEST_DIR           : tests directory (test)
    PROJECT_DIALECT          : dialect of the tests, can be objc
    PROJECT_EXTENSIONS       : file extensions of the test files
@@ -157,6 +157,8 @@ test_stage_run()
 
    local cmd
 
+   log_verbose "Run tests"
+
    if [ -x "./run-test" ]
    then
       cmd="exekutor ./run-test ${MULLE_TECHNICAL_FLAGS}"
@@ -166,8 +168,6 @@ test_stage_run()
 
       cmd="test_run_main"
    fi
-
-   log_verbose "Run tests"
 
    ${cmd} "$@"
 }
@@ -189,7 +189,9 @@ exec_in_subshell_if_needed()
                                  ${MULLE_SDE_FLAGS} \
                            run mulle-test ${MULLE_TEST_FLAGS} "$@"
       else
-         fail "Not a proper initialized test directory (${PWD#${MULLE_USER_PWD}/})"
+         fail "Not a proper initialized test directory (${PWD#${MULLE_USER_PWD}/})
+${C_INFO}To initialize for mulle-test:
+${C_RESET_BOLD}   mulle-test init"
       fi
    else
       log_debug "Already in proper subshell"
@@ -284,9 +286,7 @@ main()
 
    options_setup_trace "${MULLE_TRACE}"
 
-   MULLE_TEST_CONFIGURATION=${MULLE_TEST_CONFIGURATION:-Debug}
    MULLE_TEST_VAR_DIR="${MULLE_TEST_DIR:-${PWD}}/.mulle/var/${MULLE_HOSTNAME}/test"
-
 
    local cmd="$1"
 
@@ -301,7 +301,24 @@ main()
       ;;
 
       *)
-         shift
+         case "${cmd}" in
+            craft|build|recraft|rebuild|clean|init|rerun|run|libexec-dir|test-dir|version)
+               shift;
+            ;;
+
+            /*|.*)
+               cmd="run"
+            ;;
+
+            *)
+               if [ -e "${MULLE_USER_PWD}/${cmd}" ]
+               then
+                  cmd="run"
+               else
+                  shift
+               fi
+            ;;
+         esac
       ;;
    esac
 
@@ -345,16 +362,21 @@ main()
          exit 0
       ;;
 
-      run)
+      run|rerun)
          if cd_test_dir
          then
             exec_in_subshell_if_needed "${cmd}" "$@"
          fi
          if ! get_quickstatus
          then
-            test_craft_run "$@"
+            test_craft_run || return 1
          fi
-         test_stage_run "$@"
+         if [ "${cmd}" = "rerun" ]
+         then
+            test_stage_run --rerun "$@"
+         else
+            test_stage_run "$@"
+         fi
       ;;
 
       test-dir)

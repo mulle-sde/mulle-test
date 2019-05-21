@@ -103,20 +103,49 @@ _test_init_standalone()
 }
 
 
-_test_init_normal()
+_test_init_shared()
 {
+   local startuplib
+
+   startuplib="${PREFERRED_STARTUP_LIBRARY}"
+
    exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                       ${MULLE_SDE_FLAGS} \
                 dependency add \
                      --marks "no-import,no-singlephase,no-static-link" \
                      --github "mulle-core" \
-                     "mulle-testallocator" &&
+                     "mulle-testallocator" || return 1
 
    exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                       ${MULLE_SDE_FLAGS} \
                dependency add \
                      --github "${PROJECT_GITHUB_NAME:-unknown}" \
-                     "${PROJECT_NAME}"
+                     "${PROJECT_NAME}" || return 1
+
+   #
+   # the startup library is not really a dependency and not really a library
+   # it must be a dependency, because we need the fullpath for -force_load
+   # but we don't want it to participate in building, fetching and linking
+   #
+   # We also add `dl` for now, because its required 
+   # There should be a plugin test setup script to handle this properly 
+   #
+   if [ ! -z "${startuplib}" ] 
+   then
+      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                         ${MULLE_SDE_FLAGS} \
+                  dependency add \
+                        --github "${PROJECT_GITHUB_NAME:-unknown}" \
+                        --marks "all-load,only-startup,no-build,no-cmakeinherit,no-delete,no-dependency,no-fs,no-share,no-update" \
+                        "${PREFERRED_STARTUP_LIBRARY}" &&
+
+      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                         ${MULLE_SDE_FLAGS} \
+                  library add \
+                        --c \
+                        --userinfo 'aliases=dl,dlfcn' 
+                        'dl'
+   fi
 }
 
 
@@ -126,7 +155,7 @@ test_init_main()
    log_entry "test_init_main" "$@"
 
    local OPTION_DIRECTORY="test"
-   local OPTION_STANDALONE=NO
+   local OPTION_STANDALONE='NO'
 
    while :
    do
@@ -177,8 +206,12 @@ test_init_main()
             PROJECT_GITHUB_NAME="$1"
           ;;
 
+         --shared)
+            OPTION_STANDALONE='NO'
+         ;;
+
          --standalone)
-            OPTION_STANDALONE="YES"
+            OPTION_STANDALONE='YES'
          ;;
 
          *)
@@ -262,11 +295,11 @@ test_init_main()
       exekutor cd "${OPTION_DIRECTORY}" &&
       mkdir_if_missing ".mulle/share/sde" &&
       exekutor redirect_exekutor ".mulle/share/sde/mulle-test" date &&
-      if [ "${OPTION_STANDALONE}" = YES ]
+      if [ "${OPTION_STANDALONE}" = 'YES' ]
       then
          _test_init_standalone || exit 1
       else
-         _test_init_normal || exit 1
+         _test_init_shared || exit 1
       fi
 
       exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \

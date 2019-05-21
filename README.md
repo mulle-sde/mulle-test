@@ -5,7 +5,15 @@
 ![Last version](https://img.shields.io/github/tag/mulle-sde/mulle-test.svg)
 
 
-**mulle-test** tests your C or Objective C library.
+**mulle-test** tests your C or Objective C library. It is based on
+**mulle-sde**. It will compile your project and all dependencies as *shared*
+libraries. This is different from **mulle-sde**, which compiles *static*
+libraries by default.
+
+The reason for shared libraries is two-fold. For one the numerous test
+executables are not so big. Secondly it supports some alternative testing
+methodologies like 'UnitKit' better.
+
 
 
 Executable   | Description

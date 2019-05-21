@@ -52,6 +52,13 @@ r_c_commandline()
    #hacque
    local cflags
    local incflags
+   local linkcommand
+
+   linkcommand="${LINK_COMMAND}"
+   if [ "${LINK_STARTUP_LIBRARY}" = 'NO' ]
+   then
+      linkcommand="${NO_STARTUP_LINK_COMMAND}"
+   fi
 
    r_emit_cflags "${srcfile}"
    cflags="${RVAL}"
@@ -70,7 +77,7 @@ r_c_commandline()
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
-      log_debug "LINK_COMMAND=${LINK_COMMAND}"
+      log_debug "LINK_COMMAND=${linkcommand}"
       log_debug "LDFLAGS=${LDFLAGS}"
       log_debug "RPATH_FLAGS=${RPATH_FLAGS}"
    fi
@@ -83,7 +90,7 @@ r_c_commandline()
    cmdline="${cmdline} -o '${a_out}'"
    cmdline="${cmdline} '${srcfile}'"
 
-   r_concat "${cmdline}" "${LINK_COMMAND}"
+   r_concat "${cmdline}" "${linkcommand}"
    cmdline="${RVAL}"
 
    cmdline="${cmdline} ${LDFLAGS} ${RPATH_FLAGS}"
@@ -108,18 +115,15 @@ fail_test_c()
       return
    fi
 
-   if [ "${MULLE_TEST_CONFIGURATION}" != "Debug" ]
-   then
-      local cmdline
+   local cmdline
 
-      r_c_commandline "${DEBUG_CFLAGS}" "${srcfile}" "${a_out}" "$@"
-      cmdline="${RVAL}"
+   r_c_commandline "${DEBUG_CFLAGS}" "${srcfile}" "${a_out}" "$@"
+   cmdline="${RVAL}"
 
-      log_info "DEBUG: "
-      log_info "Rebuilding as `fast_basename ${a_out}` with -O0 and debug symbols..."
+   log_info "DEBUG: "
+   log_info "Rebuilding as `fast_basename ${a_out}` with -O0 and debug symbols..."
 
-      eval_exekutor "${cmdline}"
-   fi
+   eval_exekutor "${cmdline}"
 
    stdin="${name}.stdin"
    if rexekutor [ ! -f "${stdin}" ]
@@ -144,10 +148,11 @@ run_gcc_compiler()
    local errput="$1"; shift
 
    local cmdline
+
    r_c_commandline "" "${srcfile}" "${a_out}" "$@"
    cmdline="${RVAL}"
 
-   err_redirect_eval_exekutor "${errput}" "${cmdline}"
+   err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
 }
 
 
@@ -190,8 +195,9 @@ suggest_debugger_commandline()
    case "${MULLE_UNAME}" in
       darwin)
          echo "MULLE_TESTALLOCATOR=1 \
-MULLE_TESTALLOCATOR_TRACE=4 \
+MULLE_TESTALLOCATOR_TRACE=15 \
 MULLE_OBJC_DEBUG_ENABLED=YES \
+MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
 MULLE_OBJC_PEDANTIC_EXIT=YES \
 MULLE_OBJC_TRACE_ENABLED=YES \
 MULLE_OBJC_TRACE_LOAD=NO \
@@ -207,9 +213,10 @@ ${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2
 
       linux)
          echo "MULLE_TESTALLOCATOR=1 \
-MULLE_TESTALLOCATOR_TRACE=4 \
+MULLE_TESTALLOCATOR_TRACE=15 \
 MULLE_OBJC_DEBUG_ENABLED=YES \
 MULLE_OBJC_PEDANTIC_EXIT=YES \
+MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
 MULLE_OBJC_TRACE_ENABLED=YES \
 MULLE_OBJC_TRACE_LOAD=NO \
 MULLE_OBJC_TRACE_UNIVERSE=YES \
