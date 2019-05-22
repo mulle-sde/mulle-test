@@ -1,3 +1,16 @@
+## 4.2.0
+
+* add linkorder command to mulle-test
+* allow --standalone as craft option
+* improve test init code
+* per test and per test directory environment now possible
+* improved test library passing to cmake with and without startup library
+* uses now Test configuration instead of Release as default
+* dependency libraries are now longer built as one big STANDALONE shared lib, but individual shared libs
+* cmake can produce a shared library instead of an executable, which will be useful for UnitKit tests
+* add --keep-exe option
+
+
 ### 4.1.4
 
 * add ENV variable `VALGRIND_TOOL`

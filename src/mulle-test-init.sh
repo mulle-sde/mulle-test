@@ -284,7 +284,7 @@ test_init_main()
                       ${MULLE_SDE_FLAGS} \
                       -s \
                init --no-motd \
-                    --style mulle/wild \
+                    --style mulle/inherit \
                     --project-name "${PROJECT_NAME}" \
                     --project-language "${PROJECT_LANGUAGE:-c}" \
                     --project-dialect "${PROJECT_DIALECT:-c}" \
