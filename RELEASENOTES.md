@@ -1,3 +1,7 @@
+### 4.2.1
+
+* fix --serial not being passed to mulle-craft, also remove -framework Foundation from LDFLAGS
+
 ## 4.2.0
 
 * add linkorder command to mulle-test

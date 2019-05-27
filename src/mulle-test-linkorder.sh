@@ -135,7 +135,7 @@ r_get_link_command()
 
    if [ "${caching}" = 'YES' -a -f "${linkorder_cache_filename}" ]
    then
-      log_fluff "Using cached linkorder"
+      log_fluff "Using cached linkorder \"`fast_basename "${linkorder_cache_filename}"`\""
       RVAL="`cat ${linkorder_cache_filename}`"
       return 0
    fi

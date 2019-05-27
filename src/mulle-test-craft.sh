@@ -88,6 +88,7 @@ test_craft_main()
 
          --serial|--no-parallel|--parallel)
             r_concat "${craftargs}" "'$1'"
+            craftargs="${RVAL}"
          ;;
 
          --valgrind)

@@ -222,7 +222,7 @@ setup_platform()
             ;;
 
             *)
-               LDFLAGS="${LDFLAGS} -framework Foundation"  ## harmless and sometimes useful
+               # LDFLAGS="${LDFLAGS} -framework Foundation"  ## harmless and sometimes useful
             ;;
          esac
          CRLFCAT="cat"
