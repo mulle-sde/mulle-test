@@ -15,9 +15,9 @@ LANGUAGE="bash"           # c,cpp, objc, bash ...
 # DEPENDENCIES and BUILD_DEPENDENCIES will be evaled later!
 # So keep them single quoted.
 #
-DEPENDENCIES='mulle-kybernetik/software/mulle-sde
-mulle-kybernetik/software/mulle-platform
-'
+# mulle-sde knows and depends on mulle-test now
+#
+DEPENDENCIES='mulle-kybernetik/software/mulle-platform'
 
-DEBIAN_DEPENDENCIES="mulle-sde, mulle-platform, build-essential"
+DEBIAN_DEPENDENCIES="mulle-platform, build-essential"
 

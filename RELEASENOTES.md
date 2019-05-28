@@ -1,3 +1,7 @@
+### 4.2.2
+
+* fix circular dependency with mulle-sde
+
 ### 4.2.1
 
 * fix --serial not being passed to mulle-craft, also remove -framework Foundation from LDFLAGS
