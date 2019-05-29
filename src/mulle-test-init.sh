@@ -64,7 +64,7 @@ EOF
 #
 # We need to make sure that mulle_default_allocator only exists once.
 # Therefore compile mulle_allocator as a shared library.
-#
+# mulle-testallocator  must be all-load so linux links it
 _test_init_standalone()
 {
    exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
@@ -151,10 +151,13 @@ _test_init_shared()
                         'dl'
    fi
 
+   #
+   # mulle-testallocator  must be all-load so linux links it
+   #
    exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                       ${MULLE_SDE_FLAGS} \
                 dependency add \
-                     --marks "no-import,no-singlephase,no-static-link" \
+                     --marks "all-load,no-import,no-singlephase,no-static-link" \
                      --github "mulle-core" \
                      "mulle-testallocator" || return 1
 

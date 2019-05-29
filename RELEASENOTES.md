@@ -1,3 +1,7 @@
+### 4.2.3
+
+* use all-load on mulle-testallocator for dylib to be linked on linux
+
 ### 4.2.2
 
 * fix circular dependency with mulle-sde
