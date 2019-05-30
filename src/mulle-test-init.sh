@@ -109,6 +109,17 @@ _test_init_shared()
 
    startuplib="${PREFERRED_STARTUP_LIBRARY}"
 
+
+   #
+   # mulle-testallocator  must be all-load so linux links it
+   #
+   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                      ${MULLE_SDE_FLAGS} \
+                dependency add \
+                     --marks "all-load,no-import,no-singlephase,no-static-link,only-os-darwin" \
+                     --github "mulle-core" \
+                     "mulle-testallocator" || return 1
+
    exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                       ${MULLE_SDE_FLAGS} \
                dependency add \
@@ -130,7 +141,7 @@ _test_init_shared()
                                  -N \
                   add \
                      --nodetype 'tar' \
-                     --marks 'no-build,no-cmakeinherit,no-delete,no-dependency,no-fs,no-import,no-share,no-update' \
+                     --marks 'no-build,no-cmakeinherit,no-delete,dependency,no-fs,no-import,no-share,no-update' \
                      "${PREFERRED_STARTUP_LIBRARY}" \
                       &&
 
@@ -151,16 +162,15 @@ _test_init_shared()
                         'dl'
    fi
 
+
    #
    # mulle-testallocator  must be all-load so linux links it
    #
-   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} \
-                dependency add \
-                     --marks "all-load,no-import,no-singlephase,no-static-link" \
-                     --github "mulle-core" \
-                     "mulle-testallocator" || return 1
-
+   exekutor mulle-sourcetree ${MULLE_TECHNICAL_FLAGS} \
+                             ${MULLE_SOURCETREE_FLAGS} \
+                duplicate \
+                     --marks "no-import,no-os-darwin,no-singlephase,no-static-link" \
+                     mulle-testallocator
 }
 
 

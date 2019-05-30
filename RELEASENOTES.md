@@ -1,3 +1,7 @@
+### 4.2.4
+
+* fix test init for macos (again) to use different library order
+
 ### 4.2.3
 
 * use all-load on mulle-testallocator for dylib to be linked on linux

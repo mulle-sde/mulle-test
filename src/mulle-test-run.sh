@@ -583,7 +583,7 @@ run_all_tests()
       FAILS="${_parallel_fails}"
    fi
 
-   if [ "${RUNS}" -ne 0 ]
+   if [ "${RUNS}" -ne 0 -o "${OPTION_RERUN_FAILED}" = 'YES' ]
    then
       if [ "${FAILS}" -eq 0 ]
       then
@@ -660,7 +660,7 @@ test_run_main()
    local DEFAULT_MAKEFLAGS
    local OPTION_REQUIRE_LIBRARY="YES"
    local OPTION_LENIENT='NO'
-   local OPTION_RERUN='NO'
+   local OPTION_RERUN_FAILED='NO'
    local OPTION_TESTALLOCATOR="YES"
 
    DEFAULT_MAKEFLAGS="-s"
@@ -738,8 +738,8 @@ test_run_main()
             MULLE_TEST_SERIAL='NO'
          ;;
 
-         --rerun)
-            OPTION_RERUN='YES'
+         --rerun|--rerun-failed)
+            OPTION_RERUN_FAILED='YES'
          ;;
 
          --run-args)
@@ -806,7 +806,7 @@ test_run_main()
 
    if [ "$RUN_ALL" = "YES" -o $# -eq 0 -o "${1:0:1}" = '-' ]
    then
-      if [ "${OPTION_RERUN}" = 'NO' ]
+      if [ "${OPTION_RERUN_FAILED}" = 'NO' ]
       then
          remove_file_if_present "${MULLE_TEST_SUCCESS_FILE}"
       fi
