@@ -44,6 +44,9 @@ Usage:
    cmake build directories. If you want to remove the stash folder too,
    specify "tidy" as the clean domain.
 
+   If you changed the sourcetree, you can clean the linkorder chaches
+   with "linkorder".
+
 EOF
    exit 1
 }
@@ -69,11 +72,17 @@ test_clean_main()
 
    [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR is empty"
 
+   local OPTION_CLEAN_VAR='YES'
+
    while [ $# -ne 0 ]
    do
       case "$1" in
          -h|--help|help)
             test_clean_usage
+         ;;
+
+         --no-var)
+            OPTION_CLEAN_VAR='NO'
          ;;
 
          -*)
@@ -88,17 +97,40 @@ test_clean_main()
       shift
    done
 
-   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} \
-               clean \
-                  "${1:-all}" &&
+   case "${1:-all}" in
+      all|tidy)
+         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                            ${MULLE_SDE_FLAGS} \
+                     clean \
+                        "${1:-all}" &&
 
-   log_verbose "Cleaning individual test kitchen directories"
-   depth_find_pwd -type d -name kitchen -exec rm -rf {} \;
+         log_verbose "Cleaning individual test kitchen directories"
+         depth_find_pwd -type d -name kitchen -exec rm -rf {} \;
 
-   log_verbose "Cleaning test executables"
-   exekutor find . -type f -name "*.exe" -exec rm {} \;
+         log_verbose "Cleaning test executables"
+         exekutor find . -type f -name "*.exe" -exec rm {} \;
 
-   log_verbose "Cleaning var"
-   rmdir_safer "${MULLE_TEST_VAR_DIR}"
+         if [ "${OPTION_CLEAN_VAR}" = 'YES' ]
+         then
+            log_verbose "Cleaning var"
+            rmdir_safer "${MULLE_TEST_VAR_DIR}"
+         fi
+      ;;
+
+      linkorder)
+      ;;
+
+      *)
+         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                            ${MULLE_SDE_FLAGS} \
+                     clean \
+                        "$1"
+         return $?
+      ;;
+   esac
+
+
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
+
+   test_linkorder_main clean
 }

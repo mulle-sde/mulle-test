@@ -63,6 +63,7 @@ eval_mulle_make()
 
    eval_exekutor CC="${CC}" \
                  CXX="${CXX}" \
+                 MULLE_TEST_ENVIRONMENT="" \
                  ${MULLE_MAKE:-mulle-make} \
                     "${MULLE_TECHNICAL_FLAGS}" \
                     "${MULLE_MAKE_FLAGS}" \
@@ -119,12 +120,12 @@ fail_test_cmake()
       produced="${RVAL}.exe"
       final="${RVAL}.debug.exe"
    else
-      produced="lib${RVAL}.so"
-      final="lib${RVAL}.debug.so"
+      produced="lib${RVAL}${SHAREDLIB_EXTENSION}"
+      final="lib${RVAL}.debug${SHAREDLIB_EXTENSION}"
    fi
 
    log_info "DEBUG: " >&2
-   log_info "Rebuilding \"${executable}\" with -O0 and debug symbols..."
+   log_info "Rebuilding \"${final}\" with -O0 and debug symbols..."
 
    local directory
 
@@ -167,7 +168,7 @@ run_cmake()
    executable="${RVAL}"
 
    r_extensionless_basename "${a_out_ext}"
-   shlib="lib${RVAL}.so"
+   shlib="lib${RVAL}${SHAREDLIB_EXTENSION}"
 
    r_fast_dirname "${srcfile}"
    directory="${RVAL}"

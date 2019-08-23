@@ -61,117 +61,73 @@ EOF
    exit 1
 }
 
-#
-# We need to make sure that mulle_default_allocator only exists once.
-# Therefore compile mulle_allocator as a shared library.
-# mulle-testallocator  must be all-load so linux links it
-_test_init_standalone()
+
+r_find_initscript_filepath()
 {
-   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} \
-                dependency add \
-                     --marks "no-import,no-singlephase,no-static-link,only-os-darwin" \
-                     --github "mulle-core" \
-                     "mulle-testallocator" &&
+   log_entry "r_find_initscript_filepath" "$@"
 
-   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} \
-               dependency add \
-                     --github "${PROJECT_GITHUB_NAME:-unknown}" \
-                     --marks "no-all-load,only-standalone" \
-                     "${PROJECT_NAME}" &&
+   local filename="$1"
 
-   exekutor mulle-sourcetree ${MULLE_TECHNICAL_FLAGS} \
-                             ${MULLE_SOURCETREE_FLAGS} \
-                duplicate \
-                     --marks "no-import,no-os-darwin,no-singlephase,no-static-link" \
-                     mulle-testallocator  &&
+   local filepath
 
-   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} \
-                dependency add \
-                     --marks "no-all-load,no-import,no-singlephase" \
-                     --github "mulle-c" \
-                     "mulle-allocator" &&
+   RVAL="${PROJECT_ROOT_DIR}/.mulle/etc/test/${PROJECT_DIALECT}/${filename}.sh"
+   [ -f "${RVAL}" ] && return 0
 
-   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} \
-                dependency add \
-                     --marks "no-all-load,no-import,no-singlephase" \
-                     --github "mulle-core" \
-                     "mulle-stacktrace"
+   RVAL="${PROJECT_ROOT_DIR}/.mulle/share/test/${PROJECT_DIALECT}/${filename}.sh"
+   [ -f "${RVAL}" ] && return 0
+
+   RVAL="${PROJECT_ROOT_DIR}/.mulle/etc/test/${PROJECT_LANGUAGE}/${filename}.sh"
+   [ -f "${RVAL}" ] && return 0
+
+   RVAL="${PROJECT_ROOT_DIR}/.mulle/share/test/${PROJECT_LANGUAGE}/${filename}.sh"
+   [ -f "${RVAL}" ] && return 0
+
+   return 1
 }
 
 
-_test_init_shared()
+execute_test_init_script()
 {
-   local startuplib
+   log_entry "execute_test_init_script" "$@"
 
-   startuplib="${PREFERRED_STARTUP_LIBRARY}"
+   local script="$1"
+   local standalone="$2"
 
-
-   #
-   # mulle-testallocator  must be all-load so linux links it
-   #
-   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} \
-                dependency add \
-                     --marks "all-load,no-import,no-singlephase,no-static-link,only-os-darwin" \
-                     --github "mulle-core" \
-                     "mulle-testallocator" || return 1
-
-   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} \
-               dependency add \
-                     --github "${PROJECT_GITHUB_NAME:-unknown}" \
-                     "${PROJECT_NAME}" || return 1
-
-   #
-   # the startup library is not really a dependency and not really a library
-   # it must be a dependency, because we need the fullpath for -force_load
-   # but we don't want it to participate in building, fetching and linking
-   #
-   # We also add `dl` for now, because its required
-   # There should be a plugin test setup script to handle this properly
-   #
-   if [ ! -z "${startuplib}" ]
+   if ! r_find_initscript_filepath "${script}"
    then
-      exekutor mulle-sourcetree ${MULLE_TECHNICAL_FLAGS} \
-                                ${MULLE_SOURCETREE_FLAGS} \
-                                 -N \
-                  add \
-                     --nodetype 'tar' \
-                     --marks 'no-build,no-cmakeinherit,no-delete,dependency,no-fs,no-import,no-share,no-update' \
-                     "${PREFERRED_STARTUP_LIBRARY}" \
-                      &&
-
-      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         ${MULLE_SDE_FLAGS} \
-                  library add \
-                        --c \
-                        --marks "only-os-mingw" \
-                        --userinfo 'aliases=dl,dlfcn' \
-                        'dlfcn' &&
-
-      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         ${MULLE_SDE_FLAGS} \
-                  library add \
-                        --c \
-                        --marks "no-os-mingw" \
-                        --userinfo 'base64:YmFzZTY0OllXeHBZWE5sY3oxa2JDeGtiR1pqYmdwcGJtTnNkV1JsUFdSc1ptTnVMbWdLCg==' \
-                        'dl'
+      log_verbose "No \"${script}\" script found"
+      return
    fi
 
+   local scriptpath
 
-   #
-   # mulle-testallocator  must be all-load so linux links it
-   #
-   exekutor mulle-sourcetree ${MULLE_TECHNICAL_FLAGS} \
-                             ${MULLE_SOURCETREE_FLAGS} \
-                duplicate \
-                     --marks "no-import,no-os-darwin,no-singlephase,no-static-link" \
-                     mulle-testallocator
+   scriptpath="${RVAL}"
+
+   if [ ! -x "${scriptpath}" ]
+   then
+      fail "\"${scriptpath#${MULLE_USER_PWD}/}\" is not installed as an executable"
+   fi
+
+   log_verbose "Executing \"${scriptpath#${MULLE_USER_PWD}/}\""
+
+   local args
+
+   if [ "${standalone}" = 'YES' ]
+   then
+      args="--standalone"
+   fi
+
+   eval_exekutor PROJECT_NAME="'${PROJECT_NAME}'" \
+                 PROJECT_LANGUAGE="'${PROJECT_LANGUAGE}'" \
+                 PROJECT_DIALECT="'${PROJECT_DIALECT}'" \
+                 PROJECT_EXTENSIONS="'${PROJECT_EXTENSIONS}'" \
+                 PROJECT_GITHUB_NAME="'${PROJECT_GITHUB_NAME}'" \
+                 PROJECT_ROOT_DIR="'${PROJECT_ROOT_DIR}'" \
+                 PREFERRED_STARTUP_LIBRARY="'${PREFERRED_STARTUP_LIBRARY}'" \
+                 MULLE_BASHFUNCTIONS_LIBEXEC_DIR="'${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}'" \
+                 "'${scriptpath}'" "${args}" || exit 1
 }
+
 
 
 
@@ -253,6 +209,12 @@ test_init_main()
    [ ! -d ".mulle/share/sde" ] && \
          log_warning "Test folder should be top level of a mulle-sde project"
 
+   if [ -z "${PROJECT_ROOT_DIR}" ]
+   then
+      PROJECT_ROOT_DIR="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                      ${MULLE_SDE_FLAGS} project-dir`"
+   fi
+
    if [ -z "${PROJECT_LANGUAGE}" ]
    then
       PROJECT_LANGUAGE="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
@@ -293,45 +255,20 @@ test_init_main()
    # use wild, since we don't want to copy all the tools and optionaltools
    # over and have them get out of sync eventually
    #
+   PROJECT_LANGUAGE="${PROJECT_LANGUAGE:-c}"
+   PROJECT_DIALECT="${PROJECT_DIALECT:-c}"
+   PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-c}"
    exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                       ${MULLE_SDE_FLAGS} \
                       -s \
                init --no-motd \
-                    --style mulle/inherit \
+                    --style mulle/wild \
                     --project-name "${PROJECT_NAME}" \
-                    --project-language "${PROJECT_LANGUAGE:-c}" \
-                    --project-dialect "${PROJECT_DIALECT:-c}" \
-                    --project-extensions "${PROJECT_EXTENSIONS:-c}" \
+                    --project-language "${PROJECT_LANGUAGE}" \
+                    --project-dialect "${PROJECT_DIALECT}" \
+                    --project-extensions "${PROJECT_EXTENSIONS}" \
                     -d "${OPTION_DIRECTORY}" \
-                    none &&
-   (
-      unset MULLE_VIRTUAL_ROOT
-
-      #
-      # mulle-testallocator markes as all-load, because we need it
-      # always linked in. Also link it first, so its constructor gets
-      # executed first. This only happens when it is a dynamic library though.
-      #
-      # More tricky stuff is needed to make this work on darwin and linux
-      # including a "duplicate" entry for darwinthat is ignored by linux
-      # The main thing, is that mulle-testallocator must be before standalone
-      # on darwin and behind on linux
-      #
-      exekutor cd "${OPTION_DIRECTORY}" &&
-      mkdir_if_missing ".mulle/share/sde" &&
-      exekutor redirect_exekutor ".mulle/share/sde/mulle-test" date &&
-      if [ "${OPTION_STANDALONE}" = 'YES' ]
-      then
-         _test_init_standalone || exit 1
-      else
-         _test_init_shared || exit 1
-      fi
-
-      exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         ${MULLE_SDE_FLAGS} \
-               environment \
-                  --global \
-                  set MULLE_FETCH_SEARCH_PATH '${MULLE_VIRTUAL_ROOT}/../..'
-
-   )
+                    -m "mulle-sde/${PROJECT_DIALECT}-test" \
+                    none
 }
+

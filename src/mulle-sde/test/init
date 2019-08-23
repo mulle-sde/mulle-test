@@ -1,0 +1,108 @@
+#! /usr/bin/env bash
+
+[ "${TRACE}" = 'YES' ] && set -x && : "$0" "$@"
+
+
+setup_test()
+{
+   echo "**********************************************" >&2
+   echo "**********************************************" >&2
+   echo "**********************************************" >&2
+   echo "**********************************************" >&2
+   echo "**********************************************" >&2
+   env >&2
+   echo "**********************************************" >&2
+   echo "**********************************************" >&2
+   echo "**********************************************" >&2
+   echo "**********************************************" >&2
+   echo "**********************************************" >&2
+
+   case "${PROJECT_DIALECT}" in
+      c|objc)
+         MULLE_VIRTUAL_ROOT="" exekutor mulle-sde ${MULLE_SDE_FLAGS} \
+                                          ${MULLE_TECHNICAL_FLAGS} \
+                                          init -d test \
+                                          -r "mulle-sde/${PROJECT_DIALECT}-test" \
+                                          none
+      ;;
+
+      "")
+         fail "Empty PROJECT_DIALECT"
+      ;;
+
+      *)
+         fail "Unsupported dialect \"${PROJECT_DIALECT}\""
+      ;;
+   esac
+}
+
+
+main()
+{
+   while [ $# -ne 0 ]
+   do
+      if options_technical_flags "$1"
+      then
+         shift
+         continue
+      fi
+
+      case "$1" in
+         --f)
+            MULLE_FLAG_MAGNUM_FORCE='YES'
+         ;;
+
+         --marks)
+            shift
+         ;;
+
+         -*)
+            fail "unknown flag \"$1\""
+         ;;
+      esac
+
+      shift
+   done
+
+   options_setup_trace "${MULLE_TRACE}"
+
+   setup_test "$@"
+}
+
+
+########
+###
+### INIT
+###
+_init()
+{
+   if [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ]
+   then
+      MULLE_BASHFUNCTIONS_LIBEXEC_DIR="`mulle-bashfunctions-env libexec-dir 2> /dev/null`"
+      if [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ]
+      then
+         if [ -z "`command -v "mulle-bashfunctions-env"`" ]
+         then
+            echo "Fatal Error: Could not find mulle-bashfunctions-env in PATH ($PATH) - mulle-bashfunctions not installed ?" >&2
+         else
+            echo "Fatal Error: Could not find libexec of mulle-bashfunctions-env ($PWD)" >&2
+         fi
+         exit 1
+      fi
+   fi
+
+   # shellcheck source=../mulle-bashfunctions/src/mulle-string.sh
+   . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-bashfunctions.sh"  || \
+      (
+         echo "failed to load bashfunctions from ${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" >&2  &&
+         exit 1
+      )
+}
+###
+### INIT
+###
+########
+
+
+_init "$@"
+main "$@"

@@ -32,6 +32,22 @@
 MULLE_TEST_ENVIRONMENT_SH="included"
 
 
+
+r_darwin_sdkpath()
+{
+   # on 10.6 this will fail as --show-sdk-path ain't there
+   RVAL="`xcrun --show-sdk-path 2> /dev/null`"
+   if [ -z "${RVAL}" ]
+   then
+      # hardcode for now
+      RVAL="`xcode-select  -print-path/SDKs/MacOSX10.6.sdk`"
+      if [ ! -d "${RVAL}" ]
+      then
+         return 1
+      fi
+   fi
+}
+
 # this is crap and needs some kind of plugin interface
 
 setup_language()
@@ -44,23 +60,23 @@ setup_language()
 
    case "${language}" in
       c)
+         RELEASE_GCC_CFLAGS="-O3 -g"
+         DEBUG_GCC_CFLAGS="-O0 -g"
+
+         RELEASE_CL_CFLAGS="-O2 -MD -wd4068" #-/W /O0"
+         # http://stackoverflow.com/questions/3007312/resolving-lnk4098-defaultlib-msvcrt-conflicts-with
+         # we link vs. cmake generated stuff, that is usually a DLL or will be wrapped into a DLL
+         # so we compile with /MD
+         DEBUG_CL_CFLAGS="-Zi -DEBUG -MDd -Od -wd4068" #-/W /O0"
+
          case "${dialect}" in
             c)
                PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-c}"
                STANDALONE_SUFFIX="-standalone"
-
-               OPTIMIZED_GCC_CFLAGS="-O3 -g"
-               DEBUG_GCC_CFLAGS="-O0 -g"
-
-               # http://stackoverflow.com/questions/3007312/resolving-lnk4098-defaultlib-msvcrt-conflicts-with
-               # we link vs. cmake generated stuff, that is usually a DLL or will be wrapped into a DLL
-               # so we compile with /MD
-               RELEASE_CL_CFLAGS="-O2 -MD -wd4068" #-/W /O0"
-               DEBUG_CL_CFLAGS="-Zi -DEBUG -MDd -Od -wd4068" #-/W /O0"
             ;;
 
             objc)
-               case "${dialect}" in
+               case "${objc_dialect}" in
                   Apple|GNUStep)
                   ;;
 
@@ -75,8 +91,11 @@ setup_language()
                         ;;
 
                         darwin)
-                           APPLE_SDKPATH="`xcrun --show-sdk-path`"
-                           [ -z "${APPLE_SDKPATH}" ] && fail "Could not figure out sdk path with xcrun"
+                           if ! r_darwin_sdkpath
+                           then
+                              fail "Could not figure out sdk path with xcrun"
+                           fi
+                           APPLE_SDKPATH="${RVAL}"
 
                            CC="mulle-clang"
                            CXX="mulle-clang"
@@ -93,11 +112,7 @@ setup_language()
                PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-m:aam}"
                STANDALONE_SUFFIX="-standalone"
 
-               RELEASE_GCC_CFLAGS="-O3 -g"
-               DEBUG_GCC_CFLAGS="-O0 -g"
-
-               RELEASE_CL_CFLAGS="-O2 -MD -wd4068" #-/W /O0"
-               DEBUG_CL_CFLAGS="-Od -MDd -wd4068" #-/W /O0"
+               DEBUG_CL_CFLAGS="-DEBUG -MDd -Od -wd4068" #-/W /O0"
             ;;
 
             *)

@@ -1,33 +1,3 @@
-_get_link_command()
-{
-   log_entry "_get_link_command" "$@"
-
-   local format
-
-   case "${MULLE_UNAME}" in
-      darwin)
-         format="force-load"
-      ;;
-
-      mingw*)
-         format="whole-archive-win"
-      ;;
-
-      *)
-         format="whole-archive-as-needed"
-      ;;
-   esac
-
-   exekutor mulle-sde \
-               ${MULLE_TECHNICAL_FLAGS} \
-               ${MULLE_SDE_FLAGS} \
-            linkorder \
-               --output-format ld \
-               --configuration "Test" \
-               --whole-archive-format "${format}" \
-               "$@"  # shared libs only ATM
-}
-
 #! /usr/bin/env bash
 #
 #   Copyright (c) 2018 Nat! - Mulle kybernetiK
@@ -74,10 +44,16 @@ Usage:
    Produce the linkorder required for test executables to link. This can
    be useful, if you are using external test scripts.
 
+   There are two caches for the linkorder. One with the startup code and
+   one without. To update both, run both commands:
+
+   ${MULLE_USAGE_NAME} linkorder --update-cache
+   ${MULLE_USAGE_NAME} linkorder --update-cache --startup
 
 Options:
-   --uncached  : bypass cache             (default: NO)
-   --startup   : include startup library  (default: YES)
+   --startup       : include startup libraries
+   --uncached      : bypass cache
+   --update-cache  : bypass cache but then update it
 EOF
    exit 1
 }
@@ -109,6 +85,7 @@ _get_link_command()
             linkorder \
                --output-format ld \
                --configuration "Test" \
+               --output-no-final-lf \
                --whole-archive-format "${format}" \
                "$@"  # shared libs only ATM
 }
@@ -120,6 +97,7 @@ r_get_link_command()
 
    local withstartup="${1:-YES}"
    local caching="${2:-YES}"
+   local updatecache="${3:-${caching}}"
 
    local linkorder_cache_filename
    local args
@@ -127,6 +105,7 @@ r_get_link_command()
    [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"
 
    linkorder_cache_filename="${MULLE_TEST_VAR_DIR}/linkorder"
+   args='--startup'
    if [ "${withstartup}" = 'NO' ]
    then
       args='--no-startup'
@@ -135,8 +114,8 @@ r_get_link_command()
 
    if [ "${caching}" = 'YES' -a -f "${linkorder_cache_filename}" ]
    then
-      log_fluff "Using cached linkorder \"`fast_basename "${linkorder_cache_filename}"`\""
-      RVAL="`cat ${linkorder_cache_filename}`"
+      log_verbose "Using cached linkorder \"${linkorder_cache_filename}\""
+      RVAL="`rexekutor cat ${linkorder_cache_filename}`"
       return 0
    fi
 
@@ -146,12 +125,12 @@ r_get_link_command()
 
    command="`_get_link_command ${args}`" || exit 1
 
-   if [ "${caching}" = 'YES' ]
+   if [ "${updatecache}" = 'YES' ]
    then
       mkdir_if_missing "${MULLE_TEST_VAR_DIR}"
-      redirect_exekutor "${linkorder_cache_filename}" echo "${command}"
+      redirect_exekutor "${linkorder_cache_filename}" printf "%s\n" "${command}"
 
-      log_fluff "Linkorder has been cached in \"${linkorder_cache_filename}\""
+      log_verbose "Linkorder has been cached in \"${linkorder_cache_filename}\""
    fi
 
    RVAL="${command}"
@@ -165,8 +144,9 @@ test_linkorder_main()
 
    [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR is empty"
 
-   local OPTION_STARTUP='NO'
+   local OPTION_STARTUP='DEFAULT'
    local OPTION_CACHED='YES'
+   local OPTION_UPDATE_CACHE='NO'
 
    while [ $# -ne 0 ]
    do
@@ -177,6 +157,15 @@ test_linkorder_main()
 
          --startup)
             OPTION_STARTUP='YES'
+         ;;
+
+         --no-startup)
+            OPTION_STARTUP='NO'
+         ;;
+
+         --update-cache)
+            OPTION_UPDATE_CACHE='YES'
+            OPTION_CACHED='NO'
          ;;
 
          --uncached)
@@ -195,6 +184,32 @@ test_linkorder_main()
       shift
    done
 
-   r_get_link_command "${OPTION_STARTUP}" "${OPTION_CACHED}"
-   echo "${RVAL}"
+   case "${1:-list}" in
+      clean)
+         remove_file_if_present "${MULLE_TEST_VAR_DIR}/linkorder"
+         remove_file_if_present "${MULLE_TEST_VAR_DIR}/linkorder-no-startup"
+         return
+      ;;
+
+
+      list)
+         if [ "${OPTION_STARTUP}" = 'DEFAULT' ]
+         then
+            log_info "Startup"
+            r_get_link_command 'YES' "${OPTION_CACHED}" "${OPTION_UPDATE_CACHE}"
+            printf "%s\n\n" "${RVAL}"
+
+            log_info "No Startup"
+            r_get_link_command 'NO' "${OPTION_CACHED}" "${OPTION_UPDATE_CACHE}"
+            printf "%s\n" "${RVAL}"
+         else
+            r_get_link_command "${OPTION_STARTUP}" "${OPTION_CACHED}" "${OPTION_UPDATE_CACHE}"
+            printf "%s\n" "${RVAL}"
+         fi
+      ;;
+
+      *)
+         fail "Unknown linkorder command \"$1\""
+      ;;
+   esac
 }

@@ -42,11 +42,11 @@ _prepend_path_if_relative()
 {
    case "$2" in
       /*)
-         echo "$2"
+         printf "%s\n" "$2"
       ;;
 
       *)
-         echo "$1/$2"
+         printf "%s/%s\n" "$1" "$2"
       ;;
    esac
 }
@@ -62,7 +62,7 @@ resolve_symlinks()
       dir_context=`dirname -- "$1"`
       resolve_symlinks "`_prepend_path_if_relative "$dir_context" "$path"`"
    else
-      echo "$1"
+      printf "%s\n" "$1"
    fi
 }
 
@@ -121,7 +121,7 @@ get_sh_windows_path()
    then
       fail "could not find sh.exe"
    fi
-   echo "${directory}/sh.exe"
+   printf "%s\n" "${directory}/sh.exe"
 }
 
 
@@ -190,6 +190,13 @@ main()
       mkdir -p "${libexec}" 2> /dev/null
       install -v -m "${mode}" "${i}" "${libexec}" || exit 1
    done
+
+   local share
+
+   share="${prefix}/share/mulle-sde"
+   EXTENSION_DIR="${share}/extensions"
+   mkdir -p "${EXTENSION_DIR}" || exit 1
+   cp -Rav "src/mulle-sde" "${EXTENSION_DIR}/" || exit 1
 }
 
 main "$@"

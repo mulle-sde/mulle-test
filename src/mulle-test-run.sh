@@ -44,7 +44,7 @@ Usage:
    test.
 
    Options:
-      -l         : be linient, keep going if tests fail
+      -l         : be lenient, keep going if tests fail
       -q         : quiet
       -t         : shell trace
       -v         : verbose
@@ -74,7 +74,7 @@ suppress_crashdumping()
          ;;
    esac
 
-   echo "${restore}"
+   printf "%s\n" "${restore}"
 }
 
 
@@ -201,6 +201,7 @@ run_common_test()
       fi
 
       log_debug "Compiler failure returns with $rval"
+      cat "${cc_errput}" >&2
       return $rval
    fi
 
@@ -221,7 +222,7 @@ run_common_test()
       "${FAIL_TEST}" "${srcfile}" "${a_out_ext}" "${ext}" "${name}" "$@"
    fi
 
-   log_debug "Execute failure returns with $rval"
+   log_debug "Execute failure, returns with $rval"
    return $rval
 }
 
@@ -360,7 +361,7 @@ handle_return_value()
       0|${RVAL_EXPECTED_FAILURE})
          if [ ! -z "${MULLE_TEST_SUCCESS_FILE}" ]
          then
-            redirect_append_exekutor "${MULLE_TEST_SUCCESS_FILE}" echo "${directory}/${name}"
+            redirect_append_exekutor "${MULLE_TEST_SUCCESS_FILE}" printf "%s\n" "${directory}/${name}"
          fi
       ;;
 
@@ -747,6 +748,10 @@ test_run_main()
             break
          ;;
 
+         --release|--debug)
+            # ignore
+         ;;
+
          --build-args)
             # remove build-only flags, which must appear first
             while [ $# -ne 0 ]
@@ -796,7 +801,7 @@ test_run_main()
 
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
 
-   r_get_link_command
+   r_get_link_command "YES"
    LINK_COMMAND="${RVAL}"
 
    r_get_link_command "NO"

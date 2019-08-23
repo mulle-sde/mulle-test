@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="4.2.4"
+MULLE_EXECUTABLE_VERSION="5.0.0"
 
 # version is in mulle-test-env
 
@@ -63,11 +63,11 @@ EOF
    cat <<EOF >&2
 
 Commands:
-   build                    : force rebuild of project
-   rebuild                  : clean all then build
-   clean                    : remove dependency, build and all .exe files
+   clean                    : remove dependency, kitchens and exe files
+   craft                    : force rebuild of project, then run tests
    init                     : setup a test project for the current project
-   run                      : run tests
+   recraft                  : clean all then craft
+   run                      : run tests, crafts beforehand if needed
    rerun                    : run failing tests again
    test-dir                 : locate test folder
 
@@ -83,6 +83,10 @@ EOF
 }
 
 
+#
+# 0 OK
+# 2 its a script
+#
 cd_test_dir()
 {
    log_entry "cd_test_dir" "$@"
@@ -103,7 +107,7 @@ ${C_RESET_BOLD}   mulle-sde test init"
 
    r_absolutepath "${RVAL}"
    MULLE_TEST_DIR="${RVAL}"
-   if [ -d "${MULLE_TEST_DIR}/.mulle/share/sde" -a ! -f "${MULLE_TEST_DIR}/.mulle/share/sde/mulle-test" ]
+   if [ -d "${MULLE_TEST_DIR}/.mulle/share/sde" -a ! -d "${MULLE_TEST_DIR}/.mulle/share/test" ]
    then
       fail "\"${MULLE_TEST_DIR}\" is not a mulle-sde project marked for mulle-test"
    fi
@@ -118,9 +122,9 @@ ${C_RESET_BOLD}   mulle-sde test init"
 }
 
 
-test_craft_run()
+test_do_craft()
 {
-   log_entry "test_craft_run" "$@"
+   log_entry "test_do_craft" "$@"
 
    local cmd
 
@@ -151,9 +155,9 @@ test_craft_run()
 }
 
 
-test_stage_run()
+test_do_run()
 {
-   log_entry "test_stage_run" "$@"
+   log_entry "test_do_run" "$@"
 
    local cmd
 
@@ -220,6 +224,24 @@ get_quickstatus()
 }
 
 
+run_or_rerun()
+{
+   local cmd="$1"; shift
+
+   if ! get_quickstatus
+   then
+      test_do_craft || return 1
+   fi
+
+   if [ "${cmd}" = "rerun" ]
+   then
+      test_do_run --rerun "$@"
+   else
+      test_do_run "$@"
+   fi
+}
+
+
 main()
 {
    local MULLE_FLAG_MAGNUM_FORCE="NONE"
@@ -272,7 +294,7 @@ main()
          ;;
 
          --version)
-            echo "${MULLE_EXECUTABLE_VERSION}"
+            printf "%s\n" "${MULLE_EXECUTABLE_VERSION}"
             exit 0
          ;;
 
@@ -288,6 +310,14 @@ main()
 
    MULLE_TEST_VAR_DIR="${MULLE_TEST_DIR:-${PWD}}/.mulle/var/${MULLE_HOSTNAME}/test"
 
+   #
+   # this tells mulle-craft that everything is fine, though
+   # .mulle/share/sde/mulle-sde is present, to prevent manual crafting
+   # of tests, which is often undesirable
+   #
+   MULLE_TEST_ENVIRONMENT=YES
+   export MULLE_TEST_ENVIRONMENT
+
    local cmd="$1"
 
    case "$cmd" in
@@ -302,8 +332,7 @@ main()
 
       *)
          case "${cmd}" in
-            craft|build|recraft|rebuild|clean|init|linkorder|rerun|run|libexec-dir|test-dir|version)
-               shift;
+            build|clean|cleanrun|craft|env|init|libexec-dir|linkorder|log|rebuild|recraft|rerun|run|test-dir|version)               shift;
             ;;
 
             /*|.*)
@@ -323,22 +352,38 @@ main()
    esac
 
    case "${cmd}" in
-      craft|build)
+      craft|build|crun)
          if cd_test_dir
          then
             exec_in_subshell_if_needed "${cmd}" "$@"
-            mulle-sde clean "${PROJECT_NAME}" || return 1
          fi
-         test_craft_run "$@"
+
+         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                            ${MULLE_SDE_FLAGS} \
+                           clean "${PROJECT_NAME}"    || return 1
+
+         test_do_craft "$@" || return $?
+
+         if [ "${cmd}" = "crun" ]
+         then
+            run_or_rerun "run" "$@"
+         fi
       ;;
 
-      recraft|rebuild)
+      recraft|rebuild|recrun)
          if cd_test_dir
          then
             exec_in_subshell_if_needed "${cmd}" "$@"
-            mulle-sde clean all || return 1
          fi
-         test_craft_run "$@"
+         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                            ${MULLE_SDE_FLAGS} \
+                           clean all    || return 1
+         test_do_craft "$@"
+
+         if [ "${cmd}" = "recrun" ]
+         then
+            run_or_rerun "run" "$@"
+         fi
       ;;
 
       clean)
@@ -352,13 +397,28 @@ main()
          test_clean_main "$@"
       ;;
 
+      craftorder)
+         if cd_test_dir
+         then
+            exec_in_subshell_if_needed "${cmd}" "$@"
+         fi
+
+         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                            ${MULLE_SDE_FLAGS} \
+                           craftorder
+      ;;
+
+      env)
+         rexekutor env | sort
+      ;;
+
       init)
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-init.sh"
          test_init_main "$@"
       ;;
 
       libexec-dir)
-         echo "${MULLE_TEST_LIBEXEC_DIR}"
+         printf "%s\n" "${MULLE_TEST_LIBEXEC_DIR}"
          exit 0
       ;;
 
@@ -373,21 +433,24 @@ main()
          test_linkorder_main "$@"
       ;;
 
+      log)
+         if cd_test_dir
+         then
+            exec_in_subshell_if_needed "${cmd}" "$@"
+         fi
+
+         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                            ${MULLE_SDE_FLAGS} \
+                           log "$@"
+      ;;
+
       run|rerun)
          if cd_test_dir
          then
             exec_in_subshell_if_needed "${cmd}" "$@"
          fi
-         if ! get_quickstatus
-         then
-            test_craft_run || return 1
-         fi
-         if [ "${cmd}" = "rerun" ]
-         then
-            test_stage_run --rerun "$@"
-         else
-            test_stage_run "$@"
-         fi
+
+         run_or_rerun "${cmd}" "$@"
       ;;
 
       test-dir)
@@ -395,11 +458,11 @@ main()
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
 
          r_locate_main "$@"
-         echo "${RVAL}"
+         printf "%s\n" "${RVAL}"
       ;;
 
       version)
-         echo "${MULLE_EXECUTABLE_VERSION}"
+         printf "%s\n" "${MULLE_EXECUTABLE_VERSION}"
          exit 0
       ;;
 
@@ -421,14 +484,17 @@ _init()
    #
    if [ "$1" = "version" ]
    then
-      echo "${MULLE_EXECUTABLE_VERSION}"
+      printf "%s\n" "${MULLE_EXECUTABLE_VERSION}"
       exit 0
    fi
 
-   MULLE_BASHFUNCTIONS_LIBEXEC_DIR="`mulle-bashfunctions-env libexec-dir 2> /dev/null`"
-   [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ] && \
-      echo "mulle-bashfunctions-env not installed" >&2 && \
-      exit 1
+   if [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ]
+   then
+      MULLE_BASHFUNCTIONS_LIBEXEC_DIR="`mulle-bashfunctions-env libexec-dir 2> /dev/null`"
+      [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ] && \
+         echo "mulle-bashfunctions-env not installed" >&2 && \
+         exit 1
+   fi
 
    . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-bashfunctions.sh" || exit 1
 
@@ -445,7 +511,7 @@ _init()
    then
       case "$1" in
          "libexec-dir")
-            echo "${MULLE_TEST_LIBEXEC_DIR}"
+            printf "%s\n" "${MULLE_TEST_LIBEXEC_DIR}"
             exit 0
          ;;
       esac

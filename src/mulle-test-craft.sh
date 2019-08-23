@@ -91,6 +91,14 @@ test_craft_main()
             craftargs="${RVAL}"
          ;;
 
+         --debug)
+            OPTION_TEST_CMAKE_BUILD_TYPE='Debug';
+         ;;
+
+         --release)
+            OPTION_TEST_CMAKE_BUILD_TYPE='Release';
+         ;;
+
          --valgrind)
             # ignore, don't complain
          ;;
@@ -110,7 +118,12 @@ test_craft_main()
 
    if [ "${OPTION_STANDALONE}" != 'YES' ]
    then
-      makeargs="${makeargs} --library-style dynamic"
+      makeargs="${makeargs} --preferred-library-style dynamic"
+   fi
+
+   if [ ! -z "${OPTION_TEST_CMAKE_BUILD_TYPE}" ]
+   then
+      makeargs="${makeargs} -DTEST_CMAKE_BUILD_TYPE='${OPTION_TEST_CMAKE_BUILD_TYPE}'"
    fi
 
    while [ $# -ne 0 ]
@@ -120,20 +133,24 @@ test_craft_main()
       shift
    done
 
-   if ! eval_exekutor mulle-sde \
-                            "${MULLE_TECHNICAL_FLAGS}" \
-                            "${MULLE_SDE_FLAGS}" \
-                         craft \
-                            --configuration 'Test' \
-                            "${craftargs}" \
-                            -- \
-                            "${makeargs}"
-   then
-      return 1
-   fi
-
-   #
-   # cache linkorder for tests
-   #
+   (
+      #
+      # Crafting might use their own mulle-sde commands in cmake. So don't
+      # appear as if we are in a test environment Unset MULLE_TEST_ENVIRONMENT
+      # and craft without test check.
+      #
+      unset MULLE_TEST_ENVIRONMENT
+      if ! eval_exekutor mulle-sde \
+                               "${MULLE_TECHNICAL_FLAGS}" \
+                               "${MULLE_SDE_FLAGS}" \
+                               --no-test-check \
+                            craft \
+                               "${craftargs}" \
+                               -- \
+                               "${makeargs}"
+      then
+         exit 1
+      fi
+   )
 }
 

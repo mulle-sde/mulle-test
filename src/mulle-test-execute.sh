@@ -75,49 +75,64 @@ run_a_out()
       env | sort >&2
    fi
 
+   local environment
+
+   environment="MULLE_TESTALLOCATOR='${OPTION_TESTALLOCATOR:-1}' \
+MULLE_TESTALLOCATOR_FIRST_LEAK='YES' \
+MULLE_OBJC_PEDANTIC_EXIT='${OPTION_PEDANTIC_EXIT:-YES}'"
+
    case "${MULLE_UNAME}" in
       darwin)
-         local libgmalloc
-
+#         RVAL="${DEPENDENCY_DIR}/lib/libmulle-testallocator.dylib"
+         RVAL=""
          if [ -z "${MULLE_TEST_NO_LIBGMALLOC}" -a -f /usr/lib/libgmalloc.dylib ]
          then
-            libgmalloc="DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib"
+            r_colon_concat "${RVAL}" "/usr/lib/libgmalloc.dylib"
          fi
+         r_colon_concat "${RVAL}" "${DYLD_INSERT_LIBRARIES}"
 
-         full_redirekt_eval_exekutor "${input}" \
-"${output}" \
-"${errput}" \
-MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
-MULLE_TESTALLOCATOR_FIRST_LEAK="'YES'" \
-MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
-${libgmalloc} \
-"${a_out_ext}"
+         if [ ! -z "${RVAL}" ]
+         then
+            r_concat "${environment}" "DYLD_INSERT_LIBRARIES='${RVAL}'"
+            environment="${RVAL}"
+         fi
       ;;
 
-
       mingw*)
-         full_redirekt_eval_exekutor "${input}" \
-"${output}" \
-"${errput}" \
-PATH="'${PATH}'" \
-MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
-MULLE_TESTALLOCATOR_FIRST_LEAK="'YES'" \
-MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
-"${a_out_ext}"
+         if [ ! -z "${PATH}" ]
+         then
+            r_concat "${environment}" " PATH='${PATH}'"
+            environment="${RVAL}"
+         fi
       ;;
 
       *)
-         full_redirekt_eval_exekutor "${input}" \
-"${output}" \
-"${errput}" \
-LD_LIBRARY_PATH="'${LD_LIBRARY_PATH}'" \
-MULLE_TESTALLOCATOR="'${OPTION_TESTALLOCATOR:-1}'" \
-MULLE_TESTALLOCATOR_FIRST_LEAK="'YES'" \
-MULLE_OBJC_PEDANTIC_EXIT="'${OPTION_PEDANTIC_EXIT:-YES}'" \
-${VALGRIND} ${VALGRIND_OPTIONS} \
-"${a_out_ext}"
+         if [ ! -z "${LD_LIBRARY_PATH}" ]
+         then
+            r_concat "${environment}" " LD_LIBRARY_PATH='${LD_LIBRARY_PATH}'"
+            environment="${RVAL}"
+         fi
+
+#         RVAL="${DEPENDENCY_DIR}/lib/libmulle-testallocator.so"
+#         r_colon_concat "${RVAL}" "${LD_PRELOAD}"
+
+#         r_concat "${environment}" "LD_PRELOAD='${RVAL}'"
+#         environment="${RVAL}"
+
+         if [ ! -z "${VALGRIND}" ]
+         then
+            r_concat "${environment}" "'${VALGRIND}'"
+            environment="${RVAL}"
+
+            r_escaped_shell_string "${VALGRIND_OPTIONS}"
+            r_concat "${environment}" "${RVAL}"
+            environment="${RVAL}"
+         fi
       ;;
    esac
+
+   full_redirekt_eval_exekutor "${input}" "${output}" "${errput}" \
+                                  "${environment}" "'${a_out_ext}'"
 }
 
 

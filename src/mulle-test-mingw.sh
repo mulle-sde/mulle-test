@@ -37,7 +37,7 @@ mingw_demangle_path()
 {
    log_entry "mingw_demangle_path" "$@"
 
-   echo "$1" | sed 's|^/\(.\)/|\1:/|' | sed s'|/|\\|g'
+   printf "%s\n" "$1" | sed 's|^/\(.\)/|\1:/|' | sed s'|/|\\|g'
 }
 
 
@@ -59,5 +59,5 @@ mingw_mangle_compiler_exe()
          echo "Using default compiler cl for $2" >&2
       ;;
    esac
-   echo "${compiler}"
+   printf "%s\n" "${compiler}"
 }

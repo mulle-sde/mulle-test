@@ -1,3 +1,0 @@
-# /bin/sh
-
-[ `./a-test.sh` = "VfL Bochum 1848" ] || echo "test failed" >&2 && exit 1

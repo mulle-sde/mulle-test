@@ -55,7 +55,7 @@ r_c_commandline()
    local linkcommand
 
    linkcommand="${LINK_COMMAND}"
-   if [ "${LINK_STARTUP_LIBRARY}" = 'NO' ]
+   if [ "${LINK_STARTUP_LIBRARY}" = 'NO' ] # true environment variable
    then
       linkcommand="${NO_STARTUP_LINK_COMMAND}"
    fi
@@ -74,6 +74,13 @@ r_c_commandline()
 
    r_emit_include_cflags "'"
    incflags="${RVAL}"
+
+   case "${MULLE_UNAME}" in
+      darwin)
+         cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
+         cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
+      ;;
+   esac
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
@@ -149,7 +156,7 @@ run_gcc_compiler()
 
    local cmdline
 
-   r_c_commandline "" "${srcfile}" "${a_out}" "$@"
+   r_c_commandline "${RELEASE_CFLAGS}" "${srcfile}" "${a_out}" "$@"
    cmdline="${RVAL}"
 
    err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
@@ -195,15 +202,16 @@ suggest_debugger_commandline()
    case "${MULLE_UNAME}" in
       darwin)
          echo "MULLE_TESTALLOCATOR=1 \
-MULLE_TESTALLOCATOR_TRACE=7 \
+MULLE_TESTALLOCATOR_TRACE=3 \
 MULLE_OBJC_DEBUG_ENABLED=YES \
 MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
 MULLE_OBJC_PEDANTIC_EXIT=YES \
-MULLE_OBJC_TRACE_ENABLED=YES \
+MULLE_OBJC_TRACE_ENABLED=NO \
 MULLE_OBJC_TRACE_LOAD=NO \
-MULLE_OBJC_TRACE_UNIVERSE=YES \
+MULLE_OBJC_TRACE_METHOD_CALL=YES \
+MULLE_OBJC_TRACE_INSTANCE=YES \
+MULLE_OBJC_TRACE_UNIVERSE=NO \
 MULLE_OBJC_WARN_ENABLED=YES \
-DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib \
 ${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2
          if [ "${stdin}" != "/dev/null" ]
          then
@@ -213,13 +221,15 @@ ${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2
 
       linux)
          echo "MULLE_TESTALLOCATOR=1 \
-MULLE_TESTALLOCATOR_TRACE=7 \
+MULLE_TESTALLOCATOR_TRACE=3 \
 MULLE_OBJC_DEBUG_ENABLED=YES \
 MULLE_OBJC_PEDANTIC_EXIT=YES \
 MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
-MULLE_OBJC_TRACE_ENABLED=YES \
+MULLE_OBJC_TRACE_ENABLED=NO \
 MULLE_OBJC_TRACE_LOAD=NO \
-MULLE_OBJC_TRACE_UNIVERSE=YES \
+MULLE_OBJC_TRACE_METHOD_CALL=YES \
+MULLE_OBJC_TRACE_INSTANCE=YES \
+MULLE_OBJC_TRACE_UNIVERSE=NO \
 MULLE_OBJC_WARN_ENABLED=YES \
 LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}\" \
 ${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2
