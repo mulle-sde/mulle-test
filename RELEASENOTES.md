@@ -1,3 +1,9 @@
+# 5.0.0
+
+* supports now a proper differentation and combination of memorycheckers, depending on platform
+* much improved tests as built libraries are not standalone anymore but shared
+
+
 ### 4.2.4
 
 * fix test init for macos (again) to use different library order

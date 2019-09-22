@@ -258,7 +258,7 @@ main()
    local MULLE_FLAG_LOG_VERBOSE="NO"
    local MULLE_FLAG_LOG_MERGE="NO"
    local MULLE_TRACE_POSTPONE="NO"
-
+   local MEMORY_CHECKER
    local MULLE_FLAG_DEFER="DEFAULT"
    local FLAG_OUTSIDE_ENV="NO"
 
@@ -266,6 +266,18 @@ main()
    local BUILD_OPTIONS="--clean"
    local RUN_FLAGS
    local RUN_OPTIONS
+
+
+   case "${MULLE_UNAME}" in
+      darwin)
+         MEMORY_CHECKER="gmalloc:testallocator"
+      ;;
+
+      *)
+         MEMORY_CHECKER="testallocator"
+      ;;
+   esac
+
    #
    # simple option handling
    #
@@ -291,6 +303,29 @@ main()
             shift
 
             MULLE_TEST_DIR="$1"
+         ;;
+
+         --valgrind)
+            r_colon_concat "${MEMORY_CHECKER}" "valgrind"
+            MEMORY_CHECKER="${RVAL}"
+         ;;
+
+         --zombie)
+            r_colon_remove "${MEMORY_CHECKER}" "testallocator"
+            r_colon_concat "${RVAL}" "zombie"
+            MEMORY_CHECKER="${RVAL}"
+         ;;
+
+         --add-memory-checker)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            r_colon_concat "${MEMORY_CHECKER}" "$1"
+            MEMORY_CHECKER="${RVAL}"
+         ;;
+
+         --no-memory-checker)
+            MEMORY_CHECKER=
          ;;
 
          --version)

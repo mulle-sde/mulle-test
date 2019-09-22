@@ -44,6 +44,7 @@ eval_mulle_make()
    # (where is this fix ?)
    #
    local cmake_c_flags
+
    r_emit_include_cflags
    cmake_c_flags="${RVAL}"
 
@@ -52,6 +53,25 @@ eval_mulle_make()
 
    r_concat "${cmake_c_flags}" "-DMULLE_TEST=1"
    cmake_c_flags="${RVAL}"
+
+
+   local cmake_exe_linker_flags
+
+   cmake_exe_linker_flags="${RPATH_FLAGS}"
+
+   local cmake_shared_linker_flags
+
+   cmake_shared_linker_flags="${RPATH_FLAGS}"
+
+   # experimental not really sure if this is useful
+   # case "${MULLE_UNAME}" in
+   #    darwin)
+   #       cmake_shared_linker_flags="${cmake_shared_linker_flags} -exported_symbol __mulle_atinit"
+   #       cmake_shared_linker_flags="${cmake_shared_linker_flags} -exported_symbol _mulle_atexit"
+   #       cmake_shared_linker_flags="${cmake_shared_linker_flags} -exported_symbol __register_mulle_objc_universe"
+   #       cmake_shared_linker_flags="${cmake_shared_linker_flags} -exported_symbol ___register_mulle_objc_universe"
+   #    ;;
+   # esac
 
    local cmake_libraries
 
@@ -75,10 +95,10 @@ eval_mulle_make()
                        -DCMAKE_RULE_MESSAGES="'OFF'" \
                        -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
                        -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
-                       -DCMAKE_EXE_LINKER_FLAGS="'${RPATH_FLAGS}'" \
+                       -DCMAKE_EXE_LINKER_FLAGS="'${cmake_exe_linker_flags}'" \
+                       -DCMAKE_SHARED_LINKER_FLAGS="'${cmake_shared_linker_flags}'" \
                        -DTEST_LIBRARIES="'${cmake_libraries} ${RPATH_FLAGS}'" \
                        "$@"
-
 }
 
 

@@ -75,10 +75,27 @@ r_c_commandline()
    r_emit_include_cflags "'"
    incflags="${RVAL}"
 
-   case "${MULLE_UNAME}" in
-      darwin)
-         cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
-         cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
+   cmdline="'${CC}' ${cflags} ${incflags}"
+
+   #  a bit too clang specific here or ?
+   case ":${MEMORY_CHECKER}:" in
+      *:testallocator:*)
+         case "${MULLE_UNAME}" in
+            darwin)
+               cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
+               cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
+            ;;
+         esac
+      ;;
+   esac
+
+   case "${PROJECT_DIALECT}" in
+      objc)
+         case "${MULLE_UNAME}" in
+            darwin)
+               cmdline="${cmdline} -Wl,-exported_symbol -Wl,___register_mulle_objc_universe"
+            ;;
+         esac
       ;;
    esac
 
@@ -88,8 +105,6 @@ r_c_commandline()
       log_debug "LDFLAGS=${LDFLAGS}"
       log_debug "RPATH_FLAGS=${RPATH_FLAGS}"
    fi
-
-   cmdline="'${CC}' ${cflags} ${incflags}"
 
    r_concat "${cmdline}" "$*"
    cmdline="${RVAL}"
@@ -199,46 +214,30 @@ suggest_debugger_commandline()
       ;;
    esac
 
-   case "${MULLE_UNAME}" in
-      darwin)
-         echo "MULLE_TESTALLOCATOR=1 \
-MULLE_TESTALLOCATOR_TRACE=3 \
-MULLE_OBJC_DEBUG_ENABLED=YES \
-MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
-MULLE_OBJC_PEDANTIC_EXIT=YES \
-MULLE_OBJC_TRACE_ENABLED=NO \
-MULLE_OBJC_TRACE_LOAD=NO \
-MULLE_OBJC_TRACE_METHOD_CALL=YES \
-MULLE_OBJC_TRACE_INSTANCE=YES \
-MULLE_OBJC_TRACE_UNIVERSE=NO \
-MULLE_OBJC_WARN_ENABLED=YES \
-${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2
-         if [ "${stdin}" != "/dev/null" ]
-         then
-            echo "run ${stdin}" >&2
-         fi
-      ;;
+   (
+      case ":${MEMORY_CHECKER}:" in
+         *:testallocator:*)
+            printf "%s" "MULLE_TESTALLOCATOR=1 \
+MULLE_TESTALLOCATOR_TRACE=3 "
+         ;;
+      esac
 
-      linux)
-         echo "MULLE_TESTALLOCATOR=1 \
-MULLE_TESTALLOCATOR_TRACE=3 \
-MULLE_OBJC_DEBUG_ENABLED=YES \
-MULLE_OBJC_PEDANTIC_EXIT=YES \
+      printf "%s" "MULLE_OBJC_DEBUG_ENABLED=YES \
 MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
+MULLE_OBJC_PEDANTIC_EXIT=YES \
 MULLE_OBJC_TRACE_ENABLED=NO \
 MULLE_OBJC_TRACE_LOAD=NO \
 MULLE_OBJC_TRACE_METHOD_CALL=YES \
 MULLE_OBJC_TRACE_INSTANCE=YES \
 MULLE_OBJC_TRACE_UNIVERSE=NO \
-MULLE_OBJC_WARN_ENABLED=YES \
-LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}\" \
-${DEBUGGER:-mulle-lldb} ${a_out_ext}" >&2
-         if [ "${stdin}" != "/dev/null" ]
-         then
-            echo "run ${stdin}" >&2
-         fi
-     ;;
-   esac
+MULLE_OBJC_WARN_ENABLED=YES "
+
+      echo "${DEBUGGER:-mulle-lldb} ${a_out_ext}"
+      if [ "${stdin}" != "/dev/null" ]
+      then
+         echo "run ${stdin}"
+      fi
+   ) >&2
 }
 
 

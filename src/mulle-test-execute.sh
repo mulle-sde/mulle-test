@@ -76,63 +76,117 @@ run_a_out()
    fi
 
    local environment
+   local libpath
+   local runner
 
-   environment="MULLE_TESTALLOCATOR='${OPTION_TESTALLOCATOR:-1}' \
-MULLE_TESTALLOCATOR_FIRST_LEAK='YES' \
-MULLE_OBJC_PEDANTIC_EXIT='${OPTION_PEDANTIC_EXIT:-YES}'"
+   ###
+   #
+   # Construct library insert and searc path
+   #
+
+   case ":${MEMORY_CHECKER}:" in
+      *:gmalloc:*)
+         case "${MULLE_UNAME}" in
+            darwin)
+               libpath="/usr/lib/libgmalloc${SHAREDLIB_EXTENSION}"
+            ;;
+
+            *)
+               libpath="${DEPENDENCY_DIR}/lib/libgmalloc${SHAREDLIB_EXTENSION}"
+            ;;
+         esac
+      ;;
+   esac
+
+   case ":${MEMORY_CHECKER}:" in
+      *:testallocator:*)
+         r_colon_concat "${libpath}" "${DEPENDENCY_DIR}/lib/libmulle-testallocator${SHAREDLIB_EXTENSION}"
+         libpath="${RVAL}"
+      ;;
+   esac
+
+   if [ "${OPTION_DEBUG_DYLD}" = 'YES' ]
+   then
+      r_concat "${environment}" "MULLE_ATINIT_DEBUG='YES'"
+      environment="${RVAL}"
+   fi
 
    case "${MULLE_UNAME}" in
       darwin)
-#         RVAL="${DEPENDENCY_DIR}/lib/libmulle-testallocator.dylib"
-         RVAL=""
-         if [ -z "${MULLE_TEST_NO_LIBGMALLOC}" -a -f /usr/lib/libgmalloc.dylib ]
-         then
-            r_colon_concat "${RVAL}" "/usr/lib/libgmalloc.dylib"
-         fi
-         r_colon_concat "${RVAL}" "${DYLD_INSERT_LIBRARIES}"
-
+         r_colon_concat "${libpath}" "${DYLD_INSERT_LIBRARIES}"
          if [ ! -z "${RVAL}" ]
          then
             r_concat "${environment}" "DYLD_INSERT_LIBRARIES='${RVAL}'"
             environment="${RVAL}"
+            if [ "${OPTION_DEBUG_DYLD}" = 'YES' ]
+            then
+               r_concat "${environment}" "DYLD_PRINT_LIBRARIES='YES'"
+               environment="${RVAL}"
+            fi
          fi
       ;;
 
       mingw*)
-         if [ ! -z "${PATH}" ]
+         if [ ! -z "${libpath}" ]
          then
-            r_concat "${environment}" " PATH='${PATH}'"
+            r_colon_concat "${libpath}" "${PATH}"
+            r_concat "${environment}" " PATH='${RVAL}'"
             environment="${RVAL}"
          fi
       ;;
 
       *)
-         if [ ! -z "${LD_LIBRARY_PATH}" ]
+         r_colon_concat "${libpath}" "${LD_LIBRARY_PATH}"
+         libpath="${RVAL}"
+
+         if [ ! -z "${libpath}" ]
          then
-            r_concat "${environment}" " LD_LIBRARY_PATH='${LD_LIBRARY_PATH}'"
-            environment="${RVAL}"
+            r_concat "${environment}" "LD_LIBRARY_PATH='${libpath}'"
          fi
+         environment="${RVAL}"
+      ;;
+   esac
 
-#         RVAL="${DEPENDENCY_DIR}/lib/libmulle-testallocator.so"
-#         r_colon_concat "${RVAL}" "${LD_PRELOAD}"
+   if [ "${PROJECT_DIALECT}" = 'objc' ]
+   then
+      r_concat "${environment}" "MULLE_OBJC_PEDANTIC_EXIT='${OPTION_PEDANTIC_EXIT:-YES}'"
+      environment="${RVAL}"
 
-#         r_concat "${environment}" "LD_PRELOAD='${RVAL}'"
-#         environment="${RVAL}"
-
-         if [ ! -z "${VALGRIND}" ]
-         then
-            r_concat "${environment}" "'${VALGRIND}'"
+      case ":${MEMORY_CHECKER}:" in
+         *:zombie:*)
+            r_concat "${environment}" "NSZombieEnabled=YES"
             environment="${RVAL}"
+         ;;
+      esac
+   fi
 
-            r_escaped_shell_string "${VALGRIND_OPTIONS}"
-            r_concat "${environment}" "${RVAL}"
-            environment="${RVAL}"
-         fi
+   case ":${MEMORY_CHECKER}:" in
+      *:gmalloc:*)
+         r_concat "${environment}" "MALLOC_PROTECT_BEFORE=YES \
+MALLOC_FILL_SPACE=YES MALLOC_STRICT_SIZE=YES'"
+         environment="${RVAL}"
+      ;;
+   esac
+
+   case ":${MEMORY_CHECKER}:" in
+      *:testallocator:*)
+         r_concat "${environment}" "MULLE_TESTALLOCATOR='${OPTION_TESTALLOCATOR:-1}' \
+MULLE_TESTALLOCATOR_FIRST_LEAK='YES'"
+         environment="${RVAL}"
+      ;;
+   esac
+
+   case ":${MEMORY_CHECKER}:" in
+      *:valgrind:*)
+         runner="'${VALGRIND:-valgrind}'"
+
+         r_concat "${runner}" "${VALGRIND_OPTIONS:--q --error-exitcode=77 --leak-check=full --num-callers=500 --track-origins=yes}"
+         runner="${RVAL}"
       ;;
    esac
 
    full_redirekt_eval_exekutor "${input}" "${output}" "${errput}" \
-                                  "${environment}" "'${a_out_ext}'"
+                                  "${environment}" "${runner}" "'${a_out_ext}'"
 }
 
 
@@ -219,11 +273,12 @@ _check_test_output()
    else
       local contents
 
-      contents="`exekutor head -2 "${output}"`" 2> /dev/null
+      contents="`exekutor cat "${output}"`" 2> /dev/null
       if [ "${contents}" != "" ]
       then
-         log_warning "WARNING: \"${TEST_PATH_PREFIX}${pretty_source}\" produced unexpected output (${output})" >&2
-         return ${RVAL_OUTPUT_DIFFERENCES}
+         log_warning "WARNING: \"${TEST_PATH_PREFIX}${pretty_source}\" produced possibly unexpected output (${output})" >&2
+         echo "${contents}" >&2
+         # return ${RVAL_OUTPUT_DIFFERENCES} just a warning though
       fi
    fi
 
@@ -232,7 +287,7 @@ _check_test_output()
       result=`exekutor "${DIFF}" -w "${stderr}" "${errput}"`
       if [ "${result}" != "" ]
       then
-         log_warning "WARNING: \"${TEST_PATH_PREFIX}${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
+         log_error "FAILED: \"${TEST_PATH_PREFIX}${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
          exekutor echo "" >&2
          exekutor "${DIFF}" "${stderr}" "${errput}" >&2
          return ${RVAL_OUTPUT_DIFFERENCES}
@@ -438,10 +493,6 @@ test_execute_main()
 
          --keep-exe)
             OPTION_REMOVE_EXE='NO'
-         ;;
-
-         --valgrind)
-            VALGRIND="valgrind -q --track-origins=yes"
          ;;
 
          *)

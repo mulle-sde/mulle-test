@@ -663,6 +663,7 @@ test_run_main()
    local OPTION_LENIENT='NO'
    local OPTION_RERUN_FAILED='NO'
    local OPTION_TESTALLOCATOR="YES"
+   local OPTION_DEBUG_DYLD='NO'
 
    DEFAULT_MAKEFLAGS="-s"
 
@@ -748,7 +749,12 @@ test_run_main()
             break
          ;;
 
-         --release|--debug)
+         --release)
+            # ignore
+         ;;
+
+         --debug)
+            OPTION_DEBUG_DYLD='YES'
             # ignore
          ;;
 
@@ -767,10 +773,6 @@ test_run_main()
          --keep-exe)
             # this passed "silently" to mulle-test-execute... ugly
             OPTION_REMOVE_EXE='NO'
-         ;;
-
-         --valgrind)
-            VALGRIND="valgrind --tool="${VALGRIND_TOOL:-memcheck}" -q --track-origins=yes"
          ;;
 
          --)
