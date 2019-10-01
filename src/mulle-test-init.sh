@@ -205,9 +205,14 @@ test_init_main()
 
    [ $# -eq 0 ] || test_init_usage
 
+   local parentdir
 
-   [ ! -d ".mulle/share/sde" ] && \
-         log_warning "Test folder should be top level of a mulle-sde project"
+   r_simplified_path "${PWD}/${OPTION_DIRECTORY}/.."
+   parentdir="${RVAL}"
+
+   [ ! -d "${parentdir}/.mulle/share/sde" ] && \
+         log_warning "warning: Test folder should be at the top level \
+of a mulle-sde project"
 
    if [ -z "${PROJECT_ROOT_DIR}" ]
    then

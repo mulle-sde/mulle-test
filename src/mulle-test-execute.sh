@@ -162,8 +162,8 @@ run_a_out()
 
    case ":${MEMORY_CHECKER}:" in
       *:gmalloc:*)
-         r_concat "${environment}" "MALLOC_PROTECT_BEFORE=YES \
-MALLOC_FILL_SPACE=YES MALLOC_STRICT_SIZE=YES'"
+         r_concat "${environment}" "MALLOC_PROTECT_BEFORE='YES' \
+MALLOC_FILL_SPACE='YES' MALLOC_STRICT_SIZE='YES'"
          environment="${RVAL}"
       ;;
    esac
