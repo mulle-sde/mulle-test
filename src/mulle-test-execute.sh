@@ -60,9 +60,10 @@ run_a_out()
    log_entry "run_a_out" "$@"
 
    local a_out_ext="$1"
-   local input="$2"
-   local output="$3"
-   local errput="$4"
+   local args="$2"
+   local input="$3"
+   local output="$4"
+   local errput="$5"
 
    if [ ! -x "${a_out_ext}" ]
    then
@@ -186,7 +187,7 @@ MULLE_TESTALLOCATOR_FIRST_LEAK='YES'"
    esac
 
    full_redirekt_eval_exekutor "${input}" "${output}" "${errput}" \
-                                  "${environment}" "${runner}" "'${a_out_ext}'"
+                                  "${environment}" "${runner}" "'${a_out_ext}'" "${args}"
 }
 
 
@@ -340,15 +341,16 @@ test_execute()
 {
    log_entry "test_execute" "$@"
 
-   local a_out="$1"
-   local name="$2"
-   local root="$3"
-   local ext="$4"
-   local pretty_source="$5"
-   local stdin="$6"
-   local stdout="$7"
-   local stderr="$8"
-   local errors="$9"
+   local a_out="$1" ; shift
+   local args="$1"; shift
+   local name="$1"; shift
+   local root="$1"; shift
+   local ext="$1"; shift
+   local pretty_source="$1"; shift
+   local stdin="$1"; shift
+   local stdout="$1"; shift
+   local stderr="$1"; shift
+   local errors="$1"; shift
 
    [ -z "${a_out}" ]  && internal_fail "a_out must not be empty"
    [ -z "${name}" ]   && internal_fail "name must not be empty"
@@ -377,7 +379,7 @@ test_execute()
    # run test executable "${a_out}" feeding it "${stdin}" as input
    # retrieve stdout and stderr into temporary files
    #
-   run_a_out "${a_out}" "${stdin}" "${output}.tmp" "${errput}.tmp"
+   run_a_out "${a_out}" "${args}" "${stdin}" "${output}.tmp" "${errput}.tmp"
    rval=$?
 
    log_debug "Check test \"${name}\" output (rval: $rval)"
@@ -595,12 +597,28 @@ test_execute_main()
       fi
    fi
 
+   if [ -z "${args}" ]
+   then
+      args="${name}.args"
+      if rexekutor [ ! -f "${args}" ]
+      then
+         args="default.args"
+      fi
+      if rexekutor [ ! -f "${args}" ]
+      then
+         args=""
+      else
+         args="`cat "${args}"`"
+      fi
+   fi
+
    local root
 
    root="${PWD}"
    (
       cd "${directory}" &&
       test_execute "${a_out}" \
+                   "${args}" \
                    "${name}" \
                    "${root}" \
                    "${ext}" \

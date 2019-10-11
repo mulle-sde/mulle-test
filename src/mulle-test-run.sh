@@ -447,7 +447,7 @@ run_test_matching_extensions_in_directory()
 
    local name
    local ext
-   IFS=":"; set -f
+   IFS=':'; set -f
    for ext in ${extensions}
    do
       IFS="${DEFAULT_IFS}"; set +f
@@ -662,7 +662,6 @@ test_run_main()
    local OPTION_REQUIRE_LIBRARY="YES"
    local OPTION_LENIENT='NO'
    local OPTION_RERUN_FAILED='NO'
-   local OPTION_TESTALLOCATOR="YES"
    local OPTION_DEBUG_DYLD='NO'
 
    DEFAULT_MAKEFLAGS="-s"
@@ -692,9 +691,6 @@ test_run_main()
             OPTION_MAXJOBS="$1"
          ;;
 
-         --no-testallocator)
-            OPTION_TESTALLOCATOR="NO"
-         ;;
 
          --project-language)
             [ $# -eq 1 ] && fail "Missing argument to \"$1\""

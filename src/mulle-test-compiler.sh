@@ -80,10 +80,14 @@ r_c_commandline()
    #  a bit too clang specific here or ?
    case ":${MEMORY_CHECKER}:" in
       *:testallocator:*)
-         case "${MULLE_UNAME}" in
-            darwin)
-               cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
-               cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
+         case "${PROJECT_DIALECT}" in
+            objc)
+               case "${MULLE_UNAME}" in
+                  darwin)
+                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
+                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
+                  ;;
+               esac
             ;;
          esac
       ;;
@@ -260,11 +264,6 @@ check_compiler_output()
       log_fluff "-----------------------"
    fi
 
-   if [ "${rval}" -eq 0 ]
-   then
-      return 0
-   fi
-
    if [ -z "${ccdiag}" ]
    then
       ccdiag="${name}.ccdiag"
@@ -272,16 +271,15 @@ check_compiler_output()
       then
          ccdiag="default.ccdiag"
       fi
-      if rexekutor [ ! -f "${ccdiag}" ]
-      then
-         ccdiag="-"
-      fi
    fi
 
-   if [ "${ccdiag}" = "-" -o ! -f "${ccdiag}" ]
+   if rexekutor [ ! -f "${ccdiag}" ]
    then
-      log_error "COMPILER ERRORS: \"${TEST_PATH_PREFIX}${pretty_source}\""
-   else
+      ccdiag="-"
+   fi
+
+   if [ "${ccdiag}" != "-" ]
+   then
       search_for_regexps "COMPILER FAILED TO PRODUCE ERRORS: \
 \"${TEST_PATH_PREFIX}${pretty_source}\" (${errput})" \
                          "${errput}" "${ccdiag}"
@@ -289,7 +287,15 @@ check_compiler_output()
       then
          return ${RVAL_EXPECTED_FAILURE}
       fi
+      rval=1
    fi
+
+   if [ "${rval}" -eq 0 ]
+   then
+      return 0
+   fi
+
+   log_error "COMPILER ERRORS: \"${TEST_PATH_PREFIX}${pretty_source}\""
 
    maybe_show_diagnostics "${errput}"
 
