@@ -129,8 +129,6 @@ execute_test_init_script()
 }
 
 
-
-
 test_init_main()
 {
    log_entry "test_init_main" "$@"
@@ -246,7 +244,7 @@ of a mulle-sde project"
 
    if [ -z "${PROJECT_NAME}" ]
    then
-      r_fast_basename "${PWD}"
+      r_basename "${PWD}"
       PROJECT_NAME="${RVAL}"
    fi
 

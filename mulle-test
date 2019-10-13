@@ -533,11 +533,8 @@ _init()
 
    . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-bashfunctions.sh" || exit 1
 
-   local _libexec_dir
-
-   _get_libexec_dir "$0" "mulle-test" "mulle-test-run.sh"
-
-   MULLE_TEST_LIBEXEC_DIR="${_libexec_dir}"
+   r_get_libexec_dir "$0" "mulle-test" "mulle-test-run.sh"
+   MULLE_TEST_LIBEXEC_DIR="${RVAL}"
 
    #
    # minimal setup exit

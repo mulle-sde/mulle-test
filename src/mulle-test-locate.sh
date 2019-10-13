@@ -73,7 +73,7 @@ r_locate_test_dir()
 
    local name
 
-   r_fast_basename "${project_dir}"
+   r_basename "${project_dir}"
    name="${RVAL}"
 
    case "${name}" in
@@ -100,7 +100,7 @@ r_locate_test_dir()
 
    local name
 
-   r_fast_basename "${testdir}"
+   r_basename "${testdir}"
    dir_name="${RVAL}"
 
    directory="${project_dir}/${dir_name}"

@@ -447,7 +447,7 @@ run_test_matching_extensions_in_directory()
 
    local name
    local ext
-   IFS=":"; set -f
+   IFS=':'; set -f
    for ext in ${extensions}
    do
       IFS="${DEFAULT_IFS}"; set +f
@@ -478,7 +478,7 @@ _scan_directory()
 
    if [ -f CMakeLists.txt ]
    then
-      r_fast_basename "${PWD}"
+      r_basename "${PWD}"
       run_test_in_directory "${PWD}" "${RVAL}" "cmake" "${root}" "$@"
       return $?
    fi
@@ -631,9 +631,9 @@ run_named_test()
    local directory
    local filename
 
-   r_fast_dirname "${path}"
+   r_dirname "${path}"
    directory="${RVAL}"
-   r_fast_basename "${path}"
+   r_basename "${path}"
    filename="${RVAL}"
 
    local RUNS=0
@@ -662,7 +662,6 @@ test_run_main()
    local OPTION_REQUIRE_LIBRARY="YES"
    local OPTION_LENIENT='NO'
    local OPTION_RERUN_FAILED='NO'
-   local OPTION_TESTALLOCATOR="YES"
    local OPTION_DEBUG_DYLD='NO'
 
    DEFAULT_MAKEFLAGS="-s"
@@ -692,9 +691,6 @@ test_run_main()
             OPTION_MAXJOBS="$1"
          ;;
 
-         --no-testallocator)
-            OPTION_TESTALLOCATOR="NO"
-         ;;
 
          --project-language)
             [ $# -eq 1 ] && fail "Missing argument to \"$1\""

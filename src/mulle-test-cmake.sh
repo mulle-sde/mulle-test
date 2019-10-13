@@ -149,7 +149,7 @@ fail_test_cmake()
 
    local directory
 
-   r_fast_dirname "${srcfile}"
+   r_dirname "${srcfile}"
    directory="${RVAL}"
 
    (
@@ -184,13 +184,13 @@ run_cmake()
    local executable
    local shlib
 
-   r_fast_basename "${a_out_ext}"
+   r_basename "${a_out_ext}"
    executable="${RVAL}"
 
    r_extensionless_basename "${a_out_ext}"
    shlib="lib${RVAL}${SHAREDLIB_EXTENSION}"
 
-   r_fast_dirname "${srcfile}"
+   r_dirname "${srcfile}"
    directory="${RVAL}"
    (
       exekutor cd "${directory}"
