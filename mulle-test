@@ -190,8 +190,7 @@ exec_in_subshell_if_needed()
       if [ -d "${PWD}/.mulle/share/env" ]
       then
          exekutor exec mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                                 ${MULLE_SDE_FLAGS} \
-                           run mulle-test ${MULLE_TEST_FLAGS} "$@"
+                           run mulle-test ${MULLE_TECHNICAL_FLAGS} "$@"
       else
          fail "Not a proper initialized test directory (${PWD#${MULLE_USER_PWD}/})
 ${C_INFO}To initialize for mulle-test:
@@ -211,7 +210,6 @@ get_quickstatus()
 
    rexekutor "${MULLE_CRAFT:-mulle-craft}" -s \
                   ${MULLE_TECHNICAL_FLAGS} \
-                  ${MULLE_CRAFT_FLAGS} \
                quickstatus
    rval=$?
 
@@ -411,7 +409,6 @@ main()
             exec_in_subshell_if_needed "${cmd}" "$@"
          fi
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                            ${MULLE_SDE_FLAGS} \
                            clean all    || return 1
          test_do_craft "$@"
 
@@ -439,7 +436,6 @@ main()
          fi
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                            ${MULLE_SDE_FLAGS} \
                            craftorder
       ;;
 
@@ -475,7 +471,6 @@ main()
          fi
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                            ${MULLE_SDE_FLAGS} \
                            log "$@"
       ;;
 
@@ -561,4 +556,16 @@ case "$PATH" in
 esac
 
 _init "$@"
-main "$@"
+
+quote="'"
+args=""
+for arg in "$@"
+do
+   arg="${arg//${quote}/${quote}\"${quote}\"${quote}}"
+   args="${args} '${arg}'"
+done
+
+unset quote
+unset arg
+
+eval main "${MULLE_TEST_FLAGS}" "${args}"

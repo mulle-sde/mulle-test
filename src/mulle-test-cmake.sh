@@ -86,7 +86,6 @@ eval_mulle_make()
                  MULLE_TEST_ENVIRONMENT="" \
                  ${MULLE_MAKE:-mulle-make} \
                     "${MULLE_TECHNICAL_FLAGS}" \
-                    "${MULLE_MAKE_FLAGS}" \
                  build --clean \
                        --configuration "'${build_type}'" \
                        --build-dir "${TEST_KITCHEN_DIR:-kitchen}" \

@@ -1,7 +1,9 @@
 # 5.0.0
 
+* changed to mulle-bashfunctions 2 call convention
+* moved to mulle-bashfunctions v2
 * supports now a proper differentation and combination of memorycheckers, depending on platform
-* much improved tests as built libraries are not standalone anymore but shared
+
 
 
 ### 4.2.4

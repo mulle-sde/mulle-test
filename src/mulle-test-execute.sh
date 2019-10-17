@@ -443,6 +443,7 @@ test_execute_main()
    local stdout
    local stderr
    local errors
+   local args
 
    local pretty_source
 

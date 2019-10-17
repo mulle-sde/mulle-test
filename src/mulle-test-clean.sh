@@ -100,7 +100,6 @@ test_clean_main()
    case "${1:-all}" in
       all|tidy)
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                            ${MULLE_SDE_FLAGS} \
                      clean \
                         "${1:-all}" &&
 
@@ -122,7 +121,6 @@ test_clean_main()
 
       *)
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                            ${MULLE_SDE_FLAGS} \
                      clean \
                         "$1"
          return $?

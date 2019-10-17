@@ -215,31 +215,31 @@ of a mulle-sde project"
    if [ -z "${PROJECT_ROOT_DIR}" ]
    then
       PROJECT_ROOT_DIR="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} project-dir`"
+                      project-dir`"
    fi
 
    if [ -z "${PROJECT_LANGUAGE}" ]
    then
       PROJECT_LANGUAGE="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} environment get PROJECT_LANGUAGE`"
+                      environment get PROJECT_LANGUAGE`"
    fi
 
    if [ -z "${PROJECT_DIALECT}" ]
    then
       PROJECT_DIALECT="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} environment get PROJECT_DIALECT`"
+                      environment get PROJECT_DIALECT`"
    fi
 
    if [ -z "${PROJECT_EXTENSIONS}" ]
    then
       PROJECT_EXTENSIONS="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} environment get PROJECT_EXTENSIONS`"
+                      environment get PROJECT_EXTENSIONS`"
    fi
 
    if [ -z "${PROJECT_NAME}" ]
    then
       PROJECT_NAME="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} environment get PROJECT_NAME`"
+                      environment get PROJECT_NAME`"
    fi
 
    if [ -z "${PROJECT_NAME}" ]
@@ -262,7 +262,6 @@ of a mulle-sde project"
    PROJECT_DIALECT="${PROJECT_DIALECT:-c}"
    PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-c}"
    exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      ${MULLE_SDE_FLAGS} \
                       -s \
                init --no-motd \
                     --style mulle/wild \
