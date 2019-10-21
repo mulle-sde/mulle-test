@@ -7,4 +7,10 @@
 VERSIONFILE=mulle-test
 VERSIONNAME=MULLE_EXECUTABLE_VERSION
 VERSIONFILEMIRRORS="\
-src/mulle-nat/mulle-test/version"
+src/mulle-sde/test/version
+src/mulle-sde/base-test-runtime/version
+src/mulle-sde/objc-test-runtime/version
+src/mulle-sde/objc-test/version
+src/mulle-sde/c-test-runtime/version
+src/mulle-sde/c-test/version"
+

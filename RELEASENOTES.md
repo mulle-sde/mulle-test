@@ -1,3 +1,8 @@
+### 5.0.1
+
+* improve linkorder usage text
+* improve linkorder usage text
+
 # 5.0.0
 
 * changed to mulle-bashfunctions 2 call convention
