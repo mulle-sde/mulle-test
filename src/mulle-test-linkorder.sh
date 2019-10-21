@@ -52,6 +52,7 @@ Usage:
 
 Options:
    --startup       : include startup libraries
+   --no-startup    : exclude startup libraries
    --uncached      : bypass cache
    --update-cache  : bypass cache but then update it
 EOF
