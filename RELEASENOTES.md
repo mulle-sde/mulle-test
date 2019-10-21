@@ -1,3 +1,7 @@
+### 5.0.2
+
+* fix CMakePackage
+
 ### 5.0.1
 
 * improve linkorder usage text
