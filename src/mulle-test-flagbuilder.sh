@@ -32,6 +32,41 @@
 MULLE_TEST_FLAGBUILDER_SH="included"
 
 
+r_include_dir() 
+{
+   local dir="$1"
+   local quote="${2:-\'}" 
+
+   case "${MULLE_UNAME}" in 
+      windows)
+         RVAL="/I${quote}`wslpath -w "${dir}"`${quote}"
+      ;;
+
+      *)
+         RVAL="-I${quote}${dir}${quote}"
+      ;;
+   esac
+}
+
+
+r_output_filename() 
+{
+   local filename="$1"
+   local quote="${2:-\'}" 
+
+   case "${MULLE_UNAME}" in 
+      windows)
+         RVAL="/Fe${quote}`wslpath -w "${filename}"`${quote}"
+      ;;
+
+      *)
+         RVAL="-o ${quote}${filename}${quote}"
+      ;;
+   esac
+}
+
+
+
 r_emit_include_cflags()
 {
    log_entry "r_emit_include_cflags" "$@"
@@ -39,6 +74,7 @@ r_emit_include_cflags()
    local quote="$1"
 
    local cflags
+   local path 
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
@@ -48,15 +84,19 @@ r_emit_include_cflags()
 
    if [ ! -z "${DEPENDENCY_DIR}" ]
    then
-      r_concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/Test/include${quote}"
+      r_include_dir "${DEPENDENCY_DIR}/Test/include" "${quote}"
+      r_concat "${cflags}" "${RVAL}"
       cflags="${RVAL}"
-      r_concat "${cflags}" "-I${quote}${DEPENDENCY_DIR}/include${quote}"
+
+      r_include_dir "${DEPENDENCY_DIR}/include" "${quote}"
+      r_concat "${cflags}" "${RVAL}"
       cflags="${RVAL}"
    fi
 
    if [ ! -z "${ADDICTION_DIR}" ]
    then
-      r_concat "${cflags}" "-I${quote}${ADDICTION_DIR}/include${quote}"
+      r_include_dir "${ADDICTION_DIR}/include" "${quote}"
+      r_concat "${cflags}" "${RVAL}"
       cflags="${RVAL}"
    fi
 

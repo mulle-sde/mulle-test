@@ -63,8 +63,17 @@ r_c_commandline()
    r_emit_cflags "${srcfile}"
    cflags="${RVAL}"
 
-   r_concat "${cflags} -DMULLE_TEST=1"
-   cflags="${RVAL}"
+   case "${MULLE_UNAME}" in
+      windows) 
+         r_concat "${cflags} /DMULLE_TEST=1"
+         cflags="${RVAL}"
+      ;;
+
+      *) 
+         r_concat "${cflags} -DMULLE_TEST=1"
+         cflags="${RVAL}"
+      ;;
+   esac
 
    r_concat "${cflags}" "${OTHER_CFLAGS}"
    cflags="${RVAL}"
@@ -113,7 +122,9 @@ r_c_commandline()
    r_concat "${cmdline}" "$*"
    cmdline="${RVAL}"
 
-   cmdline="${cmdline} -o '${a_out}'"
+   r_output_filename "${a_out}" "'"
+   cmdline="${cmdline} ${RVAL}"
+
    cmdline="${cmdline} '${srcfile}'"
 
    r_concat "${cmdline}" "${linkcommand}"

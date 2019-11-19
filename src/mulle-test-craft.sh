@@ -48,7 +48,7 @@ test_craft_main()
    local craftargs
    local OPTION_STANDALONE
 
-   makeargs="-DCFLAGS+='-DMULLE_TEST=1'"
+   craftargs="--mulle-test"
 
    while [ $# -ne 0 ]
    do
@@ -92,11 +92,11 @@ test_craft_main()
          ;;
 
          --debug)
-            OPTION_TEST_CMAKE_BUILD_TYPE='Debug';
+            OPTION_CMAKE_BUILD_TYPE='Debug';
          ;;
 
          --release)
-            OPTION_TEST_CMAKE_BUILD_TYPE='Release';
+            OPTION_CMAKE_BUILD_TYPE='Release';
          ;;
 
          --valgrind)
@@ -121,9 +121,9 @@ test_craft_main()
       makeargs="${makeargs} --preferred-library-style dynamic"
    fi
 
-   if [ ! -z "${OPTION_TEST_CMAKE_BUILD_TYPE}" ]
+   if [ ! -z "${OPTION_CMAKE_BUILD_TYPE}" ]
    then
-      makeargs="${makeargs} -DTEST_CMAKE_BUILD_TYPE='${OPTION_TEST_CMAKE_BUILD_TYPE}'"
+      makeargs="${makeargs} -DCMAKE_BUILD_TYPE='${OPTION_CMAKE_BUILD_TYPE}'"
    fi
 
    while [ $# -ne 0 ]

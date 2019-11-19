@@ -53,6 +53,7 @@ Usage:
 Options:
    --startup       : include startup libraries
    --no-startup    : exclude startup libraries
+   --cached        : show cached valued (default)
    --uncached      : bypass cache
    --update-cache  : bypass cache but then update it
 EOF
@@ -64,21 +65,21 @@ _get_link_command()
 {
    log_entry "_get_link_command" "$@"
 
+   if [ -z "${MULLE_PLATFORM_LIBEXEC_DIR}" ]
+   then
+      MULLE_PLATFORM_LIBEXEC_DIR="`exekutor "${MULLE_PLATFORM:-mulle-platform}" libexec-dir`" || exit 1
+   fi
+
+   [ -z "${MULLE_PATH_SH}" ] && \
+      . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-path.sh"
+
+   [ -z "${MULLE_PLATFORM_TRANSLATE_SH}" ] && \
+      . "${MULLE_PLATFORM_LIBEXEC_DIR}/mulle-platform-translate.sh"
+
    local format
 
-   case "${MULLE_UNAME}" in
-      darwin)
-         format="force-load"
-      ;;
-
-      mingw*)
-         format="whole-archive-win"
-      ;;
-
-      *)
-         format="whole-archive-as-needed"
-      ;;
-   esac
+   r_platform_default_whole_archive_format
+   format="${RVAL}"
 
    exekutor mulle-sde \
                ${MULLE_TECHNICAL_FLAGS} \
@@ -167,6 +168,10 @@ test_linkorder_main()
          --update-cache)
             OPTION_UPDATE_CACHE='YES'
             OPTION_CACHED='NO'
+         ;;
+
+         --cached)
+            OPTION_CACHED='YES'
          ;;
 
          --uncached)

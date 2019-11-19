@@ -537,6 +537,11 @@ _init()
    if [ "$#" -eq 1 ]
    then
       case "$1" in
+         "uname")
+            printf "%s\n" "${MULLE_UNAME}"
+            exit 0
+         ;;
+
          "libexec-dir")
             printf "%s\n" "${MULLE_TEST_LIBEXEC_DIR}"
             exit 0

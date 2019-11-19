@@ -152,6 +152,7 @@ run_common_test()
    log_entry "run_common_test" "$@"
 
    local a_out="$1"; shift
+   local a_out_ext="$1"; shift
    local name="$1"; shift
    local ext="$1"; shift
    local root="$1"; shift
@@ -181,33 +182,36 @@ run_common_test()
    pretty_source="${RVAL}" || exit 1
 
    local rval
-   local a_out_ext
+   local flags
 
-   log_fluff "Build test ${pretty_source}"
-
-   a_out_ext="${a_out}${EXE_EXTENSION}"
-
-   "${TEST_BUILDER}" "${srcfile}" "${a_out_ext}" "${cc_errput}" "$@"
-   rval="$?"
-
-   check_compiler_output "${srcfile}" "${cc_errput}" "${rval}" "${pretty_source}"
-   rval="$?"
-
-   if [ "$rval" -ne 0 ]
+   if [ ! -z "${TEST_BUILDER}" ]
    then
-      if [ ${RVAL_EXPECTED_FAILURE} = $rval ]
-      then
-         return 0
-      fi
+      log_fluff "Build test ${pretty_source}"
 
-      log_debug "Compiler failure returns with $rval"
-      cat "${cc_errput}" >&2
-      return $rval
+      "${TEST_BUILDER}" "${srcfile}" "${a_out_ext}" "${cc_errput}" "$@"
+      rval="$?"
+
+      check_compiler_output "${srcfile}" "${cc_errput}" "${rval}" "${pretty_source}"
+      rval="$?"
+
+      if [ "$rval" -ne 0 ]
+      then
+         if [ ${RVAL_EXPECTED_FAILURE} = $rval ]
+         then
+            return 0
+         fi
+
+         log_debug "Compiler failure returns with $rval"
+         cat "${cc_errput}" >&2
+         return $rval
+      fi
+   else
+      flags="--keep-exe"
    fi
 
    log_verbose "Run test ${pretty_source}"
 
-   test_execute_main --pretty "${pretty_source}" "${a_out_ext}" "${srcfile}"
+   test_execute_main ${flags} --pretty "${pretty_source}" "${a_out_ext}" "${srcfile}"
 
    rval=$?
    if [ ${RVAL_EXPECTED_FAILURE} = $rval ]
@@ -215,11 +219,14 @@ run_common_test()
       return 0
    fi
 
-   if [ "${rval}" -ne 0 ]
+   if [ ! -z "${FAIL_TEST}" ]
    then
-      a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
+      if [ "${rval}" -ne 0 ]
+      then
+         a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
 
-      "${FAIL_TEST}" "${srcfile}" "${a_out_ext}" "${ext}" "${name}" "$@"
+         "${FAIL_TEST}" "${srcfile}" "${a_out_ext}" "${ext}" "${name}" "$@"
+      fi
    fi
 
    log_debug "Execute failure, returns with $rval"
@@ -256,8 +263,37 @@ run_c_test()
 
    TEST_BUILDER="run_compiler"
    FAIL_TEST="fail_test_c"
-   run_common_test "${a_out}" "$@"
+   run_common_test "${a_out}" "${a_out}${EXE_EXTENSION}" "$@"
 }
+
+
+run_exe_test()
+{
+   log_entry "run_exe_test" "$@"
+
+   local name="$1"
+   local ext="$2"
+
+   local a_out
+   local a_out_ext
+
+   a_out="${DEPENDENCY_DIR}/bin/${MULLE_TEST_EXECUTABLE}"
+   case "${MULLE_UNAME}" in
+      mingw|windows)
+         a_out="${a_out}.exe"
+      ;;
+
+      *)
+         a_out_ext="${a_out}"
+      ;;
+   esac
+
+   TEST_BUILDER=""
+   FAIL_TEST=""
+
+   run_common_test "${a_out}" "${a_out}" "$@"
+}
+
 
 
 run_m_test()
@@ -273,6 +309,28 @@ run_cpp_test()
    log_entry "run_cpp_test" "$@"
 
    log_error "$1: cpp testing is not available yet"
+}
+
+
+r_get_test_environmentfile()
+{
+   local varname="$1"
+   local name="$2"
+   local fallback="$3"
+
+   RVAL="${name}.${varname}.${MULLE_UNAME}"
+   if rexekutor [ ! -f "${RVAL}" ]
+   then
+      RVAL="${name}.${varname}"
+      if rexekutor [ ! -f "${RVAL}" ]
+      then
+         RVAL="default.${varname}"
+         if rexekutor [ ! -f "${RVAL}" ]
+         then
+            RVAL="${fallback}"
+         fi
+      fi
+   fi
 }
 
 
@@ -294,18 +352,12 @@ _run_test()
    [ -z "${ext}" ]  && internal_fail "ext must not be ? empty"
    [ -z "${root}" ] && internal_fail "root must not be empty"
 
-   # as we are running in a subshell this is OK
-
-   if [ -f "default.environment" ]
+   r_get_test_environmentfile "${name}" "environment" ""
+   if [ ! -z "${RVAL}" ]
    then
-      . "default.environment" || fail "\"default.environment\" read failed"
-      log_fluff "Read environment file \"default.environment\" "
-   fi
-
-   if [ -f "${name}.environment" ]
-   then
-      . "${name}.environment" || fail "\"${name}.environment\" read failed"
-      log_fluff "Read environment file \"${name}.environment\" "
+      log_fluff "Read environment file \"${RVAL}\" "
+      # as we are running in a subshell this is OK
+      . "${RVAL}" || fail "\"${RVAL}\" read failed"
    fi
 
    case "${ext}" in
@@ -324,6 +376,14 @@ _run_test()
       .cxx|.cpp)
          run_cpp_test "${name}" "${ext}" "${root}" "$@"
       ;;
+
+      .args)
+         run_exe_test "${name}" "${ext}" "${root}" "$@"
+      ;;
+
+      *)
+         fail "Don't know how to handle extension \"${ext}\""
+      ;;
    esac
 }
 
@@ -337,7 +397,7 @@ has_test_run_successfully()
 
    if [ ! -z "${MULLE_TEST_SUCCESS_FILE}" ]
    then
-      fgrep -s -q -x "${directory}/${name}" "${MULLE_TEST_SUCCESS_FILE}"
+      rexekutor fgrep -s -q -x "${directory}/${name}" "${MULLE_TEST_SUCCESS_FILE}"
       return $?
    fi
    return 1
@@ -361,7 +421,8 @@ handle_return_value()
       0|${RVAL_EXPECTED_FAILURE})
          if [ ! -z "${MULLE_TEST_SUCCESS_FILE}" ]
          then
-            redirect_append_exekutor "${MULLE_TEST_SUCCESS_FILE}" printf "%s\n" "${directory}/${name}"
+            redirect_append_exekutor "${MULLE_TEST_SUCCESS_FILE}" \
+               printf "%s\n" "${directory}/${name}"
          fi
       ;;
 
@@ -399,6 +460,7 @@ _run_test_in_directory()
       _run_test "$@"
    )
 }
+
 
 _run_test_in_directory_parallel()
 {
@@ -447,6 +509,7 @@ run_test_matching_extensions_in_directory()
 
    local name
    local ext
+
    IFS=':'; set -f
    for ext in ${extensions}
    do
@@ -494,7 +557,7 @@ _scan_directory()
 
       case "${i}" in
          _*|addiction|bin|build|kitchen|craftinfo|dependency|include|lib|libexec|old|stash|tmp)
-            log_debug "Ignoring $i because it's surely not a test directory"
+            log_debug "Ignoring \"${i}\" because it's surely not a test directory"
             continue
          ;;
       esac
@@ -574,7 +637,7 @@ run_all_tests()
       log_verbose "Serial testing"
    fi
 
-   scan_directory "${PWD}" "${MULLE_USER_PWD}" "${PROJECT_EXTENSIONS}" "$@"
+   scan_directory "${PWD}" "${MULLE_USER_PWD}" "${MULLE_TEST_EXTENSIONS}" "$@"
 
    if [ "${MULLE_TEST_SERIAL}" = 'NO' ]
    then
@@ -594,7 +657,7 @@ run_all_tests()
          return 1
       fi
    else
-      log_warning "No tests found in ${PWD} with extensions ${PROJECT_EXTENSIONS}"
+      log_warning "No tests found in ${PWD} with extensions ${MULLE_TEST_EXTENSIONS}"
    fi
 }
 
@@ -617,16 +680,27 @@ run_named_test()
       fail "Test \"${TEST_PATH_PREFIX}${path}\" not found"
    fi
 
+   # make physical for WSL
+   path="`physicalpath "$path"`"
+
    if [ -d "${path}" ]
    then
-      scan_directory "${path}" "${root}" "${PROJECT_EXTENSIONS}" "$@"
+      scan_directory "${path}" "${root}" "${MULLE_TEST_EXTENSIONS}" "$@"
       return $?
    fi
 
-   if [ -x "${path}" ]
-   then
-      fail "Specify the source file not a binary \"${TEST_PATH_PREFIX}${path}\""
-   fi
+   # not so good on windows
+   case "${MULLE_UNAME}" in
+      mingw*|windows)
+      ;;
+
+      *)
+         if [ -x "${path}" ]
+         then
+            fail "Specify the source file not a binary \"${TEST_PATH_PREFIX}${path}\""
+         fi
+      ;;
+   esac
 
    local directory
    local filename
@@ -639,11 +713,19 @@ run_named_test()
    local RUNS=0
    local FAILS=0
 
-   run_test_matching_extensions_in_directory "${directory}" \
-                                             "${filename}" \
-                                             "${PROJECT_EXTENSIONS}" \
-                                             "${root}" \
-                                             "$@"
+   if ! run_test_matching_extensions_in_directory "${directory}" \
+                                                  "${filename}" \
+                                                  "${MULLE_TEST_EXTENSIONS}" \
+                                                  "${root}" \
+                                                  "$@"
+   then
+      return 1
+   fi
+
+   if [ ${RUNS} -eq 0 ]
+   then
+      fail "Could not find \"${filename}\" with matching extensions MULLE_TEST_EXTENSIONS \"${MULLE_TEST_EXTENSIONS}\""
+   fi
 }
 
 
@@ -745,12 +827,19 @@ test_run_main()
             break
          ;;
 
+         --extensions)
+            [ $# -eq 1 ] && test_run_usage "Missing argument to \"$1\""
+            shift
+
+            MULLE_TEST_EXTENSIONS="$1"
+         ;;
+
          --release)
             # ignore
          ;;
 
          --debug)
-            OPTION_DEBUG_DYLD='YES'
+            #OPTION_DEBUG_DYLD='YES'
             # ignore
          ;;
 
@@ -788,6 +877,8 @@ test_run_main()
 
    [ -z "${MULLE_TEST_DIR}" ] && internal_fail "MULLE_TEST_DIR undefined"
    [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_DIR undefined"
+
+   MULLE_TEST_EXTENSIONS="${MULLE_TEST_EXTENSIONS:-${PROJECT_EXTENSIONS}}"
 
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2

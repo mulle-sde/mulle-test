@@ -258,13 +258,13 @@ _check_test_output()
          then
             log_error "FAILED: \"${TEST_PATH_PREFIX}${pretty_source}\" produced unexpected output"
             log_info  "DIFF: (${output} vs. ${stdout})"
-            exekutor "${DIFF}" -y "${output}" "${stdout}" >&2
+            exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} "${output}" "${stdout}" >&2
          else
             log_error "FAILED: \"${TEST_PATH_PREFIX}${pretty_source}\" produced different whitespace output"
             log_info  "DIFF: (${TEST_PATH_PREFIX}${stdout} vs. ${output})"
             redirect_exekutor "${output}.actual.hex" od -a "${output}"
             redirect_exekutor "${output}.expect.hex" od -a "${stdout}"
-            exekutor "${DIFF}" -y "${output}.expect.hex" "${output}.actual.hex" >&2
+            exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} "${output}.expect.hex" "${output}.actual.hex" >&2
          fi
 
          return ${RVAL_OUTPUT_DIFFERENCES}
@@ -422,6 +422,7 @@ test_execute()
 
    remove_file_if_present "${output}"
    remove_file_if_present "${errput}"
+
    if [ $rc -eq 0 -a "${OPTION_REMOVE_EXE}" = 'YES' ]
    then
       remove_file_if_present "${a_out}"
@@ -429,6 +430,28 @@ test_execute()
    fi
 
    return $rc
+}
+
+
+r_get_test_datafile()
+{
+   local varname="$1"
+   local name="$2"
+   local fallback="$3"
+
+   RVAL="${name}.${varname}.${MULLE_UNAME}"
+   if rexekutor [ ! -f "${RVAL}" ]
+   then
+      RVAL="${name}.${varname}"
+      if rexekutor [ ! -f "${RVAL}" ]
+      then
+         RVAL="default.${varname}"
+         if rexekutor [ ! -f "${RVAL}" ]
+         then
+            RVAL="${fallback}"
+         fi
+      fi
+   fi
 }
 
 
@@ -548,67 +571,35 @@ test_execute_main()
 
    if [ -z "${stdin}" ]
    then
-      stdin="${name}.stdin"
-      if rexekutor [ ! -f "${stdin}" ]
-      then
-         stdin="default.stdin"
-      fi
-      if rexekutor [ ! -f "${stdin}" ]
-      then
-         stdin="/dev/null"
-      fi
+      r_get_test_datafile "stdin" "${name}" "/dev/null"
+      stdin="${RVAL}"
    fi
 
    if [ -z "${stdout}" ]
    then
-      stdout="${name}.stdout"
-      if rexekutor [ ! -f "${stdout}" ]
-      then
-         stdout="default.stdout"
-      fi
-      if rexekutor [ ! -f "${stdout}" ]
-      then
-         stdout="-"
-      fi
+      r_get_test_datafile "stdout" "${name}" "-"
+      stdout="${RVAL}"
    fi
 
    if [ -z "${stderr}" ]
    then
-      stderr="${name}.stderr"
-      if rexekutor [ ! -f "${stderr}" ]
-      then
-         stderr="default.stderr"
-      fi
-      if rexekutor [ ! -f "${stderr}" ]
-      then
-         stderr="-"
-      fi
+      r_get_test_datafile "stderr" "${name}" "-"
+      stderr="${RVAL}"
    fi
 
    if [ -z "${errors}" ]
    then
-      errors="${name}.errors"
-      if rexekutor [ ! -f "${errors}" ]
-      then
-         errors="default.errors"
-      fi
-      if rexekutor [ ! -f "${errors}" ]
-      then
-         errors="-"
-      fi
+      r_get_test_datafile "errors" "${name}" "-"
+      errors="${RVAL}"
    fi
 
    if [ -z "${args}" ]
    then
-      args="${name}.args"
-      if rexekutor [ ! -f "${args}" ]
+      r_get_test_datafile "args" "${name}" ""
+      args="${RVAL}"
+
+      if [ ! -z "${args}" ]
       then
-         args="default.args"
-      fi
-      if rexekutor [ ! -f "${args}" ]
-      then
-         args=""
-      else
          args="`cat "${args}"`"
       fi
    fi

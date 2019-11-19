@@ -208,38 +208,42 @@ test_init_main()
    r_simplified_path "${PWD}/${OPTION_DIRECTORY}/.."
    parentdir="${RVAL}"
 
-   [ ! -d "${parentdir}/.mulle/share/sde" ] && \
-         log_warning "warning: Test folder should be at the top level \
-of a mulle-sde project"
 
    if [ -z "${PROJECT_ROOT_DIR}" ]
    then
       PROJECT_ROOT_DIR="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      project-dir`"
+                      project-dir 2> /dev/null`"
    fi
 
-   if [ -z "${PROJECT_LANGUAGE}" ]
+   if [ ! -z "${PROJECT_ROOT_DIR}" ]
    then
-      PROJECT_LANGUAGE="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      environment get PROJECT_LANGUAGE`"
-   fi
+      if [ -z "${PROJECT_LANGUAGE}" ]
+      then
+         PROJECT_LANGUAGE="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                         environment get PROJECT_LANGUAGE`"
+      fi
 
-   if [ -z "${PROJECT_DIALECT}" ]
-   then
-      PROJECT_DIALECT="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      environment get PROJECT_DIALECT`"
-   fi
+      if [ -z "${PROJECT_DIALECT}" ]
+      then
+         PROJECT_DIALECT="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                         environment get PROJECT_DIALECT`"
+      fi
 
-   if [ -z "${PROJECT_EXTENSIONS}" ]
-   then
-      PROJECT_EXTENSIONS="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      environment get PROJECT_EXTENSIONS`"
-   fi
+      if [ -z "${PROJECT_EXTENSIONS}" ]
+      then
+         PROJECT_EXTENSIONS="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                         environment get PROJECT_EXTENSIONS`"
+      fi
 
-   if [ -z "${PROJECT_NAME}" ]
-   then
-      PROJECT_NAME="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      environment get PROJECT_NAME`"
+      if [ -z "${PROJECT_NAME}" ]
+      then
+         PROJECT_NAME="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                         environment get PROJECT_NAME`"
+      fi
+   else
+      [ ! -d "${parentdir}/.mulle/share/sde" ] && \
+      log_warning "warning: Test folder should be at the top level \
+of a mulle-sde project"
    fi
 
    if [ -z "${PROJECT_NAME}" ]

@@ -2,4 +2,7 @@
 # it's not really easy to usefully change the URL to something that's not
 # a github tar URL
 #
---nodetype '${<|PREFERRED_STARTUP_LIBRARY_UPCASE_IDENTIFIER|>_NODETYPE:-tar}' --marks 'no-dynamic-link,no-intermediate-link,no-header,no-singlephase' --branch '${<|PREFERRED_STARTUP_LIBRARY_UPCASE_IDENTIFIER|>_BRANCH:-latest}' --url '${<|PREFERRED_STARTUP_LIBRARY_UPCASE_IDENTIFIER|>_URL:-https://github.com/MulleFoundation/<|PREFERRED_STARTUP_LIBRARY|>/archive/${MULLE_BRANCH}.tar.gz}' '<|PREFERRED_STARTUP_LIBRARY|>'
+# executables don't need it, but it shouldn't hurt, since its part of the
+# executable project anyway
+#
+--nodetype '${<|PREFERRED_STARTUP_LIBRARY_UPCASE_IDENTIFIER|>_NODETYPE:-tar}' --marks 'no-dynamic-link,no-intermediate-link,no-header,singlephase' --branch '${<|PREFERRED_STARTUP_LIBRARY_UPCASE_IDENTIFIER|>_BRANCH:-latest}' --url '${<|PREFERRED_STARTUP_LIBRARY_UPCASE_IDENTIFIER|>_URL:-https://github.com/MulleFoundation/<|PREFERRED_STARTUP_LIBRARY|>/archive/${MULLE_BRANCH}.tar.gz}' '<|PREFERRED_STARTUP_LIBRARY|>'

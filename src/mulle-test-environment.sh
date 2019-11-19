@@ -63,11 +63,23 @@ setup_language()
          RELEASE_GCC_CFLAGS="-O3 -g"
          DEBUG_GCC_CFLAGS="-O0 -g"
 
-         RELEASE_CL_CFLAGS="-O2 -MD -wd4068" #-/W /O0"
-         # http://stackoverflow.com/questions/3007312/resolving-lnk4098-defaultlib-msvcrt-conflicts-with
-         # we link vs. cmake generated stuff, that is usually a DLL or will be wrapped into a DLL
-         # so we compile with /MD
-         DEBUG_CL_CFLAGS="-Zi -DEBUG -MDd -Od -wd4068" #-/W /O0"
+         case "${platform}" in
+            mingw*)
+               RELEASE_CL_CFLAGS="-O2 -MD -wd4068" #-/W /O0"
+               # http://stackoverflow.com/questions/3007312/resolving-lnk4098-defaultlib-msvcrt-conflicts-with
+               # we link vs. cmake generated stuff, that is usually a DLL or will be wrapped into a DLL
+               # so we compile with /MD
+               DEBUG_CL_CFLAGS="-Zi -DEBUG -MDd -Od -wd4068" #-/W /O0"
+            ;;
+
+            windows)
+               RELEASE_CL_CFLAGS="/O2 /MD /wd4068" #-/W /O0"
+               # http://stackoverflow.com/questions/3007312/resolving-lnk4098-defaultlib-msvcrt-conflicts-with
+               # we link vs. cmake generated stuff, that is usually a DLL or will be wrapped into a DLL
+               # so we compile with /MD
+               DEBUG_CL_CFLAGS="/Zi /DEBUG /MDd /Od /wd4068" #-/W /O0"
+            ;;
+         esac
 
          case "${dialect}" in
             c)
@@ -88,6 +100,14 @@ setup_language()
 
                            # nmake doesn't work ? /questionable!
                            MAKE="make"
+                        ;;
+
+                        windows)
+                           CC="mulle-clang-cl.exe"
+                           CXX="mulle-clang-cl.exe"
+
+                           # nmake doesn't work ? /questionable!
+                           MAKE="ninja.exe"
                         ;;
 
                         darwin)
@@ -135,7 +155,7 @@ setup_tooling()
    local platform="$1"
 
    case "$1" in
-      mingw)
+      mingw*)
          CC="`mingw_mangle_compiler_exe "${CC}" "CC"`"
          CXX="`mingw_mangle_compiler_exe "${CXX}" "CXX"`"
          CMAKE="${CMAKE:-cmake}"
@@ -153,6 +173,26 @@ setup_tooling()
                MAKE="mulle-mingw-make.sh"
                CMAKE_GENERATOR="MinGW Makefiles"
                FILEPATH_DEMANGLER="mingw_demangle_path"
+            ;;
+
+            *)
+               CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
+            ;;
+         esac
+      ;;
+
+      windows)
+         CC="${CC:-cl.exe}"
+         CXX="${CXX:-cl.exe}"
+         MAKE="${MAKE:-ninja.exe}"
+
+         case "${MAKE}" in
+            nmake*)
+               CMAKE_GENERATOR="NMake Makefiles"
+            ;;
+
+            ninja*)
+               CMAKE_GENERATOR="Ninja"
             ;;
 
             *)
@@ -202,7 +242,7 @@ setup_platform()
    DEBUG_EXE_EXTENSION=".debug.exe"
 
    case "${platform}" in
-      mingw)
+      windows|mingw)
          SHAREDLIB_PREFIX=""
          SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.lib}" # link with extension
          STATICLIB_PREFIX=""
@@ -226,6 +266,10 @@ setup_platform()
 
 
    case "${platform}" in
+      windows)
+         CRLFCAT="dos2unix.exe"
+      ;;
+      
       mingw)
          CRLFCAT="dos2unix"
       ;;
@@ -243,7 +287,7 @@ setup_platform()
          CRLFCAT="cat"
       ;;
 
-      linux)
+      windows|linux)
 #         LDFLAGS="${LDFLAGS} -ldl -lpthread"  # weak and lame
          CRLFCAT="cat"
       ;;
