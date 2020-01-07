@@ -32,12 +32,12 @@
 MULLE_TEST_FLAGBUILDER_SH="included"
 
 
-r_include_dir() 
+r_include_dir()
 {
    local dir="$1"
-   local quote="${2:-\'}" 
+   local quote="$2"
 
-   case "${MULLE_UNAME}" in 
+   case "${MULLE_UNAME}" in
       windows)
          RVAL="/I${quote}`wslpath -w "${dir}"`${quote}"
       ;;
@@ -49,12 +49,12 @@ r_include_dir()
 }
 
 
-r_output_filename() 
+r_output_filename()
 {
    local filename="$1"
-   local quote="${2:-\'}" 
+   local quote="$2"
 
-   case "${MULLE_UNAME}" in 
+   case "${MULLE_UNAME}" in
       windows)
          RVAL="/Fe${quote}`wslpath -w "${filename}"`${quote}"
       ;;
@@ -74,7 +74,7 @@ r_emit_include_cflags()
    local quote="$1"
 
    local cflags
-   local path 
+   local path
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then

@@ -51,7 +51,7 @@ search_for_regexps()
 
    fail=0
 
-   while read regexp
+   while read -r regexp
    do
       if [ -z "${regexp}" ]
       then

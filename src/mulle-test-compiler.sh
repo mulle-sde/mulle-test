@@ -64,12 +64,12 @@ r_c_commandline()
    cflags="${RVAL}"
 
    case "${MULLE_UNAME}" in
-      windows) 
+      windows)
          r_concat "${cflags} /DMULLE_TEST=1"
          cflags="${RVAL}"
       ;;
 
-      *) 
+      *)
          r_concat "${cflags} -DMULLE_TEST=1"
          cflags="${RVAL}"
       ;;
@@ -218,6 +218,15 @@ suggest_debugger_commandline()
 
    local a_out_ext="$1"
    local stdin="$2"
+
+   #
+   # don't show debugger commandline if a runner is being used
+   #
+   r_dirname "${a_out_ext}"
+   if [ -x "${RVAL}/runner" ]
+   then
+      return
+   fi
 
    case "${stdin}" in
       ""|"-")

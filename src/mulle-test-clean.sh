@@ -47,7 +47,9 @@ Usage:
    If you changed the sourcetree, you can clean the linkorder chaches
    with "linkorder".
 
+Domains:
 EOF
+   mulle-sde clean domains-usage >&2
    exit 1
 }
 

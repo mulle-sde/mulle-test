@@ -45,11 +45,6 @@ Usage:
 
    Options:
       -l         : be lenient, keep going if tests fail
-      -q         : quiet
-      -t         : shell trace
-      -v         : verbose
-      -V         : show commands
-      --valgrind : run test using valgrind
       --serial   : run test one after the other
       --keep-exe : keep test executables around after a successful test
 EOF
@@ -151,6 +146,7 @@ run_common_test()
 {
    log_entry "run_common_test" "$@"
 
+   local args="$1"; shift
    local a_out="$1"; shift
    local a_out_ext="$1"; shift
    local name="$1"; shift
@@ -211,7 +207,24 @@ run_common_test()
 
    log_verbose "Run test ${pretty_source}"
 
-   test_execute_main ${flags} --pretty "${pretty_source}" "${a_out_ext}" "${srcfile}"
+   local cmd
+
+   cmd="test_execute_main"
+   if [ ! -z "${flags}" ]
+   then
+       cmd="${cmd} ${flags}"
+   fi
+   if [ ! -z "${args}" ]
+   then
+      cmd="${cmd} --args '${args}'"
+   fi
+   if [ ! -z "${pretty_source}" ]
+   then
+      cmd="${cmd} --pretty '${pretty_source}'"
+   fi
+   cmd="${cmd} '${a_out_ext}'"
+   cmd="${cmd} '${srcfile}'"
+   eval "${cmd}"
 
    rval=$?
    if [ ${RVAL_EXPECTED_FAILURE} = $rval ]
@@ -239,14 +252,21 @@ run_cmake_test()
    log_entry "run_cmake_test" "$@"
 
    local name="$1"
+   local ext="$2"
 
    local a_out
 
    a_out="${PWD}/${name}"
 
+   r_get_test_environmentfile "${name}" "cmake-output" "cmake-output"
+   if [ -f "${RVAL}" ]
+   then
+      a_out="`egrep -v '^#' "${RVAL}"`"
+   fi
+
    TEST_BUILDER="run_cmake"
    FAIL_TEST="fail_test_cmake"
-   run_common_test "${a_out}" "$@"
+   run_common_test "" "${a_out}" "${a_out}${EXE_EXTENSION}" "$@"
 }
 
 
@@ -263,7 +283,7 @@ run_c_test()
 
    TEST_BUILDER="run_compiler"
    FAIL_TEST="fail_test_c"
-   run_common_test "${a_out}" "${a_out}${EXE_EXTENSION}" "$@"
+   run_common_test "" "${a_out}" "${a_out}${EXE_EXTENSION}" "$@"
 }
 
 
@@ -280,7 +300,7 @@ run_exe_test()
    a_out="${DEPENDENCY_DIR}/bin/${MULLE_TEST_EXECUTABLE}"
    case "${MULLE_UNAME}" in
       mingw|windows)
-         a_out="${a_out}.exe"
+         a_out="${a_out}${EXE_EXTENSION}"
       ;;
 
       *)
@@ -291,9 +311,38 @@ run_exe_test()
    TEST_BUILDER=""
    FAIL_TEST=""
 
-   run_common_test "${a_out}" "${a_out}" "$@"
+   run_common_test "" "${a_out}" "${a_out_ext}" "$@"
 }
 
+
+run_args_exe_test()
+{
+   log_entry "run_args_exe_test" "$@"
+
+   local args="$1"; shift
+
+   local name="$1"
+   local ext="$2"
+
+   local a_out
+   local a_out_ext
+
+   a_out="${DEPENDENCY_DIR}/bin/${MULLE_TEST_EXECUTABLE}"
+   case "${MULLE_UNAME}" in
+      mingw|windows)
+         a_out="${a_out}${EXE_EXTENSION}"
+      ;;
+
+      *)
+         a_out_ext="${a_out}"
+      ;;
+   esac
+
+   TEST_BUILDER=""
+   FAIL_TEST=""
+
+   run_common_test "${args}" "${a_out}" "${a_out_ext}" "$@"
+}
 
 
 run_m_test()
@@ -304,11 +353,35 @@ run_m_test()
 }
 
 
+run_aam_test()
+{
+   log_entry "run_aam_test" "$@"
+
+   run_m_test "$@"
+}
+
+
+run_h_test()
+{
+   log_entry "run_h_test" "$@"
+
+   run_args_exe_test "${name}${ext}" "$@"
+}
+
+
 run_cpp_test()
 {
    log_entry "run_cpp_test" "$@"
 
    log_error "$1: cpp testing is not available yet"
+}
+
+
+run_cxx_test()
+{
+   log_entry "run_cxx_test" "$@"
+
+   run_cpp_test "$@"
 }
 
 
@@ -365,24 +438,19 @@ _run_test()
          run_cmake_test "${name}" "" "${root}" "$@"
       ;;
 
-      .m|.aam)
-         run_m_test "${name}" "${ext}" "${root}" "$@"
-      ;;
-
-      .c)
-         run_c_test "${name}" "${ext}" "${root}" "$@"
-      ;;
-
-      .cxx|.cpp)
-         run_cpp_test "${name}" "${ext}" "${root}" "$@"
-      ;;
-
       .args)
          run_exe_test "${name}" "${ext}" "${root}" "$@"
       ;;
 
       *)
-         fail "Don't know how to handle extension \"${ext}\""
+         local functionname
+
+         functionname="run_${ext#.}_test"
+         if [ "`type -t "${functionname}"`" != "function" ]
+         then
+             fail "Don't know how to handle extension \"${ext}\""
+         fi
+         "${functionname}" "${name}" "${ext}" "${root}" "$@"
       ;;
    esac
 }

@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="5.0.2"
+MULLE_EXECUTABLE_VERSION="5.1.0"
 
 # version is in mulle-test-env
 
@@ -304,8 +304,8 @@ main()
          ;;
 
          --valgrind)
-            r_colon_concat "${MEMORY_CHECKER}" "valgrind"
-            MEMORY_CHECKER="${RVAL}"
+            # no others beside  "valgrind"
+            MEMORY_CHECKER="valgrind"
          ;;
 
          --zombie)
@@ -518,6 +518,13 @@ _init()
       exit 0
    fi
 
+   # mingw stuff
+   case "$PATH" in
+      '\\'*)
+         PATH="${PATH//\\/\/}"
+      ;;
+   esac
+
    if [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ]
    then
       MULLE_BASHFUNCTIONS_LIBEXEC_DIR="`mulle-bashfunctions-env libexec-dir 2> /dev/null`"
@@ -550,27 +557,8 @@ _init()
    fi
 
    set -o pipefail
+   call_main "${MULLE_TEST_FLAGS}" "$@"
 }
 
 
-# mingw stuff
-case "$PATH" in
-   '\\'*)
-      PATH="${PATH//\\/\/}"
-   ;;
-esac
-
 _init "$@"
-
-quote="'"
-args=""
-for arg in "$@"
-do
-   arg="${arg//${quote}/${quote}\"${quote}\"${quote}}"
-   args="${args} '${arg}'"
-done
-
-unset quote
-unset arg
-
-eval main "${MULLE_TEST_FLAGS}" "${args}"

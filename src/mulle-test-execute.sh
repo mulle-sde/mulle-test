@@ -77,23 +77,23 @@ run_a_out()
    fi
 
    local environment
-   local libpath
+   local insertlibpath
    local runner
 
    ###
    #
-   # Construct library insert and searc path
+   # Construct library insert and searcH path
    #
 
    case ":${MEMORY_CHECKER}:" in
       *:gmalloc:*)
          case "${MULLE_UNAME}" in
             darwin)
-               libpath="/usr/lib/libgmalloc${SHAREDLIB_EXTENSION}"
+               insertlibpath="/usr/lib/libgmalloc${SHAREDLIB_EXTENSION}"
             ;;
 
             *)
-               libpath="${DEPENDENCY_DIR}/lib/libgmalloc${SHAREDLIB_EXTENSION}"
+               insertlibpath="${DEPENDENCY_DIR}/lib/libgmalloc${SHAREDLIB_EXTENSION}"
             ;;
          esac
       ;;
@@ -101,8 +101,8 @@ run_a_out()
 
    case ":${MEMORY_CHECKER}:" in
       *:testallocator:*)
-         r_colon_concat "${libpath}" "${DEPENDENCY_DIR}/lib/libmulle-testallocator${SHAREDLIB_EXTENSION}"
-         libpath="${RVAL}"
+         r_colon_concat "${insertlibpath}" "${DEPENDENCY_DIR}/lib/libmulle-testallocator${SHAREDLIB_EXTENSION}"
+         insertlibpath="${RVAL}"
       ;;
    esac
 
@@ -114,7 +114,7 @@ run_a_out()
 
    case "${MULLE_UNAME}" in
       darwin)
-         r_colon_concat "${libpath}" "${DYLD_INSERT_LIBRARIES}"
+         r_colon_concat "${insertlibpath}" "${DYLD_INSERT_LIBRARIES}"
          if [ ! -z "${RVAL}" ]
          then
             r_concat "${environment}" "DYLD_INSERT_LIBRARIES='${RVAL}'"
@@ -128,23 +128,22 @@ run_a_out()
       ;;
 
       mingw*)
-         if [ ! -z "${libpath}" ]
+         # kind of wrong, can we do this in MINGW ?
+         if [ ! -z "${insertlibpath}" ]
          then
-            r_colon_concat "${libpath}" "${PATH}"
+            r_colon_concat "${insertlibpath}" "${PATH}"
             r_concat "${environment}" " PATH='${RVAL}'"
             environment="${RVAL}"
          fi
       ;;
 
       *)
-         r_colon_concat "${libpath}" "${LD_LIBRARY_PATH}"
-         libpath="${RVAL}"
-
-         if [ ! -z "${libpath}" ]
+         r_colon_concat "${insertlibpath}" "${LD_PRELOAD}"
+         if [ ! -z "${RVAL}" ]
          then
-            r_concat "${environment}" "LD_LIBRARY_PATH='${libpath}'"
+            r_concat "${environment}" "LD_PRELOAD='${RVAL}'"
+            environment="${RVAL}"
          fi
-         environment="${RVAL}"
       ;;
    esac
 
@@ -480,6 +479,13 @@ test_execute_main()
       case "$1" in
          -h*|--help|help)
             test_execute_usage
+         ;;
+
+         --args)
+            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            shift
+
+            args="$1"
          ;;
 
          --stdin)

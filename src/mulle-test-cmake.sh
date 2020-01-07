@@ -31,10 +31,47 @@
 #
 MULLE_TEST_CMAKE_SH="included"
 
-
-eval_mulle_make()
+r_test_cmd_add_cmakeflag()
 {
-   log_entry "eval_mulle_make" "$@"
+   local cmd="$1"
+   local flag="$2"
+   local value="$3"
+
+   r_escaped_shell_string "${value}"
+   r_concat "${cmd}" "-D${flag}=${RVAL}"
+}
+
+
+r_test_cmd_add_flag()
+{
+   local cmd="$1"
+   local flag="$2"
+   local value="$3"
+
+   r_escaped_shell_string "${value}"
+   r_concat "${cmd}" "${flag} ${RVAL}"
+}
+
+
+r_test_cmd_add()
+{
+   local cmd="$1"
+   local value="$2"
+
+   if [ -z "${value}" ]
+   then
+      RVAL="${cmd}"
+      return
+   fi
+
+   r_escaped_shell_string "${value}"
+   r_concat "${cmd}" "${RVAL}"
+}
+
+
+eval_mulle_make_cmake()
+{
+   log_entry "eval_mulle_make_cmake" "$@"
 
    local build_type="$1"; shift
 
@@ -45,7 +82,8 @@ eval_mulle_make()
    #
    local cmake_c_flags
 
-   r_emit_include_cflags
+   # dem flags are already quoted
+   r_emit_include_cflags ""
    cmake_c_flags="${RVAL}"
 
    r_concat "${cmake_c_flags}" "${OTHER_CFLAGS}"
@@ -81,23 +119,59 @@ eval_mulle_make()
    # MEMO: unfortunately on linux, the order of linkage matters, but
    #       the CMAKE_EXE_LINKER_FLAGS are prepended to our .o files (bummer)
 
-   eval_exekutor CC="${CC}" \
-                 CXX="${CXX}" \
-                 MULLE_TEST_ENVIRONMENT="" \
-                 ${MULLE_MAKE:-mulle-make} \
-                    "${MULLE_TECHNICAL_FLAGS}" \
-                 build --clean \
-                       --configuration "'${build_type}'" \
-                       --build-dir "${TEST_KITCHEN_DIR:-kitchen}" \
-                       --info-dir "'${MULLE_VIRTUAL_ROOT}/.mulle/etc/craft/definition'" \
-                       "${cmake_definitions}" \
-                       -DCMAKE_RULE_MESSAGES="'OFF'" \
-                       -DCMAKE_C_FLAGS="'${cmake_c_flags}'" \
-                       -DCMAKE_CXX_FLAGS="'${cmake_c_flags}'" \
-                       -DCMAKE_EXE_LINKER_FLAGS="'${cmake_exe_linker_flags}'" \
-                       -DCMAKE_SHARED_LINKER_FLAGS="'${cmake_shared_linker_flags}'" \
-                       -DTEST_LIBRARIES="'${cmake_libraries} ${RPATH_FLAGS}'" \
-                       "$@"
+   local environment
+   local cmd
+
+   environment="CC='${CC}' CXX='${CXX}' MULLE_TEST_ENVIRONMENT="
+
+   cmd="'${MULLE_MAKE:-mulle-make}'"
+   r_concat "${cmd}" "${MULLE_TECHNICAL_FLAGS}"
+   cmd="${RVAL}"
+   r_concat "${cmd}" "build"
+   cmd="${RVAL}"
+   r_concat "${cmd}" "--clean"
+   cmd="${RVAL}"
+
+#  case "${build_type}" in
+#     Test)
+#        build_type="Debug"
+#     ;;
+#  esac
+
+   r_test_cmd_add_flag "${cmd}" "--configuration" "${build_type}"
+   cmd="${RVAL}"
+   r_test_cmd_add_flag "${cmd}" "--build-dir" "${TEST_KITCHEN_DIR:-kitchen}"
+   cmd="${RVAL}"
+   r_test_cmd_add_flag "${cmd}" "--info-dir" "${MULLE_VIRTUAL_ROOT}/.mulle/etc/craft/definition"
+   cmd="${RVAL}"
+   r_test_cmd_add_cmakeflag "${cmd}" "CMAKE_RULE_MESSAGES" "OFF"
+   cmd="${RVAL}"
+
+   r_test_cmd_add_cmakeflag "${cmd}" "CMAKE_C_FLAGS" "${cmake_c_flags}"
+   cmd="${RVAL}"
+   r_test_cmd_add_cmakeflag "${cmd}" "CMAKE_CXX_FLAGS" "${cmake_c_flags}"
+   cmd="${RVAL}"
+   r_test_cmd_add_cmakeflag "${cmd}" "CMAKE_EXE_LINKER_FLAGS" "${cmake_exe_linker_flags}"
+   cmd="${RVAL}"
+   r_test_cmd_add_cmakeflag "${cmd}" "CMAKE_SHARED_LINKER_FLAGS" "${cmake_shared_linker_flags}"
+   cmd="${RVAL}"
+
+   r_test_cmd_add_cmakeflag "${cmd}" "TEST_LIBRARIES" "${cmake_libraries} ${RPATH_FLAGS}"
+   cmd="${RVAL}"
+
+   local argv
+   local arg
+   local quote
+
+   quote="'"
+   argv=
+   for arg in "$@"
+   do
+      arg="${arg//${quote}/${quote}\"${quote}\"${quote}}"
+      argv="$argv '$arg'"
+   done
+
+   eval_exekutor "${environment}" "${cmd}" "${argv}"
 }
 
 
@@ -153,9 +227,10 @@ fail_test_cmake()
 
    (
       exekutor cd "${directory}" &&
-      eval_mulle_make "Debug" "$@" &&
+      eval_mulle_make_cmake "Debug" "$@" &&
       exekutor cp -p "${TEST_KITCHEN_DIR:-kitchen}/${produced}" "./${final}"
    )
+
    suggest_debugger_commandline "${final}" "${stdin}" "${is_exe}"
 }
 
@@ -194,7 +269,7 @@ run_cmake()
    (
       exekutor cd "${directory}"
 
-      eval_mulle_make "Test" "$@" || exit 1
+      eval_mulle_make_cmake "Test" "$@" || exit 1
 
       #
       # check if it produces a shlib or an exe

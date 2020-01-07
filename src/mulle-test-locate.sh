@@ -68,7 +68,7 @@ r_locate_test_dir()
       then
          return 1
       fi
-      return 2  # make it a script test (relaxed)
+      return 4  # make it a script test (relaxed)
    fi
 
    local name
