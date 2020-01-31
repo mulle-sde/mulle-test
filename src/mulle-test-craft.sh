@@ -123,8 +123,26 @@ test_craft_main()
 
    if [ ! -z "${OPTION_CMAKE_BUILD_TYPE}" ]
    then
-      makeargs="${makeargs} -DCMAKE_BUILD_TYPE='${OPTION_CMAKE_BUILD_TYPE}'"
+      craftargs="${craftargs} --configuration '${OPTION_CMAKE_BUILD_TYPE}'"
+#      makeargs="${makeargs} -DCMAKE_BUILD_TYPE='${OPTION_CMAKE_BUILD_TYPE}'"
    fi
+
+   #  a bit too clang specific here or ?
+   local makeargs
+
+   case ":${SANITIZER}:" in
+      *:undefined:*)
+         makeargs="${makeargs} -DOTHER_CFLAGS+=-fsanitize=undefined"
+      ;;
+
+      *:thread:*)
+         makeargs="${makeargs} -DOTHER_CFLAGS+=-fsanitize=thread"
+      ;;
+
+      *:address:*)
+         makeargs="${makeargs} -DOTHER_CFLAGS+=-fsanitize=address"
+      ;;
+   esac
 
    while [ $# -ne 0 ]
    do

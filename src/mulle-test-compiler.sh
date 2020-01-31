@@ -87,7 +87,19 @@ r_c_commandline()
    cmdline="'${CC}' ${cflags} ${incflags}"
 
    #  a bit too clang specific here or ?
-   case ":${MEMORY_CHECKER}:" in
+   case ":${SANITIZER}:" in
+      *:undefined:*)
+         cmdline="${cmdline} -fsanitize=undefined"
+      ;;
+
+      *:thread:*)
+         cmdline="${cmdline} -fsanitize=thread"
+      ;;
+
+      *:address:*)
+         cmdline="${cmdline} -fsanitize=address"
+      ;;
+
       *:testallocator:*)
          case "${PROJECT_DIALECT}" in
             objc)
@@ -239,7 +251,7 @@ suggest_debugger_commandline()
    esac
 
    (
-      case ":${MEMORY_CHECKER}:" in
+      case ":${SANITIZER}:" in
          *:testallocator:*)
             printf "%s" "MULLE_TESTALLOCATOR=1 \
 MULLE_TESTALLOCATOR_TRACE=3 "
@@ -284,19 +296,8 @@ check_compiler_output()
       log_fluff "-----------------------"
    fi
 
-   if [ -z "${ccdiag}" ]
-   then
-      ccdiag="${name}.ccdiag"
-      if rexekutor [ ! -f "${ccdiag}" ]
-      then
-         ccdiag="default.ccdiag"
-      fi
-   fi
-
-   if rexekutor [ ! -f "${ccdiag}" ]
-   then
-      ccdiag="-"
-   fi
+   r_get_test_datafile "ccdiag" "${name}" "-"
+   ccdiag="${RVAL}"
 
    if [ "${ccdiag}" != "-" ]
    then

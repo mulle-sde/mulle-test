@@ -85,7 +85,7 @@ run_a_out()
    # Construct library insert and searcH path
    #
 
-   case ":${MEMORY_CHECKER}:" in
+   case ":${SANITIZER}:" in
       *:gmalloc:*)
          case "${MULLE_UNAME}" in
             darwin)
@@ -99,7 +99,7 @@ run_a_out()
       ;;
    esac
 
-   case ":${MEMORY_CHECKER}:" in
+   case ":${SANITIZER}:" in
       *:testallocator:*)
          r_colon_concat "${insertlibpath}" "${DEPENDENCY_DIR}/lib/libmulle-testallocator${SHAREDLIB_EXTENSION}"
          insertlibpath="${RVAL}"
@@ -152,7 +152,7 @@ run_a_out()
       r_concat "${environment}" "MULLE_OBJC_PEDANTIC_EXIT='${OPTION_PEDANTIC_EXIT:-YES}'"
       environment="${RVAL}"
 
-      case ":${MEMORY_CHECKER}:" in
+      case ":${SANITIZER}:" in
          *:zombie:*)
             r_concat "${environment}" "NSZombieEnabled=YES"
             environment="${RVAL}"
@@ -160,7 +160,7 @@ run_a_out()
       esac
    fi
 
-   case ":${MEMORY_CHECKER}:" in
+   case ":${SANITIZER}:" in
       *:gmalloc:*)
          r_concat "${environment}" "MALLOC_PROTECT_BEFORE='YES' \
 MALLOC_FILL_SPACE='YES' MALLOC_STRICT_SIZE='YES'"
@@ -168,7 +168,7 @@ MALLOC_FILL_SPACE='YES' MALLOC_STRICT_SIZE='YES'"
       ;;
    esac
 
-   case ":${MEMORY_CHECKER}:" in
+   case ":${SANITIZER}:" in
       *:testallocator:*)
          r_concat "${environment}" "MULLE_TESTALLOCATOR='${OPTION_TESTALLOCATOR:-1}' \
 MULLE_TESTALLOCATOR_FIRST_LEAK='YES'"
@@ -176,7 +176,7 @@ MULLE_TESTALLOCATOR_FIRST_LEAK='YES'"
       ;;
    esac
 
-   case ":${MEMORY_CHECKER}:" in
+   case ":${SANITIZER}:" in
       *:valgrind:*)
          runner="'${VALGRIND:-valgrind}'"
 

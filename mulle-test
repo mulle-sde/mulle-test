@@ -256,7 +256,7 @@ main()
    local MULLE_FLAG_LOG_VERBOSE="NO"
    local MULLE_FLAG_LOG_MERGE="NO"
    local MULLE_TRACE_POSTPONE="NO"
-   local MEMORY_CHECKER
+   local SANITIZER
    local MULLE_FLAG_DEFER="DEFAULT"
    local FLAG_OUTSIDE_ENV="NO"
 
@@ -268,11 +268,11 @@ main()
 
    case "${MULLE_UNAME}" in
       darwin)
-         MEMORY_CHECKER="gmalloc:testallocator"
+         SANITIZER="gmalloc:testallocator"
       ;;
 
       *)
-         MEMORY_CHECKER="testallocator"
+         SANITIZER="testallocator"
       ;;
    esac
 
@@ -305,25 +305,40 @@ main()
 
          --valgrind)
             # no others beside  "valgrind"
-            MEMORY_CHECKER="valgrind"
+            SANITIZER="valgrind"
+         ;;
+
+         --sanitize-address)
+            # no others beside  "address"
+            SANITIZER="address"
+         ;;
+
+         --sanitize-undefined)
+            # no others beside  "undefined"
+            SANITIZER="undefined"
+         ;;
+
+         --sanitize-thread)
+            # no others beside  "thread"
+            SANITIZER="thread"
          ;;
 
          --zombie)
-            r_colon_remove "${MEMORY_CHECKER}" "testallocator"
+            r_colon_remove "${SANITIZER}" "testallocator"
             r_colon_concat "${RVAL}" "zombie"
-            MEMORY_CHECKER="${RVAL}"
+            SANITIZER="${RVAL}"
          ;;
 
-         --add-memory-checker)
+         --add-sanitizer|--add-memory-checker)
             [ $# -eq 1 ] && fail "Missing argument to \"$1\""
             shift
 
-            r_colon_concat "${MEMORY_CHECKER}" "$1"
-            MEMORY_CHECKER="${RVAL}"
+            r_colon_concat "${SANITIZER}" "$1"
+            SANITIZER="${RVAL}"
          ;;
 
-         --no-memory-checker)
-            MEMORY_CHECKER=
+         --no-sanitizer|--no-memory-checker)
+            SANITIZER=
          ;;
 
          --version)
