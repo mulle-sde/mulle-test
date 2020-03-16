@@ -1,3 +1,14 @@
+## 5.1.0
+
+* improved sanitizer support
+* improved execution of cmake bases tests (proper quoting)
+* fixed valgrind and mulle-testallocator crossing streams
+* started some support for WSL windows
+* use the new --mulle-test flag to tell dependencies they are being built for tests
+* support tests not being compiled. Use .args as the `MULLE_TEST_EXTENSIONS` and specify a `MULLE_TEST_EXECUTABLE` (nice for MulleScion)
+* improve search for `<name>`.environment to match search for .args .stdout etc.
+
+
 ### 5.0.2
 
 * fix CMakePackage

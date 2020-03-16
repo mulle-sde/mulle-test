@@ -108,7 +108,7 @@ execute_test_init_script()
       fail "\"${scriptpath#${MULLE_USER_PWD}/}\" is not installed as an executable"
    fi
 
-   log_verbose "Executing \"${scriptpath#${MULLE_USER_PWD}/}\""
+   log_verbose "Executing \"${scriptpath#${MULLE_USER_PWD}/} ${args}\""
 
    local args
 
@@ -121,7 +121,7 @@ execute_test_init_script()
                  PROJECT_LANGUAGE="'${PROJECT_LANGUAGE}'" \
                  PROJECT_DIALECT="'${PROJECT_DIALECT}'" \
                  PROJECT_EXTENSIONS="'${PROJECT_EXTENSIONS}'" \
-                 PROJECT_GITHUB_NAME="'${PROJECT_GITHUB_NAME}'" \
+                 GITHUB_USER="'${GITHUB_USER}'" \
                  PROJECT_ROOT_DIR="'${PROJECT_ROOT_DIR}'" \
                  PREFERRED_STARTUP_LIBRARY="'${PREFERRED_STARTUP_LIBRARY}'" \
                  MULLE_BASHFUNCTIONS_LIBEXEC_DIR="'${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}'" \
@@ -182,7 +182,7 @@ test_init_main()
             [ $# -eq 1 ] && test_init_usage "missing argument to \"$1\""
             shift
 
-            PROJECT_GITHUB_NAME="$1"
+            GITHUB_USER="$1"
           ;;
 
          --shared)
@@ -252,11 +252,6 @@ of a mulle-sde project"
       PROJECT_NAME="${RVAL}"
    fi
 
-   if [ -z "${PROJECT_GITHUB_NAME}" ]
-   then
-      PROJECT_GITHUB_NAME="${LOGNAME}"
-   fi
-
    #
    # also set project language and dialect from main project
    # use wild, since we don't want to copy all the tools and optionaltools
@@ -269,6 +264,7 @@ of a mulle-sde project"
                       -s \
                init --no-motd \
                     --style mulle/wild \
+                    --github-user "${GITHUB_USER}" \
                     --project-name "${PROJECT_NAME}" \
                     --project-language "${PROJECT_LANGUAGE}" \
                     --project-dialect "${PROJECT_DIALECT}" \

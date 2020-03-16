@@ -53,9 +53,17 @@ Flags:
 EOF
 
    (
-      options_technical_flags_usage "             : "
+      options_technical_flags_usage "                : "
       cat <<EOF
-   --dir-name <name> : specify test directory name (default: test)
+   --dir-name <name>    : specify test directory name (default: test)
+   --no-sanitizer       : no sanitizer
+   --sanitize-address   : use address sanitizer to craft and run
+   --sanitize-thread    : use thread sanitizer to craft and run
+   --sanitize-undefined : use undefined sanitizer to craft and run
+   --testallocator      : use mulle-testallocator to run (default)
+   --valgrind           : use valgrind to run
+   --zombie             : use zombie sanitizer ro run
+
 EOF
    ) | sort >&2
 
@@ -63,19 +71,19 @@ EOF
    cat <<EOF >&2
 
 Commands:
-   clean                    : remove dependency, kitchens and exe files
-   craft                    : force rebuild of project, then run tests
-   init                     : setup a test project for the current project
-   recraft                  : clean all then craft
-   run                      : run tests, crafts beforehand if needed
-   rerun                    : run failing tests again
-   test-dir                 : locate test folder
+   clean                : remove dependency, kitchens and exe files
+   craft                : force rebuild of project, then run tests
+   init                 : setup a test project for the current project
+   recraft              : clean all, then craft
+   run                  : run tests, crafts beforehand if needed
+   rerun                : run failing tests again
+   test-dir             : locate test folder
 
 Environment:
-   MULLE_TEST_DIR           : tests directory (test)
-   PROJECT_DIALECT          : dialect of the tests, can be objc
-   PROJECT_EXTENSIONS       : file extensions of the test files
-   PROJECT_LANGUAGE         : language of the tests (c)
+   MULLE_TEST_DIR       : tests directory (test)
+   PROJECT_DIALECT      : dialect of the tests, can be objc
+   PROJECT_EXTENSIONS   : file extensions of the test files
+   PROJECT_LANGUAGE     : language of the tests (c)
 
 EOF
 
@@ -323,8 +331,16 @@ main()
             SANITIZER="thread"
          ;;
 
+         --testallocator)
+            r_colon_remove "${SANITIZER}" "testallocator"
+            r_colon_remove "${SANITIZER}" "zombie"
+            r_colon_concat "${RVAL}" "testallocator"
+            SANITIZER="${RVAL}"
+         ;;
+
          --zombie)
             r_colon_remove "${SANITIZER}" "testallocator"
+            r_colon_remove "${SANITIZER}" "zombie"
             r_colon_concat "${RVAL}" "zombie"
             SANITIZER="${RVAL}"
          ;;

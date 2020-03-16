@@ -42,7 +42,7 @@ Usage:
 
    Run a compiled test. Feed it with stdin. The results will be compared
    against stderr and stdin. The return value must be 0 for a successful
-   test unless an errors file is specified.
+   test, unless you specify an errors file.
 
 Options:
    --errors <file>   : xxx
@@ -245,6 +245,21 @@ _check_test_output()
       return ${RVAL_FAILURE}
    fi
 
+   pretty_source="${TEST_PATH_PREFIX}${pretty_source}"
+   pretty_source="${pretty_source#${MULLE_USER_PWD}/}"
+
+   local pretty_stdout
+   local pretty_output
+   local pretty_stderr
+   local pretty_errput
+
+   pretty_stdout="${TEST_PATH_PREFIX}${stdout}"
+   pretty_stdout="${pretty_stdout#${MULLE_USER_PWD}/}"
+   pretty_stderr="${TEST_PATH_PREFIX}${stderr}"
+   pretty_stderr="${pretty_stdout#${MULLE_USER_PWD}/}"
+   pretty_output="${output#${MULLE_USER_PWD}/}"
+   pretty_errput="${errput#${MULLE_USER_PWD}/}"
+
    if [ "${stdout}" != "-" ]
    then
       local result
@@ -255,15 +270,15 @@ _check_test_output()
          white=`exekutor "${DIFF}" -q -w "${stdout}" "${output}"`
          if [ "$white" != "" ]
          then
-            log_error "FAILED: \"${TEST_PATH_PREFIX}${pretty_source}\" produced unexpected output"
-            log_info  "DIFF: (${output} vs. ${stdout})"
+            log_error "FAILED: \"${pretty_source}\" produced unexpected output"
+            log_info  "DIFF: (${pretty_output} vs. ${pretty_stdout})"
             exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} "${output}" "${stdout}" >&2
          else
-            log_error "FAILED: \"${TEST_PATH_PREFIX}${pretty_source}\" produced different whitespace output"
-            log_info  "DIFF: (${TEST_PATH_PREFIX}${stdout} vs. ${output})"
+            log_error "FAILED: \"${pretty_source}\" produced different whitespace output"
+            log_info  "DIFF: (${pretty_output} vs. ${pretty_stdout})"
             redirect_exekutor "${output}.actual.hex" od -a "${output}"
             redirect_exekutor "${output}.expect.hex" od -a "${stdout}"
-            exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} "${output}.expect.hex" "${output}.actual.hex" >&2
+            exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} "${output}.actual.hex" "${output}.expect.hex" >&2
          fi
 
          return ${RVAL_OUTPUT_DIFFERENCES}
@@ -276,7 +291,7 @@ _check_test_output()
       contents="`exekutor cat "${output}"`" 2> /dev/null
       if [ "${contents}" != "" ]
       then
-         log_warning "WARNING: \"${TEST_PATH_PREFIX}${pretty_source}\" produced possibly unexpected output (${output})" >&2
+         log_warning "WARNING: \"${pretty_source}\" produced possibly unexpected output (${pretty_output})" >&2
          echo "${contents}" >&2
          # return ${RVAL_OUTPUT_DIFFERENCES} just a warning though
       fi
@@ -287,9 +302,9 @@ _check_test_output()
       result=`exekutor "${DIFF}" -w "${stderr}" "${errput}"`
       if [ "${result}" != "" ]
       then
-         log_error "FAILED: \"${TEST_PATH_PREFIX}${pretty_source}\" produced unexpected diagnostics (${errput})" >&2
+         log_error "FAILED: \"${pretty_source}\" produced unexpected diagnostics (${pretty_errput})" >&2
          exekutor echo "" >&2
-         exekutor "${DIFF}" "${stderr}" "${errput}" >&2
+         exekutor "${DIFF}" "${pretty_stderr}" "${pretty_errput}" >&2
          return ${RVAL_OUTPUT_DIFFERENCES}
       else
          log_fluff "No differences in stderr found"
@@ -367,7 +382,6 @@ test_execute()
    local random
    local output
    local errput
-   local errors
 
    _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}.stdout" "f"
    output="${RVAL}"

@@ -133,6 +133,11 @@ maybe_show_output()
 
    local contents
 
+   if file_is_binary "${output}"
+   then
+      return
+   fi
+
    contents="`head -2 "${output}"`" 2> /dev/null
    if [ "${contents}" != "" ]
    then
@@ -258,8 +263,7 @@ run_cmake_test()
 
    a_out="${PWD}/${name}"
 
-   r_get_test_environmentfile "${name}" "cmake-output" "cmake-output"
-   if [ -f "${RVAL}" ]
+   if r_get_test_environmentfile "${name}" "cmake-output" "cmake-output"
    then
       a_out="`egrep -v '^#' "${RVAL}"`"
    fi
@@ -401,9 +405,15 @@ r_get_test_environmentfile()
          if rexekutor [ ! -f "${RVAL}" ]
          then
             RVAL="${fallback}"
+            if rexekutor [ ! -f "${RVAL}" ]
+            then
+               RVAL=
+               return 1
+            fi
          fi
       fi
    fi
+   return 0
 }
 
 
@@ -425,10 +435,9 @@ _run_test()
    [ -z "${ext}" ]  && internal_fail "ext must not be ? empty"
    [ -z "${root}" ] && internal_fail "root must not be empty"
 
-   r_get_test_environmentfile "${name}" "environment" ""
-   if [ ! -z "${RVAL}" ]
+   if r_get_test_environmentfile "${name}" "environment" "environment"
    then
-      log_fluff "Read environment file \"${RVAL}\" "
+      log_fluff "Read environment file \"${RVAL}\" (${PWD#${MULLE_USER_PWD}/}) "
       # as we are running in a subshell this is OK
       . "${RVAL}" || fail "\"${RVAL}\" read failed"
    fi
@@ -878,6 +887,7 @@ test_run_main()
             TEST_PATH_PREFIX="$1"
          ;;
 
+         # don't make MULLE_TEST_SERIAL local so we can put it into env
          --serial|--no-parallel)
             MULLE_TEST_SERIAL='YES'
          ;;

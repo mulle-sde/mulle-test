@@ -87,6 +87,10 @@ test_clean_main()
             OPTION_CLEAN_VAR='NO'
          ;;
 
+         --no-graveyard)
+            cleanoptions="$1"
+         ;;
+
          -*)
             test_clean_usage "Unknown option \"$1\""
          ;;
@@ -103,6 +107,7 @@ test_clean_main()
       all|tidy)
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                      clean \
+                        ${cleanoptions} \
                         "${1:-all}" &&
 
          log_verbose "Cleaning individual test kitchen directories"

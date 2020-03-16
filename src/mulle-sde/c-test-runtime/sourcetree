@@ -2,4 +2,4 @@
 #
 # singlephase works for exe and library so use that
 #
---nodetype '${<|PROJECT_UPCASE_IDENTIFIER|>_NODETYPE:-tar}' --marks 'singlephase' --tag '${<|PROJECT_UPCASE_IDENTIFIER|>_TAG:-latest}' --url '${<|PROJECT_UPCASE_IDENTIFIER|>_URL:-https://github.com/<|PROJECT_GITHUB_NAME|>/<|PROJECT_NAME|>/archive/${MULLE_TAG}.tar.gz}' '<|PROJECT_NAME|>'
+--nodetype '${<|PROJECT_UPCASE_IDENTIFIER|>_NODETYPE:-tar}' --marks 'singlephase' --tag '${<|PROJECT_UPCASE_IDENTIFIER|>_TAG:-latest}' --url '${<|PROJECT_UPCASE_IDENTIFIER|>_URL:-https://github.com/<|GITHUB_USER|>/<|PROJECT_NAME|>/archive/${MULLE_TAG}.tar.gz}' '<|PROJECT_NAME|>'
