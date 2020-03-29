@@ -208,7 +208,6 @@ test_init_main()
    r_simplified_path "${PWD}/${OPTION_DIRECTORY}/.."
    parentdir="${RVAL}"
 
-
    if [ -z "${PROJECT_ROOT_DIR}" ]
    then
       PROJECT_ROOT_DIR="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
@@ -217,28 +216,16 @@ test_init_main()
 
    if [ ! -z "${PROJECT_ROOT_DIR}" ]
    then
-      if [ -z "${PROJECT_LANGUAGE}" ]
-      then
-         PROJECT_LANGUAGE="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         environment get PROJECT_LANGUAGE`"
-      fi
-
-      if [ -z "${PROJECT_DIALECT}" ]
-      then
-         PROJECT_DIALECT="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         environment get PROJECT_DIALECT`"
-      fi
-
-      if [ -z "${PROJECT_EXTENSIONS}" ]
-      then
-         PROJECT_EXTENSIONS="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         environment get PROJECT_EXTENSIONS`"
-      fi
-
       if [ -z "${PROJECT_NAME}" ]
       then
-         PROJECT_NAME="`rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                         environment get PROJECT_NAME`"
+         local envfile
+
+         envfile="`rexekutor mulle-env ${MULLE_TECHNICAL_FLAGS} \
+                         environment scope file --if-exists project`"
+         if [ ! -z "${envfile}" ]
+         then
+            . "${envfile}" || exit 1
+         fi
       fi
    else
       [ ! -d "${parentdir}/.mulle/share/sde" ] && \

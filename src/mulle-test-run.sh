@@ -590,7 +590,7 @@ run_test_matching_extensions_in_directory()
    IFS=':'; set -f
    for ext in ${extensions}
    do
-      IFS="${DEFAULT_IFS}"; set +f
+      set +o noglob; IFS="${DEFAULT_IFS}"
       ext=".${ext}"
 
       case "${filename}" in
@@ -605,7 +605,7 @@ run_test_matching_extensions_in_directory()
          ;;
       esac
    done
-   IFS="${DEFAULT_IFS}"; set +f
+   set +o noglob; IFS="${DEFAULT_IFS}"
 }
 
 
