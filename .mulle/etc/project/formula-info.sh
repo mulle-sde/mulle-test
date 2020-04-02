@@ -17,7 +17,7 @@ LANGUAGE="bash"           # c,cpp, objc, bash ...
 #
 # mulle-sde knows and depends on mulle-test now
 #
-DEPENDENCIES='${MULLE_SDE_TAP}/mulle-platform'
+DEPENDENCIES='${MULLE_SDE_TAP}mulle-platform'
 
 DEBIAN_DEPENDENCIES="mulle-platform, build-essential"
 
