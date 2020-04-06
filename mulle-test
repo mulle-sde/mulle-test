@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="5.1.0"
+MULLE_EXECUTABLE_VERSION="5.2.0"
 
 # version is in mulle-test-env
 

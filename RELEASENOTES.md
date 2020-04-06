@@ -1,3 +1,8 @@
+## 5.2.0
+
+* move startup up when test init runs
+
+
 ## 5.1.0
 
 * improved sanitizer support

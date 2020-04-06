@@ -258,6 +258,12 @@ of a mulle-sde project"
                     --project-extensions "${PROJECT_EXTENSIONS}" \
                     -d "${OPTION_DIRECTORY}" \
                     -m "mulle-sde/${PROJECT_DIALECT}-test" \
-                    none
+                    none || return $?
+
+   # move below startup code if any
+   (
+      rexekutor cd "${OPTION_DIRECTORY}" &&
+      exekutor mulle-sourcetree -N -s move "${PROJECT_NAME}" bottom
+   )
 }
 
