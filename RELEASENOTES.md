@@ -1,3 +1,7 @@
+### 5.2.1
+
+* installer verbose toggle
+
 ## 5.2.0
 
 * move startup up when test init runs
