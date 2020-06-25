@@ -50,9 +50,9 @@ r_darwin_sdkpath()
 
 # this is crap and needs some kind of plugin interface
 
-setup_language()
+test_setup_language()
 {
-   log_entry "setup_language" "$@"
+   log_entry "test_setup_language" "$@"
 
    local platform="$1"
    local language="${2:-c}"
@@ -148,9 +148,9 @@ setup_language()
 }
 
 
-setup_tooling()
+test_setup_tooling()
 {
-   log_entry "setup_tooling" "$@"
+   log_entry "test_setup_tooling" "$@"
 
    local platform="$1"
 
@@ -228,9 +228,9 @@ setup_tooling()
 }
 
 
-setup_platform()
+test_setup_platform()
 {
-   log_entry "setup_platform" "$@"
+   log_entry "test_setup_platform" "$@"
 
    local platform="$1"
 
@@ -269,7 +269,7 @@ setup_platform()
       windows)
          CRLFCAT="dos2unix.exe"
       ;;
-      
+
       mingw)
          CRLFCAT="dos2unix"
       ;;
@@ -303,16 +303,18 @@ setup_platform()
 }
 
 
-setup_environment()
+test_setup_environment()
 {
-   log_entry "setup_environment" "$@"
+   log_entry "test_setup_environment" "$@"
 
    local platform="$1"
+   local dialect="$3"
 
    #
    #
    #
-   RESTORE_CRASHDUMP=`suppress_crashdumping`
+   r_suppress_crashdumping
+   RESTORE_CRASHDUMP="${RVAL}"
    trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
 
    #
@@ -323,15 +325,39 @@ setup_environment()
    #
    # Find debugger, clear variable if not installed
    #
-   DEBUGGER="${DEBUGGER:-`command -v mulle-lldb`}"
-   DEBUGGER="${DEBUGGER:-`command -v gdb`}"
-   DEBUGGER="${DEBUGGER:-`command -v lldb`}"
+   case "${dialect}" in
+      objc)
+         case "${MULLE_UNAME}" in
+            darwin)
+               # darwin is just not a good developer platform
+               # too hard to get a custom debugger going
+            ;;
+
+            *)
+               DEBUGGER="${DEBUGGER:-`command -v mulle-gdb`}"
+               DEBUGGER="${DEBUGGER:-`command -v mulle-lldb`}"
+            ;;
+         esac
+      ;;
+   esac
+
+   case "${MULLE_UNAME}" in
+      darwin)
+         DEBUGGER="${DEBUGGER:-`command -v lldb`}"
+         DEBUGGER="${DEBUGGER:-`command -v gdb`}"
+      ;;
+
+      *)
+         DEBUGGER="${DEBUGGER:-`command -v gdb`}"
+         DEBUGGER="${DEBUGGER:-`command -v lldb`}"
+      ;;
+   esac
 }
 
 
-include_required()
+test_include_required()
 {
-   log_entry "include_required" "$@"
+   log_entry "test_include_required" "$@"
 
    if [ -z "${MULLE_PATH_SH}" ]
    then
@@ -354,14 +380,15 @@ include_required()
 }
 
 
-setup_project()
+test_setup_project()
 {
-   log_entry "setup_project" "$@"
+   log_entry "test_setup_project" "$@"
 
    local platform="$1"
 
-   setup_language "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
-   setup_tooling "${platform}"
-   setup_platform "${platform}" # after tooling
+   test_setup_language "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+   test_setup_tooling "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+   test_setup_platform "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
+   test_setup_environment "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
 }
 

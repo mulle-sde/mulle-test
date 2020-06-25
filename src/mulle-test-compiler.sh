@@ -258,7 +258,9 @@ MULLE_TESTALLOCATOR_TRACE=3 "
          ;;
       esac
 
-      printf "%s" "MULLE_OBJC_DEBUG_ENABLED=YES \
+      case "${PROJECT_DIALECT}" in
+         objc)
+            printf "%s" "MULLE_OBJC_DEBUG_ENABLED=YES \
 MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
 MULLE_OBJC_PEDANTIC_EXIT=YES \
 MULLE_OBJC_TRACE_ENABLED=NO \
@@ -268,8 +270,10 @@ MULLE_OBJC_TRACE_METHOD_CALL=YES \
 MULLE_OBJC_TRACE_THREAD=YES \
 MULLE_OBJC_TRACE_UNIVERSE=YES \
 MULLE_OBJC_WARN_ENABLED=YES "
+            ;;
+         esac
 
-      echo "${DEBUGGER:-mulle-lldb} ${a_out_ext}"
+      echo "${DEBUGGER:-gdb} ${a_out_ext}"
       if [ "${stdin}" != "/dev/null" ]
       then
          echo "run ${stdin}"

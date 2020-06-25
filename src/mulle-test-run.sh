@@ -56,9 +56,9 @@ EOF
 # this is system wide, not so great
 # and also not trapped...
 #
-suppress_crashdumping()
+r_suppress_crashdumping()
 {
-   log_entry "suppress_crashdumping" "$@"
+   log_entry "r_suppress_crashdumping" "$@"
 
    local restore
 
@@ -69,7 +69,7 @@ suppress_crashdumping()
          ;;
    esac
 
-   printf "%s\n" "${restore}"
+   RVAL="${restore}"
 }
 
 
@@ -395,20 +395,40 @@ r_get_test_environmentfile()
    local name="$2"
    local fallback="$3"
 
-   RVAL="${name}.${varname}.${MULLE_UNAME}"
+   RVAL="${name}.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
    if rexekutor [ ! -f "${RVAL}" ]
    then
-      RVAL="${name}.${varname}"
+      RVAL="${name}.${varname}.${MULLE_UNAME}"
       if rexekutor [ ! -f "${RVAL}" ]
       then
-         RVAL="default.${varname}"
+         RVAL="${name}.${varname}.${MULLE_ARCH}"
          if rexekutor [ ! -f "${RVAL}" ]
          then
-            RVAL="${fallback}"
+            RVAL="${name}.${varname}"
             if rexekutor [ ! -f "${RVAL}" ]
             then
-               RVAL=
-               return 1
+               RVAL="default.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
+               if rexekutor [ ! -f "${RVAL}" ]
+               then
+                  RVAL="default.${varname}.${MULLE_UNAME}"
+                  if rexekutor [ ! -f "${RVAL}" ]
+                  then
+                     RVAL="default.${varname}.${MULLE_ARCH}"
+                     if rexekutor [ ! -f "${RVAL}" ]
+                     then
+                        RVAL="default.${varname}"
+                        if rexekutor [ ! -f "${RVAL}" ]
+                        then
+                           RVAL="${fallback}"
+                           if rexekutor [ ! -f "${RVAL}" ]
+                           then
+                              RVAL=
+                              return 1
+                           fi
+                        fi
+                     fi
+                  fi
+               fi
             fi
          fi
       fi
@@ -611,7 +631,7 @@ run_test_matching_extensions_in_directory()
 
 _scan_directory()
 {
-   log_entry "_scan_directory" "$@"
+   log_entry "_scan_directory" "$@" "($PWD)"
 
    local root="$1"; shift
    local extensions="$1"; shift
@@ -815,7 +835,7 @@ test_run_main()
       . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-environment.sh"
    fi
 
-   include_required
+   test_include_required
 
    local DEFAULT_MAKEFLAGS
    local OPTION_REQUIRE_LIBRARY="YES"
@@ -825,7 +845,7 @@ test_run_main()
 
    DEFAULT_MAKEFLAGS="-s"
 
-   setup_project "${MULLE_UNAME}"
+   test_setup_project "${MULLE_UNAME}"
 
    while [ $# -ne 0 ]
    do

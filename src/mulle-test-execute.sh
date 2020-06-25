@@ -186,7 +186,7 @@ MULLE_TESTALLOCATOR_FIRST_LEAK='YES'"
    esac
 
    full_redirekt_eval_exekutor "${input}" "${output}" "${errput}" \
-                                  "${environment}" "${runner}" "'${a_out_ext}'" "${args}"
+                                  "${environment}" "${runner}" "'${a_out_ext}'" ${args}
 }
 
 
@@ -452,16 +452,36 @@ r_get_test_datafile()
    local name="$2"
    local fallback="$3"
 
-   RVAL="${name}.${varname}.${MULLE_UNAME}"
+   RVAL="${name}.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
    if rexekutor [ ! -f "${RVAL}" ]
    then
-      RVAL="${name}.${varname}"
+      RVAL="${name}.${varname}.${MULLE_UNAME}"
       if rexekutor [ ! -f "${RVAL}" ]
       then
-         RVAL="default.${varname}"
+         RVAL="${name}.${varname}.${MULLE_ARCH}"
          if rexekutor [ ! -f "${RVAL}" ]
          then
-            RVAL="${fallback}"
+            RVAL="${name}.${varname}"
+            if rexekutor [ ! -f "${RVAL}" ]
+            then
+               RVAL="default.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
+               if rexekutor [ ! -f "${RVAL}" ]
+               then
+                  RVAL="default.${varname}.${MULLE_UNAME}"
+                  if rexekutor [ ! -f "${RVAL}" ]
+                  then
+                     RVAL="default.${varname}.${MULLE_ARCH}"
+                     if rexekutor [ ! -f "${RVAL}" ]
+                     then
+                        RVAL="default.${varname}"
+                        if rexekutor [ ! -f "${RVAL}" ]
+                        then
+                           RVAL="${fallback}"
+                        fi
+                     fi
+                  fi
+               fi
+            fi
          fi
       fi
    fi

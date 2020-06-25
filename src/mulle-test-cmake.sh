@@ -267,7 +267,7 @@ run_cmake()
    r_dirname "${srcfile}"
    directory="${RVAL}"
    (
-      exekutor cd "${directory}"
+      rexekutor cd "${directory}"
 
       eval_mulle_make_cmake "Test" "$@" || exit 1
 
