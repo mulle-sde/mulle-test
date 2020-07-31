@@ -176,9 +176,9 @@ run_common_test()
    local cc_errput
    local random
 
-   random="`make_tmp_file "${name}"`" || exit 1
+   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}.ccerr" "f"
+   cc_errput="${RVAL}" || exit 1
 
-   cc_errput="${random}.ccerr"
    r_relative_path_between "${PWD}/${srcfile}" "${root}"
    pretty_source="${RVAL}" || exit 1
 
@@ -256,21 +256,23 @@ run_cmake_test()
 {
    log_entry "run_cmake_test" "$@"
 
-   local name="$1"
-   local ext="$2"
+   local name="$1"; shift
 
    local a_out
+   local purename
 
-   a_out="${PWD}/${name}"
+   # remove leading 20_ or 20-
+   purename="${name#"${name%%[!0-9_-]*}"}"
+   a_out="${PWD}/${purename}"
 
-   if r_get_test_environmentfile "${name}" "cmake-output" "cmake-output"
+   if r_get_test_environmentfile "${purename}" "cmake-output" "cmake-output"
    then
       a_out="`egrep -v '^#' "${RVAL}"`"
    fi
 
    TEST_BUILDER="run_cmake"
    FAIL_TEST="fail_test_cmake"
-   run_common_test "" "${a_out}" "${a_out}${EXE_EXTENSION}" "$@"
+   run_common_test "" "${a_out}" "${a_out}${EXE_EXTENSION}" "${purename}" "$@"
 }
 
 
@@ -974,7 +976,7 @@ test_run_main()
    CFLAGS="${TEST_CFLAGS}"
 
    [ -z "${MULLE_TEST_DIR}" ] && internal_fail "MULLE_TEST_DIR undefined"
-   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_DIR undefined"
+   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"
 
    MULLE_TEST_EXTENSIONS="${MULLE_TEST_EXTENSIONS:-${PROJECT_EXTENSIONS}}"
 

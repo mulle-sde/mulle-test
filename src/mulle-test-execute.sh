@@ -101,8 +101,16 @@ run_a_out()
 
    case ":${SANITIZER}:" in
       *:testallocator:*)
-         r_colon_concat "${insertlibpath}" "${DEPENDENCY_DIR}/lib/libmulle-testallocator${SHAREDLIB_EXTENSION}"
-         insertlibpath="${RVAL}"
+         local filepath
+
+         filepath="${DEPENDENCY_DIR}/lib/libmulle-testallocator${SHAREDLIB_EXTENSION}"
+         if [ -f "${filepath}" ]
+         then
+            r_colon_concat "${insertlibpath}" "${filepath}"
+            insertlibpath="${RVAL}"
+         else
+            log_warning "\"${filepath}\" not found, memory checks will be unavailable"
+         fi
       ;;
    esac
 
@@ -382,6 +390,8 @@ test_execute()
    local random
    local output
    local errput
+
+   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"
 
    _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}.stdout" "f"
    output="${RVAL}"
