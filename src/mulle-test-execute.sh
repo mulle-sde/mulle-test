@@ -264,7 +264,7 @@ _check_test_output()
    pretty_stdout="${TEST_PATH_PREFIX}${stdout}"
    pretty_stdout="${pretty_stdout#${MULLE_USER_PWD}/}"
    pretty_stderr="${TEST_PATH_PREFIX}${stderr}"
-   pretty_stderr="${pretty_stdout#${MULLE_USER_PWD}/}"
+   pretty_stderr="${pretty_stderr#${MULLE_USER_PWD}/}"
    pretty_output="${output#${MULLE_USER_PWD}/}"
    pretty_errput="${errput#${MULLE_USER_PWD}/}"
 
@@ -272,24 +272,23 @@ _check_test_output()
    then
       local result
 
-      result=`exekutor "${DIFF}" -q "${stdout}" "${output}"`
+      result=`rexekutor cat "${output}" | exekutor "${DIFF}" -q "${stdout}" -`
       if [ "${result}" != "" ]
       then
-         white=`exekutor "${DIFF}" -q -w "${stdout}" "${output}"`
+         white=`rexekutor cat "${output}" | exekutor "${DIFF}" -q -w -B "${stdout}" -`
          if [ "$white" != "" ]
          then
             log_error "FAILED: \"${pretty_source}\" produced unexpected output"
             log_info  "DIFF: (${pretty_output} vs. ${pretty_stdout})"
-            exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} "${output}" "${stdout}" >&2
+            rexekutor cat "${output}" | exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} - "${stdout}" >&2
+            return ${RVAL_OUTPUT_DIFFERENCES}
          else
-            log_error "FAILED: \"${pretty_source}\" produced different whitespace output"
+            log_warning "WARNING: \"${pretty_source}\" produced different whitespace output"
             log_info  "DIFF: (${pretty_output} vs. ${pretty_stdout})"
             redirect_exekutor "${output}.actual.hex" od -a "${output}"
             redirect_exekutor "${output}.expect.hex" od -a "${stdout}"
-            exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} "${output}.actual.hex" "${output}.expect.hex" >&2
+            rexekutor cat "${output}.actual.hex" |  exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} - "${output}.expect.hex"  >&2
          fi
-
-         return ${RVAL_OUTPUT_DIFFERENCES}
       else
          log_fluff "No differences in stdout found"
       fi
@@ -443,11 +442,16 @@ test_execute()
                       "${ext}"
    rc=$?
 
-   remove_file_if_present "${output}"
-   remove_file_if_present "${errput}"
+   if [ $rc -eq 0 ]
+   then
+      remove_file_if_present "${output}"
+      remove_file_if_present "${errput}"
+   fi
 
    if [ $rc -eq 0 -a "${OPTION_REMOVE_EXE}" = 'YES' ]
    then
+      # also remove debug file if present
+      remove_file_if_present "${a_out##.exe}.debug.exe"
       remove_file_if_present "${a_out}"
       rmdir_safer "${a_out}.dSYM"
    fi
@@ -510,7 +514,7 @@ test_execute_main()
    local stderr
    local errors
    local args
-
+   local diff
    local pretty_source
 
    if [ -z "${OPTION_REMOVE_EXE}" ]
@@ -567,6 +571,14 @@ test_execute_main()
             pretty_source="$1"
          ;;
 
+
+         --diff)
+            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            shift
+
+            diff="$1"
+         ;;
+
          --keep-exe)
             OPTION_REMOVE_EXE='NO'
          ;;
@@ -608,11 +620,9 @@ test_execute_main()
    [ -x "${a_out}" ] || test_execute_usage "Improper executable
 \"${a_out}\" (not there or lacking execute permissions)"
 
-   DIFF="`command -v diff`"
-   [ -z "${DIFF}" ] && fail "There is no diff installed on this system"
-
    local name
    local ext
+   local args_text
 
    r_basename "${sourcefile}"
    name="${RVAL}"
@@ -643,6 +653,14 @@ test_execute_main()
       errors="${RVAL}"
    fi
 
+   if [ -z "${diff}" ]
+   then
+      r_get_test_datafile "diff" "${name}" ""
+      diff="${RVAL}"
+   fi
+
+   local args_text
+
    if [ -z "${args}" ]
    then
       r_get_test_datafile "args" "${name}" ""
@@ -650,7 +668,12 @@ test_execute_main()
 
       if [ ! -z "${args}" ]
       then
-         args="`cat "${args}"`"
+         if [ -x "${args}" ]
+         then
+            args_text="`PATH="${PWD}:${PATH}" rexekutor "${args}"`" || fail "${args} errored out"
+         else
+            args_text="`cat "${args}"`"
+         fi
       fi
    fi
 
@@ -658,9 +681,19 @@ test_execute_main()
 
    root="${PWD}"
    (
-      cd "${directory}" &&
+      cd "${directory}"
+
+      if [ ! -z "${diff}" ]
+      then
+         diff="${PWD}/${diff}"
+      else
+         diff="diff"
+      fi
+      DIFF="`command -v ${diff}`"
+      [ -z "${DIFF}" ] && fail "There is no ${diff} installed on this system"
+
       test_execute "${a_out}" \
-                   "${args}" \
+                   "${args_text}" \
                    "${name}" \
                    "${root}" \
                    "${ext}" \

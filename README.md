@@ -23,7 +23,9 @@ Executable   | Description
 
 ## Writing a test
 
-Here is a simple test, that checks that "Hello World" is properly output:
+Here is a simple test, that checks that "Hello World" is properly output.
+It consists of a sourcefile `example.c` and the expected test output file
+`example.stdout`:
 
 ```
 mkdir test
@@ -40,9 +42,7 @@ main()
 }
 EOF
 
-cat <<EOF > example/example.stdout
-Hello World
-EOF
+echo "Hello World" > example/example.stdout
 ```
 
 ## Running tests
@@ -60,6 +60,7 @@ Extension            | Description
 `<name>.errors`      | Each line must grep for test diagnostics
 `<name>.ccdiag`      | Each line must grep for compiler diagnostics
 `<name>.environment` | Environment variables to set for test executable
+`<name>.diff`        | An executable script that will be used to diff test output and expected output
 
 
 If for a test there is no support file `<name>.<ext>` found, a file with the
@@ -68,7 +69,7 @@ name `default.<ext>` will be searched for instead.
 
 ### stdin stdout stderr
 
-These file are binaries. Changes in whitespace will be detected-
+These file are binaries. Changes in whitespace will be detected.
 
 ### ccdiag
 
@@ -95,6 +96,17 @@ Example:
 export FOO="1848"
 ```
 
+### diff
+
+This is an executable or script, that is used to compare the output of the
+test with the expected files `stdout` and `stderr`. Typical use is to remove
+some content before diffing such as:
+
+```
+#! /bin/sh
+# remove all lines starting from "__DATE__" and ending with ");"
+sed -e '/__DATE__/,/);/d'  | diff "$@"
+```
 
 ## Install
 
@@ -110,7 +122,7 @@ Install latest version into `/usr` with sudo:
 
 ```
 curl -L 'https://github.com/mulle-sde/mulle-test/archive/latest.tar.gz' \
- | tar xfz - && cd 'mulle-test-latest' && sudo ./install /usr
+ | tar xfz - && cd 'mulle-test-latest' && sudo ./bin/installer /usr
 ```
 
 ### Packages

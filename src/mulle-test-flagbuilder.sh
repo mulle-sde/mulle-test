@@ -108,19 +108,18 @@ r_emit_cflags()
 {
    log_entry "r_emit_cflags" "$@"
 
-   local srcfile="$1"
+   local cflags="$1"
+   local srcfile="$2"
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
-      log_trace2 "CFLAGS:          ${CFLAGS}"
+      log_trace2 "CFLAGS:          ${cflags}"
       log_trace2 "OTHER_CFLAGS:    ${OTHER_CFLAGS}"
       log_trace2 "APPLE_SDKPATH:   ${APPLE_SDKPATH}"
    fi
 
    local cflagsname
-   local cflags
 
-   cflags="${CFLAGS}"
    r_extensionless_basename "${srcfile}"
    cflagsname="${RVAL}.CFLAGS"
 

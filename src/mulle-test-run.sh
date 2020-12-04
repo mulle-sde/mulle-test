@@ -107,11 +107,11 @@ trace_ignore()
 maybe_show_diagnostics()
 {
    log_entry "maybe_show_diagnostics" "$@"
-
-   local errput="$1"
-
-   local contents
-
+#
+#   local errput="$1"
+#
+#   local contents
+#
 #
 # may not be needed anymore since we compile with "grep" now
 #
@@ -229,9 +229,10 @@ run_common_test()
    fi
    cmd="${cmd} '${a_out_ext}'"
    cmd="${cmd} '${srcfile}'"
-   eval "${cmd}"
 
+   eval "${cmd}"
    rval=$?
+
    if [ ${RVAL_EXPECTED_FAILURE} = $rval ]
    then
       return 0
@@ -245,6 +246,8 @@ run_common_test()
 
          "${FAIL_TEST}" "${srcfile}" "${a_out_ext}" "${ext}" "${name}" "$@"
       fi
+   else
+      log_debug "FAIL_TEST is undefined"
    fi
 
    log_debug "Execute failure, returns with $rval"
@@ -794,10 +797,13 @@ run_named_test()
       ;;
 
       *)
-         if [ -x "${path}" ]
-         then
-            fail "Specify the source file not a binary \"${TEST_PATH_PREFIX}${path}\""
-         fi
+        # Test invalid now, since .args can be executable and are also the
+        # test run target (mulle-cpp)
+        #
+        # if [ -x "${path}" ]
+        # then
+        #    fail "Specify the source file not a binary \"${TEST_PATH_PREFIX}${path}\""
+        # fi
       ;;
    esac
 
@@ -848,6 +854,7 @@ test_run_main()
    DEFAULT_MAKEFLAGS="-s"
 
    test_setup_project "${MULLE_UNAME}"
+   TEST_CFLAGS="${RELEASE_CFLAGS}"
 
    while [ $# -ne 0 ]
    do
@@ -935,12 +942,11 @@ test_run_main()
          ;;
 
          --release)
-            # ignore
+            TEST_CFLAGS="${RELEASE_CFLAGS}"
          ;;
 
          --debug)
-            #OPTION_DEBUG_DYLD='YES'
-            # ignore
+            TEST_CFLAGS="${DEBUG_CFLAGS}"
          ;;
 
          --build-args)
@@ -972,8 +978,6 @@ test_run_main()
 
       shift
    done
-
-   CFLAGS="${TEST_CFLAGS}"
 
    [ -z "${MULLE_TEST_DIR}" ] && internal_fail "MULLE_TEST_DIR undefined"
    [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"

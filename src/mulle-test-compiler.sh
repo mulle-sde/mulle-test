@@ -36,7 +36,7 @@ r_c_commandline()
 {
    log_entry "r_c_commandline" "$@"
 
-   local additionalflags="$1"; shift
+   local cflags="$1"; shift
    local srcfile="$1"; shift
    local a_out="$1"; shift
 
@@ -60,26 +60,20 @@ r_c_commandline()
       linkcommand="${NO_STARTUP_LINK_COMMAND}"
    fi
 
-   r_emit_cflags "${srcfile}"
+   r_emit_cflags "${cflags}" "${srcfile}"
    cflags="${RVAL}"
 
    case "${MULLE_UNAME}" in
       windows)
-         r_concat "${cflags} /DMULLE_TEST=1"
+         r_concat "${cflags}" "/DMULLE_TEST=1"
          cflags="${RVAL}"
       ;;
 
       *)
-         r_concat "${cflags} -DMULLE_TEST=1"
+         r_concat "${cflags}" "-DMULLE_TEST=1"
          cflags="${RVAL}"
       ;;
    esac
-
-   r_concat "${cflags}" "${OTHER_CFLAGS}"
-   cflags="${RVAL}"
-
-   r_concat "${cflags}" "${additionalflags}"
-   cflags="${RVAL}"
 
    r_emit_include_cflags "'"
    incflags="${RVAL}"
@@ -164,15 +158,18 @@ fail_test_c()
       return
    fi
 
-   local cmdline
+   if [ "${TEST_CFLAGS}" != "${DEBUG_CFLAGS}" ]
+   then
+      local cmdline
 
-   r_c_commandline "${DEBUG_CFLAGS}" "${srcfile}" "${a_out}" "$@"
-   cmdline="${RVAL}"
+      r_c_commandline "${DEBUG_CFLAGS}" "${srcfile}" "${a_out}" "$@"
+      cmdline="${RVAL}"
 
-   log_info "DEBUG: "
-   log_info "Rebuilding as `basename -- ${a_out}` with -O0 and debug symbols..."
+      log_info "DEBUG: "
+      log_info "Rebuilding as `basename -- ${a_out}` with ${DEBUG_CFLAGS} ..."
 
-   eval_exekutor "${cmdline}"
+      eval_exekutor "${cmdline}"
+   fi
 
    stdin="${name}.stdin"
    if rexekutor [ ! -f "${stdin}" ]
@@ -198,7 +195,7 @@ run_gcc_compiler()
 
    local cmdline
 
-   r_c_commandline "${RELEASE_CFLAGS}" "${srcfile}" "${a_out}" "$@"
+   r_c_commandline "${TEST_CFLAGS}" "${srcfile}" "${a_out}" "$@"
    cmdline="${RVAL}"
 
    err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
