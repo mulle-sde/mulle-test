@@ -4,15 +4,20 @@
 
 ![Last version](https://img.shields.io/github/tag/mulle-sde/mulle-test.svg)
 
+**mulle-test** can test your C or Objective C library. But it can also test
+shell scripts or binaries. Basically anything that creates text output.
 
-**mulle-test** tests your C or Objective C library. It is based on
-**mulle-sde**. It will compile your project and all dependencies as *shared*
-libraries. This is different from **mulle-sde**, which compiles *static*
-libraries by default.
+The loop **mulle-test** does is compile, execute, diff. A test always fails,
+if the return code is not 0. A test also fails, if there is an expected output
+file present, and the actual produced output differs from the expectation.
 
-The reason for shared libraries is two-fold. For one the numerous test
-executables are not so big. Secondly it supports some alternative testing
-methodologies like 'UnitKit' better.
+As you would manually:
+
+```
+cc -o a.out a.c
+./a.out > a.result
+diff a.stdout a.result
+```
 
 
 
@@ -69,7 +74,8 @@ name `default.<ext>` will be searched for instead.
 
 ### stdin stdout stderr
 
-These file are binaries. Changes in whitespace will be detected.
+These file are binaries. Changes in whitespace only will be detected, and will
+produce a warning.
 
 ### ccdiag
 
@@ -107,6 +113,17 @@ some content before diffing such as:
 # remove all lines starting from "__DATE__" and ending with ");"
 sed -e '/__DATE__/,/);/d'  | diff "$@"
 ```
+
+## Technical info
+
+**mulle-test** is based on **mulle-sde**. mulle-test compiles your project and
+all  dependencies as *shared* libraries. This is different from **mulle-sde**,
+which compiles *static* libraries by default.
+
+The reason for shared libraries is two-fold. For one the numerous test
+executables are not so big. Secondly it supports some alternative testing
+methodologies like 'UnitKit' better.
+
 
 ## Install
 
