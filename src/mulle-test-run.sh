@@ -615,7 +615,7 @@ run_test_matching_extensions_in_directory()
    IFS=':'; set -f
    for ext in ${extensions}
    do
-      set +o noglob; IFS="${DEFAULT_IFS}"
+      set +f; IFS="${DEFAULT_IFS}"
       ext=".${ext}"
 
       case "${filename}" in
@@ -630,7 +630,7 @@ run_test_matching_extensions_in_directory()
          ;;
       esac
    done
-   set +o noglob; IFS="${DEFAULT_IFS}"
+   set +f; IFS="${DEFAULT_IFS}"
 }
 
 
@@ -761,6 +761,7 @@ run_all_tests()
    else
       log_warning "No tests found in ${PWD} with extensions ${MULLE_TEST_EXTENSIONS}"
    fi
+   return 0
 }
 
 
@@ -829,7 +830,8 @@ run_named_test()
 
    if [ ${RUNS} -eq 0 ]
    then
-      fail "Could not find \"${filename}\" with matching extensions MULLE_TEST_EXTENSIONS \"${MULLE_TEST_EXTENSIONS}\""
+      fail "Could not find \"${filename}\" with matching extensions \
+MULLE_TEST_EXTENSIONS \"${MULLE_TEST_EXTENSIONS}\""
    fi
 }
 

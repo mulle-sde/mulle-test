@@ -93,7 +93,7 @@ EOF
 
 #
 # 0 OK
-# 2 its a script
+# 4 its a script
 #
 cd_test_dir()
 {
@@ -154,8 +154,14 @@ test_do_craft()
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-craft.sh"
 
          cmd="test_craft_main"
+
       fi
    fi
+
+   eval `mulle-sde tool-env` || exit 1
+
+   [ -z "${DEPENDENCY_DIR}" ] && internal_fail "DEPENDENCY_DIR not set"
+   [ -z "${KITCHEN_DIR}" ]    && internal_fail "KITCHEN_DIR not set"
 
    log_verbose "Craft test dependencies"
 
@@ -171,6 +177,7 @@ test_do_run()
 
    log_verbose "Run tests"
 
+
    if [ -x "./run-test" ]
    then
       cmd="exekutor ./run-test ${MULLE_TECHNICAL_FLAGS}"
@@ -180,6 +187,11 @@ test_do_run()
 
       cmd="test_run_main"
    fi
+
+   eval `mulle-sde tool-env` || exit 1
+
+   [ -z "${DEPENDENCY_DIR}" ] && internal_fail "DEPENDENCY_DIR not set"
+   [ -z "${KITCHEN_DIR}" ]    && internal_fail "KITCHEN_DIR not set"
 
    ${cmd} "$@"
 }
@@ -404,7 +416,9 @@ main()
 
       *)
          case "${cmd}" in
-            build|clean|cleanrun|craft|env|init|libexec-dir|linkorder|log|rebuild|recraft|rerun|run|test-dir|version)               shift;
+            build|clean|cleanrun|craft|env|init|libexec-dir|linkorder|log\
+|rebuild|recraft|rerun|run|test-dir|version)
+               shift
             ;;
 
             /*|.*)
@@ -432,7 +446,7 @@ main()
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                             ${MULLE_SDE_FLAGS} \
-                           clean "${PROJECT_NAME}"    || return 1
+                           clean "${PROJECT_NAME}" || return 1
 
          test_do_craft "$@" || return $?
 
