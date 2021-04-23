@@ -392,7 +392,7 @@ test_execute()
 
    [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"
 
-   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}.stdout" "f"
+   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}.stdout" "f" || exit 1
    output="${RVAL}"
 
    errput="${output%.stdout}.stderr"

@@ -44,8 +44,8 @@ test_craft_main()
    log_entry "test_craft_main" "$@"
 
    local args
-   local makeargs
    local craftargs
+   local sdeargs
    local OPTION_STANDALONE
 
    craftargs="--mulle-test"
@@ -116,10 +116,10 @@ test_craft_main()
       shift
    done
 
-   if [ "${OPTION_STANDALONE}" != 'YES' ]
-   then
-      makeargs="${makeargs} --preferred-library-style dynamic"
-   fi
+   # we force no-clean since we don't have a project per se in test
+   # only craftorders
+   sdeargs="${sdeargs} --no-clean"
+
 
    if [ ! -z "${OPTION_CMAKE_BUILD_TYPE}" ]
    then
@@ -127,8 +127,14 @@ test_craft_main()
 #      makeargs="${makeargs} -DCMAKE_BUILD_TYPE='${OPTION_CMAKE_BUILD_TYPE}'"
    fi
 
+
    #  a bit too clang specific here or ?
    local makeargs
+
+   if [ "${OPTION_STANDALONE}" != 'YES' ]
+   then
+      makeargs="${makeargs} --preferred-library-style dynamic"
+   fi
 
    case ":${SANITIZER}:" in
       *:undefined:*)
@@ -146,8 +152,8 @@ test_craft_main()
 
    while [ $# -ne 0 ]
    do
-      r_concat "${args}" "'$1'"
-      args="${RVAL}"
+      r_concat "${makeargs}" "'$1'"
+      makeargs="${RVAL}"
       shift
    done
 
@@ -163,6 +169,7 @@ test_craft_main()
                                "${MULLE_SDE_FLAGS}" \
                                --no-test-check \
                             craft \
+                               "${sdeargs}" \
                                "${craftargs}" \
                                -- \
                                "${makeargs}"

@@ -176,7 +176,7 @@ run_common_test()
    local cc_errput
    local random
 
-   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}.ccerr" "f"
+   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}.ccerr" "f" || exit 1
    cc_errput="${RVAL}" || exit 1
 
    r_relative_path_between "${PWD}/${srcfile}" "${root}"

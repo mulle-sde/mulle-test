@@ -445,8 +445,7 @@ main()
          fi
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                            ${MULLE_SDE_FLAGS} \
-                           clean "${PROJECT_NAME}" || return 1
+                           clean "${PROJECT_NAME}" || return $?
 
          test_do_craft "$@" || return $?
 
@@ -461,9 +460,11 @@ main()
          then
             exec_in_subshell_if_needed "${cmd}" "$@"
          fi
+
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                           clean all    || return 1
-         test_do_craft "$@"
+                           clean all || return $?
+
+         test_do_craft "$@" || return $?
 
          if [ "${cmd}" = "recrun" ]
          then

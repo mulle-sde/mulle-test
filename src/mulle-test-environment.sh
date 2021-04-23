@@ -39,8 +39,7 @@ r_darwin_sdkpath()
    RVAL="`xcrun --show-sdk-path 2> /dev/null`"
    if [ -z "${RVAL}" ]
    then
-      # hardcode for now
-      RVAL="`xcode-select  -print-path/SDKs/MacOSX10.6.sdk`"
+      RVAL="`xcode-select -print-path`"
       if [ ! -d "${RVAL}" ]
       then
          return 1
@@ -60,12 +59,12 @@ test_setup_language()
 
    case "${language}" in
       c)
-         RELEASE_GCC_CFLAGS="-O3 -g"
+         RELEASE_GCC_CFLAGS="-O3 -g -DNDEBUG -DNS_BLOCK_ASSERTIONS"
          DEBUG_GCC_CFLAGS="-O0 -g"
 
          case "${platform}" in
             mingw*)
-               RELEASE_CL_CFLAGS="-O2 -MD -wd4068" #-/W /O0"
+               RELEASE_CL_CFLAGS="-O2 -MD -wd4068 -DNDEBUG -DNS_BLOCK_ASSERTIONS" #-/W /O0"
                # http://stackoverflow.com/questions/3007312/resolving-lnk4098-defaultlib-msvcrt-conflicts-with
                # we link vs. cmake generated stuff, that is usually a DLL or will be wrapped into a DLL
                # so we compile with /MD
@@ -73,7 +72,7 @@ test_setup_language()
             ;;
 
             windows)
-               RELEASE_CL_CFLAGS="/O2 /MD /wd4068" #-/W /O0"
+               RELEASE_CL_CFLAGS="/O2 /MD /wd4068 /DNDEBUG /DNS_BLOCK_ASSERTIONS" #-/W /O0"
                # http://stackoverflow.com/questions/3007312/resolving-lnk4098-defaultlib-msvcrt-conflicts-with
                # we link vs. cmake generated stuff, that is usually a DLL or will be wrapped into a DLL
                # so we compile with /MD
