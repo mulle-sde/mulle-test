@@ -99,8 +99,12 @@ r_c_commandline()
             objc)
                case "${MULLE_UNAME}" in
                   darwin)
-                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
-                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
+                     case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
+                        mulle-objc)
+                           cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
+                           cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
+                        ;;
+                     esac
                   ;;
                esac
             ;;
@@ -112,7 +116,11 @@ r_c_commandline()
       objc)
          case "${MULLE_UNAME}" in
             darwin)
-               cmdline="${cmdline} -Wl,-exported_symbol -Wl,___register_mulle_objc_universe"
+               case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
+                  mulle-objc)
+                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,___register_mulle_objc_universe"
+                  ;;
+               esac
             ;;
          esac
       ;;
@@ -248,6 +256,13 @@ suggest_debugger_commandline()
    esac
 
    (
+      case "${MULLE_UNAME}" in
+         darwin)
+            printf "%s " "DYLD_FALLBACK_FRAMEWORK_PATH='${DEPENDENCY_DIR}/Frameworks'"
+            printf "%s " "DYLD_FALLBACK_LIBRARY_PATH='${DEPENDENCY_DIR}/lib'"
+         ;;
+      esac 
+
       case ":${SANITIZER}:" in
          *:testallocator:*)
             printf "%s" "MULLE_TESTALLOCATOR=1 \

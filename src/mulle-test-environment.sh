@@ -56,6 +56,7 @@ test_setup_language()
    local platform="$1"
    local language="${2:-c}"
    local dialect="${3:-c}"
+   local objc_dialect="${4:-mulle-objc}"
 
    case "${language}" in
       c)
@@ -89,9 +90,13 @@ test_setup_language()
             objc)
                case "${objc_dialect}" in
                   Apple|GNUStep)
+                     PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-m}"
                   ;;
 
-                  *)
+                  mulle-objc)
+                     PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-m:aam}"
+                     STANDALONE_SUFFIX="-standalone"
+
                      case "${platform}" in
                         mingw*)
                            CC="mulle-clang-cl"
@@ -127,9 +132,6 @@ test_setup_language()
                      esac
                   ;;
                esac
-
-               PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-m:aam}"
-               STANDALONE_SUFFIX="-standalone"
 
                DEBUG_CL_CFLAGS="-DEBUG -MDd -Od -wd4068" #-/W /O0"
             ;;
@@ -385,7 +387,10 @@ test_setup_project()
 
    local platform="$1"
 
-   test_setup_language "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+   #
+   # MULLE_TEST_OBJC_DIALECT to be set in environment
+   #
+   test_setup_language "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" "${MULLE_TEST_OBJC_DIALECT}"
    test_setup_tooling "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
    test_setup_platform "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
    test_setup_environment "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling

@@ -133,6 +133,12 @@ run_a_out()
                environment="${RVAL}"
             fi
          fi
+
+         r_concat "${environment}" "DYLD_FALLBACK_FRAMEWORK_PATH='${DEPENDENCY_DIR}/Frameworks'"
+         environment="${RVAL}"
+
+         r_concat "${environment}" "DYLD_FALLBACK_LIBRARY_PATH='${DEPENDENCY_DIR}/lib'"
+         environment="${RVAL}"
       ;;
 
       mingw*)

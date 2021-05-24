@@ -1,3 +1,9 @@
+### 5.3.1
+
+* improved tool support for macOS
+* added `-DNDEBUG` `-DNS_BLOCK_ASSERTION` to release compile flags
+* reduced default trace flag verbosity for failed mulle tests
+
 ## 5.3.0
 
 * made diffing more flexible, you can now provide your own .diff script

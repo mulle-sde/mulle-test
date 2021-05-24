@@ -32,7 +32,6 @@
 MULLE_TEST_LINKORDER_SH="included"
 
 
-
 test_linkorder_usage()
 {
    [ "$#" -ne 0 ] && log_error "$1"
@@ -139,7 +138,6 @@ r_get_link_command()
 }
 
 
-
 test_linkorder_main()
 {
    log_entry "test_linkorder_main" "$@"
@@ -196,7 +194,6 @@ test_linkorder_main()
          remove_file_if_present "${MULLE_TEST_VAR_DIR}/linkorder-no-startup"
          return
       ;;
-
 
       list)
          if [ "${OPTION_STARTUP}" = 'DEFAULT' ]

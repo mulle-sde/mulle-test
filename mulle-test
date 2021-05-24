@@ -32,7 +32,7 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="5.3.0"
+MULLE_EXECUTABLE_VERSION="5.3.1"
 
 # version is in mulle-test-env
 
@@ -288,13 +288,30 @@ main()
    local RUN_OPTIONS
 
 
-   case "${MULLE_UNAME}" in
-      darwin)
-         SANITIZER="gmalloc:testallocator"
+   #
+   # On MacOS with the default Foundation/objc we can't
+   # use the testallocator, because the singletons won't
+   # get reclaimed
+   #
+   case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in 
+      mulle-objc)
+         case "${MULLE_UNAME}" in
+            darwin)
+               SANITIZER="gmalloc:testallocator"
+            ;;
+
+            *)
+               SANITIZER="testallocator"
+            ;;
+         esac
       ;;
 
       *)
-         SANITIZER="testallocator"
+         case "${MULLE_UNAME}" in
+            darwin)
+               SANITIZER="gmalloc"
+            ;;
+         esac
       ;;
    esac
 
