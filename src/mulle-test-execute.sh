@@ -109,7 +109,7 @@ run_a_out()
             r_colon_concat "${insertlibpath}" "${filepath}"
             insertlibpath="${RVAL}"
          else
-            log_warning "\"${filepath}\" not found, memory checks will be unavailable"
+            log_warning "\"${filepath#${MULLE_USER_PWD}/}\" not found, memory checks will be unavailable"
          fi
       ;;
    esac
@@ -278,19 +278,19 @@ _check_test_output()
    then
       local result
 
-      result=`rexekutor cat "${output}" | exekutor "${DIFF}" -q "${stdout}" -`
+      result=`rexekutor "${CAT}" "${output}" | exekutor "${DIFF}" -q "${stdout}" -`
       if [ "${result}" != "" ]
       then
-         white=`rexekutor cat "${output}" | exekutor "${DIFF}" -q -w -B "${stdout}" -`
+         white=`rexekutor "${CAT}"  "${output}" | exekutor "${DIFF}" -q -w -B "${stdout}" -`
          if [ "$white" != "" ]
          then
             log_error "FAILED: \"${pretty_source}\" produced unexpected output"
             log_info  "DIFF: (${pretty_output} vs. ${pretty_stdout})"
-            rexekutor cat "${output}" | exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} - "${stdout}" >&2
+            rexekutor "${CAT}"  "${output}" | exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} - "${stdout}" >&2
             return ${RVAL_OUTPUT_DIFFERENCES}
          else
             log_warning "WARNING: \"${pretty_source}\" produced different whitespace output"
-            log_info  "DIFF: (${pretty_output} vs. ${pretty_stdout})"
+            log_info  "DIFF: (${pretty_output#{MULLE_USER_PWD}/} vs. ${pretty_stdout#{MULLE_USER_PWD}/})"
             redirect_exekutor "${output}.actual.hex" od -a "${output}"
             redirect_exekutor "${output}.expect.hex" od -a "${stdout}"
             rexekutor cat "${output}.actual.hex" |  exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} - "${output}.expect.hex"  >&2
@@ -301,7 +301,7 @@ _check_test_output()
    else
       local contents
 
-      contents="`exekutor cat "${output}"`" 2> /dev/null
+      contents="`exekutor "${CAT}" "${output}"`" 2> /dev/null
       if [ "${contents}" != "" ]
       then
          log_warning "WARNING: \"${pretty_source}\" produced possibly unexpected output (${pretty_output})" >&2
@@ -521,6 +521,7 @@ test_execute_main()
    local errors
    local args
    local diff
+   local cat
    local pretty_source
 
    if [ -z "${OPTION_REMOVE_EXE}" ]
@@ -577,12 +578,18 @@ test_execute_main()
             pretty_source="$1"
          ;;
 
-
          --diff)
             [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
             shift
 
             diff="$1"
+         ;;
+
+         --cat)
+            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            shift
+
+            cat="$1"
          ;;
 
          --keep-exe)
@@ -665,6 +672,12 @@ test_execute_main()
       diff="${RVAL}"
    fi
 
+   if [ -z "${cat}" ]
+   then
+      r_get_test_datafile "cat" "${name}" ""
+      cat="${RVAL}"
+   fi
+
    local args_text
 
    if [ -z "${args}" ]
@@ -697,6 +710,16 @@ test_execute_main()
       fi
       DIFF="`command -v ${diff}`"
       [ -z "${DIFF}" ] && fail "There is no ${diff} installed on this system"
+
+      # allow special local cat to massage output for diffing
+      if [ ! -z "${cat}" ]
+      then
+         cat="${PWD}/${cat}"
+      else
+         cat="cat"
+      fi
+      CAT="`command -v ${cat}`"
+      [ -z "${CAT}" ] && fail "There is no ${cat} installed on this system"
 
       test_execute "${a_out}" \
                    "${args_text}" \

@@ -89,7 +89,7 @@ test_setup_language()
 
             objc)
                case "${objc_dialect}" in
-                  Apple|GNUStep)
+                  [Aa]pple|[Gg][Nn][Uu][Ss]tep)
                      PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-m}"
                   ;;
 

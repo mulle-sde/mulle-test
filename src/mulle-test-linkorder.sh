@@ -192,7 +192,7 @@ test_linkorder_main()
       clean)
          remove_file_if_present "${MULLE_TEST_VAR_DIR}/linkorder"
          remove_file_if_present "${MULLE_TEST_VAR_DIR}/linkorder-no-startup"
-         return
+         return 0
       ;;
 
       list)

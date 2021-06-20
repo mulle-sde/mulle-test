@@ -142,7 +142,7 @@ maybe_show_output()
    if [ "${contents}" != "" ]
    then
       log_info "OUTPUT:"
-      cat "${output}"
+      "${CAT:-cat}"  "${output}"
    fi
 }
 
