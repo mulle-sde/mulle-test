@@ -99,7 +99,7 @@ test_craft_main()
             OPTION_CMAKE_BUILD_TYPE='Release';
          ;;
 
-         --valgrind)
+         --valgrind|--sanitize*)
             # ignore, don't complain
          ;;
 

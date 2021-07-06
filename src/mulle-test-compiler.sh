@@ -32,6 +32,53 @@
 MULLE_TEST_COMPILER_SH="included"
 
 
+r_c_sanitizer_flags()
+{
+   log_entry "r_c_sanitizer_flags" "$@"
+
+   local sanitizer="$1"
+
+   RVAL=""
+   #  a bit too clang specific here or ?
+   case ":${sanitizer}:" in
+      *:undefined:*)
+         RVAL="-fsanitize=undefined"
+         return 0
+      ;;
+
+      *:thread:*)
+         RVAL="-fsanitize=thread"
+         return 0
+      ;;
+
+      *:address:*)
+         RVAL="-fsanitize=address"
+         return 0
+      ;;
+
+      *:testallocator:*)
+         case "${PROJECT_DIALECT}" in
+            objc)
+               case "${MULLE_UNAME}" in
+                  darwin)
+                     case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
+                        mulle-objc)
+                           RVAL="-Wl,-exported_symbol -Wl,__mulle_atinit"
+                           RVAL="${RVAL} -Wl,-exported_symbol -Wl,_mulle_atexit"
+                           return 0
+                        ;;
+                     esac
+                  ;;
+               esac
+            ;;
+         esac
+      ;;
+   esac
+
+   return 1
+}
+
+
 r_c_commandline()
 {
    log_entry "r_c_commandline" "$@"
@@ -79,38 +126,10 @@ r_c_commandline()
    incflags="${RVAL}"
 
    cmdline="'${CC}' ${cflags} ${incflags}"
-
-   #  a bit too clang specific here or ?
-   case ":${SANITIZER}:" in
-      *:undefined:*)
-         cmdline="${cmdline} -fsanitize=undefined"
-      ;;
-
-      *:thread:*)
-         cmdline="${cmdline} -fsanitize=thread"
-      ;;
-
-      *:address:*)
-         cmdline="${cmdline} -fsanitize=address"
-      ;;
-
-      *:testallocator:*)
-         case "${PROJECT_DIALECT}" in
-            objc)
-               case "${MULLE_UNAME}" in
-                  darwin)
-                     case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
-                        mulle-objc)
-                           cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
-                           cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
-                        ;;
-                     esac
-                  ;;
-               esac
-            ;;
-         esac
-      ;;
-   esac
+   if r_c_sanitizer_flags "${SANITIZER}"
+   then
+      cmdline="${cmdline} ${RVAL}"
+   fi
 
    case "${PROJECT_DIALECT}" in
       objc)
@@ -261,7 +280,7 @@ suggest_debugger_commandline()
             printf "%s " "DYLD_FALLBACK_FRAMEWORK_PATH='${DEPENDENCY_DIR}/Frameworks'"
             printf "%s " "DYLD_FALLBACK_LIBRARY_PATH='${DEPENDENCY_DIR}/lib'"
          ;;
-      esac 
+      esac
 
       case ":${SANITIZER}:" in
          *:testallocator:*)

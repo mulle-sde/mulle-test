@@ -177,7 +177,6 @@ test_do_run()
 
    log_verbose "Run tests"
 
-
    if [ -x "./run-test" ]
    then
       cmd="exekutor ./run-test ${MULLE_TECHNICAL_FLAGS}"
@@ -244,13 +243,13 @@ get_quickstatus()
 
 run_or_rerun()
 {
-   log_entry "get_quickstatus" "$@"
+   log_entry "run_or_rerun" "$@"
 
    local cmd="$1"; shift
 
    if ! get_quickstatus
    then
-      test_do_craft || return 1
+      test_do_craft "$@" || return 1
    fi
 
    if [ "${cmd}" = "rerun" ]
@@ -293,7 +292,7 @@ main()
    # use the testallocator, because the singletons won't
    # get reclaimed
    #
-   case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in 
+   case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
       mulle-objc)
          case "${MULLE_UNAME}" in
             darwin)

@@ -92,6 +92,11 @@ eval_mulle_make_cmake()
    r_concat "${cmake_c_flags}" "-DMULLE_TEST=1"
    cmake_c_flags="${RVAL}"
 
+   # add sanitizer flags
+   if r_c_sanitizer_flags "${SANITIZER}"
+   then
+      cmake_c_flags="${cmake_c_flags} ${RVAL}"
+   fi
 
    local cmake_exe_linker_flags
 
