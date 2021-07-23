@@ -1,3 +1,7 @@
+### 5.3.3
+
+* fix cmake test problem on macOS
+
 ### 5.3.1
 
 * Various small improvements

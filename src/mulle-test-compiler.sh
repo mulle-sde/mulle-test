@@ -55,7 +55,21 @@ r_c_sanitizer_flags()
          RVAL="-fsanitize=address"
          return 0
       ;;
+   esac
 
+   return 1
+}
+
+
+r_ld_sanitizer_flags()
+{
+   log_entry "r_ld_sanitizer_flags" "$@"
+
+   local sanitizer="$1"
+
+   RVAL=""
+   #  a bit too clang specific here or ?
+   case ":${sanitizer}:" in
       *:testallocator:*)
          case "${PROJECT_DIALECT}" in
             objc)
@@ -127,6 +141,11 @@ r_c_commandline()
 
    cmdline="'${CC}' ${cflags} ${incflags}"
    if r_c_sanitizer_flags "${SANITIZER}"
+   then
+      cmdline="${cmdline} ${RVAL}"
+   fi
+
+   if r_ld_sanitizer_flags "${SANITIZER}"
    then
       cmdline="${cmdline} ${RVAL}"
    fi

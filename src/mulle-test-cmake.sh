@@ -102,6 +102,12 @@ eval_mulle_make_cmake()
 
    cmake_exe_linker_flags="${RPATH_FLAGS}"
 
+   # add sanitizer flags
+   if r_ld_sanitizer_flags "${SANITIZER}"
+   then
+      cmake_exe_linker_flags="${cmake_exe_linker_flags} ${RVAL}"
+   fi
+
    local cmake_shared_linker_flags
 
    cmake_shared_linker_flags="${RPATH_FLAGS}"
