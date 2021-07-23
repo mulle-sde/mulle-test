@@ -432,7 +432,7 @@ main()
 
       *)
          case "${cmd}" in
-            build|clean|cleanrun|craft|env|init|libexec-dir|linkorder|log\
+            build|clean|cleanrun|craft|env|fetch|init|libexec-dir|linkorder|log\
 |rebuild|recraft|rerun|run|test-dir|version)
                shift
             ;;
@@ -511,6 +511,17 @@ main()
 
       env)
          rexekutor env | sort
+      ;;
+
+
+      fetch)
+         if cd_test_dir
+         then
+            exec_in_subshell_if_needed "${cmd}" "$@"
+         fi
+
+         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                           fetch "$@" 
       ;;
 
       init)

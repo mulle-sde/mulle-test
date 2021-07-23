@@ -1,8 +1,6 @@
 ### 5.3.1
 
-* improved tool support for macOS
-* added `-DNDEBUG` `-DNS_BLOCK_ASSERTION` to release compile flags
-* reduced default trace flag verbosity for failed mulle tests
+* Various small improvements
 
 ## 5.3.0
 
