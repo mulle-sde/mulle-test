@@ -11,7 +11,7 @@
 * made diffing more flexible, you can now provide your own .diff script
 * differing whitespace is now only a warning and not an error anymore
 * fix /tmp polution with wrongly placed compiler error output
-* cmake tests in a folder like ``20_foo`` will be now expected to produce **`foo`** and not `**`20_foo`**`
+* cmake tests in a folder like ``20_foo`` will be now expected to produce **`foo`** and not **`20_foo`**
 * support differentation by architecture
 
 
