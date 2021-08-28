@@ -480,7 +480,7 @@ _run_test()
          local functionname
 
          functionname="run_${ext#.}_test"
-         if [ "`type -t "${functionname}"`" != "function" ]
+         if ! shell_is_function "${functionname}"
          then
              fail "Don't know how to handle extension \"${ext}\""
          fi
@@ -612,10 +612,10 @@ run_test_matching_extensions_in_directory()
    local name
    local ext
 
-   IFS=':'; set -f
+   IFS=':'; shell_disable_glob
    for ext in ${extensions}
    do
-      set +f; IFS="${DEFAULT_IFS}"
+      shell_enable_glob; IFS="${DEFAULT_IFS}"
       ext=".${ext}"
 
       case "${filename}" in
@@ -630,13 +630,13 @@ run_test_matching_extensions_in_directory()
          ;;
       esac
    done
-   set +f; IFS="${DEFAULT_IFS}"
+   shell_enable_glob; IFS="${DEFAULT_IFS}"
 }
 
 
 _scan_directory()
 {
-   log_entry "_scan_directory" "$@" "($PWD)"
+   log_entry "_scan_directory" "$@" "(${PWD#${MULLE_USER_PWD}/})"
 
    local root="$1"; shift
    local extensions="$1"; shift
@@ -770,25 +770,26 @@ run_named_test()
    log_entry "run_named_test" "$@"
 
    local root="$1"; shift
-   local path="$1"; shift
+   local filepath="$1"; shift
 
-   if ! is_absolutepath "${path}"
+   if ! is_absolutepath "${filepath}"
    then
-      r_filepath_concat "${root}" "${path}"
-      path="${RVAL}"
+      r_filepath_concat "${root}" "${filepath}"
+      filepath="${RVAL}"
    fi
 
-   if [ ! -e "${path}" ]
+   if [ ! -e "${filepath}" ]
    then
-      fail "Test \"${TEST_PATH_PREFIX}${path}\" not found"
+      fail "Test \"${TEST_PATH_PREFIX}${filepath}\" not found"
    fi
 
    # make physical for WSL
-   path="`physicalpath "$path"`"
+   r_physicalpath "$filepath"
+   filepath="${RVAL}"
 
-   if [ -d "${path}" ]
+   if [ -d "${filepath}" ]
    then
-      scan_directory "${path}" "${root}" "${MULLE_TEST_EXTENSIONS}" "$@"
+      scan_directory "${filepath}" "${root}" "${MULLE_TEST_EXTENSIONS}" "$@"
       return $?
    fi
 
@@ -801,9 +802,9 @@ run_named_test()
         # Test invalid now, since .args can be executable and are also the
         # test run target (mulle-cpp)
         #
-        # if [ -x "${path}" ]
+        # if [ -x "${filepath}" ]
         # then
-        #    fail "Specify the source file not a binary \"${TEST_PATH_PREFIX}${path}\""
+        #    fail "Specify the source file not a binary \"${TEST_PATH_PREFIX}${filepath}\""
         # fi
       ;;
    esac
@@ -811,9 +812,9 @@ run_named_test()
    local directory
    local filename
 
-   r_dirname "${path}"
+   r_dirname "${filepath}"
    directory="${RVAL}"
-   r_basename "${path}"
+   r_basename "${filepath}"
    filename="${RVAL}"
 
    local RUNS=0

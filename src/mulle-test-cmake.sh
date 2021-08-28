@@ -256,7 +256,7 @@ run_cmake()
 
    [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
    [ -z "${a_out_ext}" ] && internal_fail "a_out_ext is empty"
-   [ ! -f "CMakeLists.txt" ] && internal_fail "CMakeLists.txt is missing ($PWD)"
+   [ ! -f "CMakeLists.txt" ] && internal_fail "CMakeLists.txt is missing (${PWD#${MULLE_USER_PWD}/})"
 
    local is_exe='NO'
 

@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+#! /bin/sh
 #
 #   Copyright (c) 2017 Nat! - Mulle kybernetiK
 #   All rights reserved.
@@ -31,6 +31,67 @@
 #
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
+
+####
+#
+# Prelude to be placed at top of each script. Rerun this script either in
+# bash or zsh, if not already running in either (which can happen!)
+# Allows script to run on systems that either have bash (linux) or
+# zsh (macOS) only by default.
+
+if [ "$1" != --no-auto-shell ]
+then
+   if [ -z "${BASH_VERSION}" -a -z "${ZSH_VERSION}" ]
+   then
+      exe_shell="`command -v "bash" `"
+      exe_shell="${exe_shell:-`command -v "zsh" `}"
+
+      script="$0"
+
+      #
+      # Quote incoming arguments for shell expansion
+      #
+      args=""
+      for arg in "$@"
+      do
+         # True bourne sh doesn't know ${a//b/c} and <<<
+         case "${arg}" in
+            *\'*)
+               # Use cat instead of echo to avoid possible echo -n
+               # problems. Escape single quotes in string.
+               arg="`cat <<EOF | sed -e s/\'/\'\\\"\'\\\"\'/g
+${arg}
+EOF
+`"
+            ;;
+         esac
+         if [ -z "${args}" ]
+         then
+            args="'${arg}'"
+         else
+            args="${args} '${arg}'"
+         fi
+      done
+
+      #
+      # bash/zsh will use arg after -c <arg> as $0, convenient!
+      #
+
+      exec "${exe_shell:-bash}" -c ". ${script} --no-auto-shell ${args}" "${script}"
+   fi
+   if [ ! -z "${BASH_VERSION}" ]
+   then
+      set +o posix
+   fi
+else
+   shift    # get rid of --no-auto-shell
+fi
+
+
+#
+# Main script to follow, runs now either in zsh or bash
+#
+####
 
 MULLE_EXECUTABLE_VERSION="5.3.3"
 
@@ -122,7 +183,7 @@ ${C_RESET_BOLD}   mulle-sde test init"
 
    if [ "${PWD}" != "${MULLE_TEST_DIR}" ]
    then
-      log_fluff "Going to test directory \"${MULLE_TEST_DIR}\" ($PWD)"
+      log_fluff "Going to test directory \"${MULLE_TEST_DIR}\" (${PWD#${MULLE_USER_PWD}/})"
       exekutor cd "${MULLE_TEST_DIR}" || exit 1
    fi
 
@@ -400,7 +461,7 @@ main()
       shift
    done
 
-   options_setup_trace "${MULLE_TRACE}"
+   options_setup_trace "${MULLE_TRACE}" && set -x
 
    MULLE_TEST_VAR_DIR="${MULLE_TEST_DIR:-${PWD}}/.mulle/var/${MULLE_HOSTNAME}/test"
 
@@ -590,15 +651,6 @@ main()
 #
 _init()
 {
-   #
-   # minimal setup exit
-   #
-   if [ "$1" = "version" ]
-   then
-      printf "%s\n" "${MULLE_EXECUTABLE_VERSION}"
-      exit 0
-   fi
-
    # mingw stuff
    case "$PATH" in
       '\\'*)
@@ -616,9 +668,11 @@ _init()
 
    . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-bashfunctions.sh" || exit 1
 
-   r_get_libexec_dir "$0" "mulle-test" "mulle-test-run.sh"
-   MULLE_TEST_LIBEXEC_DIR="${RVAL}"
-
+   if [ -z "${MULLE_TEST_LIBEXEC_DIR}" ]
+   then
+      r_get_libexec_dir "${MULLE_EXECUTABLE}" "mulle-test" "mulle-test-run.sh"
+      MULLE_TEST_LIBEXEC_DIR="${RVAL}"
+   fi
    #
    # dependent on gcc again here, but on linux in a i386 docker the
    # arch is x86_64 but we want i386 which we only get from gcc I think
@@ -639,6 +693,11 @@ _init()
             exit 0
          ;;
 
+         "version")
+            printf "%s\n" "${MULLE_EXECUTABLE_VERSION}"
+            exit 0
+         ;;
+
          "uname")
             printf "%s\n" "${MULLE_UNAME}"
             exit 0
@@ -651,9 +710,13 @@ _init()
       esac
    fi
 
-   set -o pipefail
+   shell_enable_pipefail
+   shell_enable_extglob
+
    call_main "${MULLE_TEST_FLAGS}" "$@"
 }
 
+
+MULLE_EXECUTABLE="${MULLE_EXECUTABLE:-${BASH_SOURCE[0]:-${(%):-%x}}}"
 
 _init "$@"

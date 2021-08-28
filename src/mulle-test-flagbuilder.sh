@@ -74,7 +74,6 @@ r_emit_include_cflags()
    local quote="$1"
 
    local cflags
-   local path
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
