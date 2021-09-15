@@ -296,8 +296,8 @@ suggest_debugger_commandline()
    (
       case "${MULLE_UNAME}" in
          darwin)
-            printf "%s " "DYLD_FALLBACK_FRAMEWORK_PATH='${DEPENDENCY_DIR}/Frameworks'"
-            printf "%s " "DYLD_FALLBACK_LIBRARY_PATH='${DEPENDENCY_DIR}/lib'"
+            printf "%s " "DYLD_FRAMEWORK_PATH='${DEPENDENCY_DIR}/Frameworks'"
+            printf "%s " "DYLD_LIBRARY_PATH='${DEPENDENCY_DIR}/lib'"
          ;;
       esac
 
@@ -310,7 +310,9 @@ MULLE_TESTALLOCATOR_TRACE=0 "
 
       case "${PROJECT_DIALECT}" in
          objc)
-            printf "%s" "\
+            if [ "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" = "mulle-objc" ]
+            then
+               printf "%s" "\
 MULLE_OBJC_TRACE_INSTANCE=NO \
 MULLE_OBJC_DEBUG_ENABLED=YES \
 MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
@@ -321,8 +323,9 @@ MULLE_OBJC_TRACE_METHOD_CALL=NO \
 MULLE_OBJC_TRACE_THREAD=YES \
 MULLE_OBJC_TRACE_UNIVERSE=YES \
 MULLE_OBJC_WARN_ENABLED=YES "
-            ;;
-         esac
+            fi
+         ;;
+      esac
 
       echo "${DEBUGGER:-gdb} ${a_out_ext}"
       if [ "${stdin}" != "/dev/null" ]

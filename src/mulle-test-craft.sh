@@ -120,13 +120,11 @@ test_craft_main()
    # only craftorders
    sdeargs="${sdeargs} --no-clean"
 
-
    if [ ! -z "${OPTION_CMAKE_BUILD_TYPE}" ]
    then
       craftargs="${craftargs} --configuration '${OPTION_CMAKE_BUILD_TYPE}'"
 #      makeargs="${makeargs} -DCMAKE_BUILD_TYPE='${OPTION_CMAKE_BUILD_TYPE}'"
    fi
-
 
    #  a bit too clang specific here or ?
    local makeargs

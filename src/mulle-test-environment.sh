@@ -121,8 +121,14 @@ test_setup_language()
                            fi
                            APPLE_SDKPATH="${RVAL}"
 
-                           CC="mulle-clang"
-                           CXX="mulle-clang"
+                           if [ "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" = "mulle-objc" ]
+                           then
+                              CC="mulle-clang"
+                              CXX="mulle-clang"
+                           else
+                              CC="cc"
+                              CXX="cc"
+                           fi
                         ;;
 
                         *)

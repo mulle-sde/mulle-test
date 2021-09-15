@@ -134,10 +134,10 @@ run_a_out()
             fi
          fi
 
-         r_concat "${environment}" "DYLD_FALLBACK_FRAMEWORK_PATH='${DEPENDENCY_DIR}/Frameworks'"
+         r_concat "${environment}" "DYLD_FRAMEWORK_PATH='${DEPENDENCY_DIR}/Frameworks'"
          environment="${RVAL}"
 
-         r_concat "${environment}" "DYLD_FALLBACK_LIBRARY_PATH='${DEPENDENCY_DIR}/lib'"
+         r_concat "${environment}" "DYLD_LIBRARY_PATH='${DEPENDENCY_DIR}/lib'"
          environment="${RVAL}"
       ;;
 
