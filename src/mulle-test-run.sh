@@ -401,32 +401,41 @@ r_get_test_environmentfile()
    local fallback="$3"
 
    RVAL="${name}.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
-   if rexekutor [ ! -f "${RVAL}" ]
+   if [ ! -f "${RVAL}" ]
    then
+      log_debug "\"${RVAL}\" not present"
       RVAL="${name}.${varname}.${MULLE_UNAME}"
-      if rexekutor [ ! -f "${RVAL}" ]
+      if [ ! -f "${RVAL}" ]
       then
+         log_debug "\"${RVAL}\" not present"
          RVAL="${name}.${varname}.${MULLE_ARCH}"
-         if rexekutor [ ! -f "${RVAL}" ]
+         if [ ! -f "${RVAL}" ]
          then
+            log_debug "\"${RVAL}\" not present"
             RVAL="${name}.${varname}"
-            if rexekutor [ ! -f "${RVAL}" ]
+            if [ ! -f "${RVAL}" ]
             then
+               log_debug "\"${RVAL}\" not present"
                RVAL="default.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
-               if rexekutor [ ! -f "${RVAL}" ]
+               if [ ! -f "${RVAL}" ]
                then
+                  log_debug "\"${RVAL}\" not present"
                   RVAL="default.${varname}.${MULLE_UNAME}"
-                  if rexekutor [ ! -f "${RVAL}" ]
+                  if [ ! -f "${RVAL}" ]
                   then
+                     log_debug "\"${RVAL}\" not present"
                      RVAL="default.${varname}.${MULLE_ARCH}"
-                     if rexekutor [ ! -f "${RVAL}" ]
+                     if [ ! -f "${RVAL}" ]
                      then
+                        log_debug "\"${RVAL}\" not present"
                         RVAL="default.${varname}"
-                        if rexekutor [ ! -f "${RVAL}" ]
+                        if [ ! -f "${RVAL}" ]
                         then
+                           log_debug "\"${RVAL}\" not present"
                            RVAL="${fallback}"
-                           if rexekutor [ ! -f "${RVAL}" ]
+                           if [ ! -f "${RVAL}" ]
                            then
+                              log_debug "\"${RVAL}\" not present"
                               RVAL=
                               return 1
                            fi
@@ -995,13 +1004,22 @@ test_run_main()
 
    local HAVE_WARNED="NO"
 
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
+   #
+   # if extension is args, we just run a dependency/bin/executable
+   #
+   if [ "${PROJECT_EXTENSIONS}" = "args" ]
+   then
+      MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-${PROJECT_NAME}}"
+      MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-run-test.exe}"
+   else
+      . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
 
-   r_get_link_command "YES"
-   LINK_COMMAND="${RVAL}"
+      r_get_link_command "YES"
+      LINK_COMMAND="${RVAL}"
 
-   r_get_link_command "NO"
-   NO_STARTUP_LINK_COMMAND="${RVAL}"
+      r_get_link_command "NO"
+      NO_STARTUP_LINK_COMMAND="${RVAL}"
+   fi
 
    MULLE_TEST_SUCCESS_FILE="${MULLE_TEST_VAR_DIR}/passed.txt"
 

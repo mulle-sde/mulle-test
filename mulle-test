@@ -107,7 +107,9 @@ Usage:
    Run tests. Commands take options. Some commands take additional build and
    run options. Notice the -- separator.
 
-   Prepare your test environment with \'mulle-sde craft\'.
+   Create your test environment with the \`mulle-test init\`. Then build your
+   test environment with \`mulle-test craft\`. Now you can run the tests with
+   \`mulle-test run\`.
 
 
 Flags:
@@ -118,11 +120,13 @@ EOF
       cat <<EOF
    --dir-name <name>    : specify test directory name (default: test)
    --no-sanitizer       : no sanitizer
+   --coverage           : produce clang coverage information
    --sanitize-address   : use address sanitizer to craft and run
    --sanitize-thread    : use thread sanitizer to craft and run
    --sanitize-undefined : use undefined sanitizer to craft and run
    --testallocator      : use mulle-testallocator to run (default)
    --valgrind           : use valgrind to run
+   --valgrind-no-leaks  : use valgrind without leak checker run
    --zombie             : use zombie sanitizer ro run
 
 EOF
@@ -176,7 +180,8 @@ ${C_RESET_BOLD}   mulle-sde test init"
 
    r_absolutepath "${RVAL}"
    MULLE_TEST_DIR="${RVAL}"
-   if [ -d "${MULLE_TEST_DIR}/.mulle/share/sde" -a ! -d "${MULLE_TEST_DIR}/.mulle/share/test" ]
+   if [ -d "${MULLE_TEST_DIR}/.mulle/share/sde" -a \
+       ! -d "${MULLE_TEST_DIR}/.mulle/share/test" ]
    then
       fail "\"${MULLE_TEST_DIR}\" is not a mulle-sde project marked for mulle-test"
    fi
@@ -405,6 +410,16 @@ main()
          --valgrind)
             # no others beside  "valgrind"
             SANITIZER="valgrind"
+         ;;
+
+         --valgrind-no-leaks)
+            # no others beside  "valgrind-no-leaks"
+            SANITIZER="valgrind-no-leaks"
+         ;;
+
+         --coverage)
+            r_colon_concat "${RVAL}" "coverage"
+            SANITIZER="${RVAL}"
          ;;
 
          --sanitize-address)
@@ -678,9 +693,12 @@ _init()
    # arch is x86_64 but we want i386 which we only get from gcc I think
    # (or maybe apt, but gcc seems more cross-platformy)
    #
-   MULLE_ARCH="`gcc -v 2>&1  | sed -n -e '/Target:/s/.*: \([^-]*\)-.*/\1/p'`"
-   MULLE_ARCH="${MULLE_ARCH:-`arch 2> /dev/null`}"
-   MULLE_ARCH="${MULLE_ARCH:-x86_64}"
+   if [ -z "${MULLE_ARCH}" ]
+   then
+      MULLE_ARCH="`gcc -v 2>&1  | sed -n -e '/Target:/s/.*: \([^-]*\)-.*/\1/p'`"
+      MULLE_ARCH="${MULLE_ARCH:-`arch 2> /dev/null`}"
+      MULLE_ARCH="${MULLE_ARCH:-x86_64}"
+   fi
 
    #
    # minimal setup exit

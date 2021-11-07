@@ -114,6 +114,13 @@ run_a_out()
       ;;
    esac
 
+   case ":${SANITIZER}:" in
+      *:coverage:*)
+         r_concat "${environment}" "LLVM_PROFILE_FILE='${a_out_ext%.exe}.${MULLE_UNAME}.profraw'"
+         environment="${RVAL}"
+      ;;
+   esac
+
    if [ "${OPTION_DEBUG_DYLD}" = 'YES' ]
    then
       r_concat "${environment}" "MULLE_ATINIT_DEBUG='YES'"
@@ -195,6 +202,13 @@ MULLE_TESTALLOCATOR_FIRST_LEAK='YES'"
          runner="'${VALGRIND:-valgrind}'"
 
          r_concat "${runner}" "${VALGRIND_OPTIONS:--q --error-exitcode=77 --leak-check=full --num-callers=500 --track-origins=yes}"
+         runner="${RVAL}"
+      ;;
+
+      *:valgrind-no-leaks:*)
+         runner="'${VALGRIND:-valgrind}'"
+
+         r_concat "${runner}" "${VALGRIND_OPTIONS:--q --error-exitcode=77 --num-callers=500 --track-origins=yes}"
          runner="${RVAL}"
       ;;
    esac
@@ -473,29 +487,37 @@ r_get_test_datafile()
    local fallback="$3"
 
    RVAL="${name}.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
-   if rexekutor [ ! -f "${RVAL}" ]
+   if [ ! -f "${RVAL}" ]
    then
+      log_debug "\"${RVAL}\" not present"
       RVAL="${name}.${varname}.${MULLE_UNAME}"
-      if rexekutor [ ! -f "${RVAL}" ]
+      if [ ! -f "${RVAL}" ]
       then
+         log_debug "\"${RVAL}\" not present"
          RVAL="${name}.${varname}.${MULLE_ARCH}"
-         if rexekutor [ ! -f "${RVAL}" ]
+         if [ ! -f "${RVAL}" ]
          then
+            log_debug "\"${RVAL}\" not present"
             RVAL="${name}.${varname}"
-            if rexekutor [ ! -f "${RVAL}" ]
+            if [ ! -f "${RVAL}" ]
             then
+               log_debug "\"${RVAL}\" not present"
                RVAL="default.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
-               if rexekutor [ ! -f "${RVAL}" ]
+               if [ ! -f "${RVAL}" ]
                then
+                  log_debug "\"${RVAL}\" not present"
                   RVAL="default.${varname}.${MULLE_UNAME}"
-                  if rexekutor [ ! -f "${RVAL}" ]
+                  if [ ! -f "${RVAL}" ]
                   then
+                     log_debug "\"${RVAL}\" not present"
                      RVAL="default.${varname}.${MULLE_ARCH}"
-                     if rexekutor [ ! -f "${RVAL}" ]
+                     if [ ! -f "${RVAL}" ]
                      then
+                        log_debug "\"${RVAL}\" not present"
                         RVAL="default.${varname}"
-                        if rexekutor [ ! -f "${RVAL}" ]
+                        if [ ! -f "${RVAL}" ]
                         then
+                           log_debug "\"${RVAL}\" not present, returning \"${fallback}\""
                            RVAL="${fallback}"
                         fi
                      fi

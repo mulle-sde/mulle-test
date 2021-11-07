@@ -116,6 +116,9 @@ test_clean_main()
          log_verbose "Cleaning test executables"
          exekutor find . -type f -name "*.exe" -exec rm {} \;
 
+         log_verbose "Cleaning test coverage"
+         exekutor find . -type f \( -name "*.gcda" -o -name "*.profdata" \) -exec rm {} \;
+
          if [ "${OPTION_CLEAN_VAR}" = 'YES' ]
          then
             log_verbose "Cleaning var"

@@ -99,7 +99,7 @@ test_craft_main()
             OPTION_CMAKE_BUILD_TYPE='Release';
          ;;
 
-         --valgrind|--sanitize*)
+         --coverage|--valgrind|--sanitize*)
             # ignore, don't complain
          ;;
 
@@ -145,6 +145,11 @@ test_craft_main()
 
       *:address:*)
          makeargs="${makeargs} -DOTHER_CFLAGS+=-fsanitize=address"
+      ;;
+
+      *:coverage:*)
+#         makeargs="${makeargs} -DOTHER_CFLAGS+=--coverage"
+         makeargs="${makeargs} -DOTHER_CFLAGS+=--coverage"
       ;;
    esac
 

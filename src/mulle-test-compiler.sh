@@ -46,6 +46,12 @@ r_c_sanitizer_flags()
          return 0
       ;;
 
+      *:coverage:*)
+         RVAL="--coverage"
+         #RVAL="-fprofile-instr-generate -fcoverage-mapping"
+         return 0
+      ;;
+
       *:thread:*)
          RVAL="-fsanitize=thread"
          return 0
@@ -208,11 +214,17 @@ fail_test_c()
    then
       local cmdline
 
-      r_c_commandline "${DEBUG_CFLAGS}" "${srcfile}" "${a_out}" "$@"
+   local cflags
+
+      r_concat "${DEBUG_CFLAGS}" "${CPPFLAGS}"
+      r_concat "${RVAL}" "${CFLAGS}"
+      cflags="${RVAL}"
+
+      r_c_commandline "${cflags}" "${srcfile}" "${a_out}" "$@"
       cmdline="${RVAL}"
 
       log_info "DEBUG: "
-      log_info "Rebuilding as `basename -- ${a_out}` with ${DEBUG_CFLAGS} ..."
+      log_info "Rebuilding as `basename -- ${a_out}` with ${cflags} ..."
 
       eval_exekutor "${cmdline}"
    fi
@@ -240,8 +252,13 @@ run_gcc_compiler()
    local errput="$1"; shift
 
    local cmdline
+   local cflags
 
-   r_c_commandline "${TEST_CFLAGS}" "${srcfile}" "${a_out}" "$@"
+   r_concat "${TEST_CFLAGS}" "${CPPFLAGS}"
+   r_concat "${RVAL}" "${CFLAGS}"
+   cflags="${RVAL}"
+
+   r_c_commandline "${cflags}" "${srcfile}" "${a_out}" "$@"
    cmdline="${RVAL}"
 
    err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
@@ -314,12 +331,12 @@ MULLE_TESTALLOCATOR_TRACE=0 "
             then
                printf "%s" "\
 MULLE_OBJC_TRACE_INSTANCE=NO \
+MULLE_OBJC_TRACE_METHOD_CALL=NO \
 MULLE_OBJC_DEBUG_ENABLED=YES \
+MULLE_OBJC_TRACE_ENABLED=NO \
 MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
 MULLE_OBJC_PEDANTIC_EXIT=YES \
-MULLE_OBJC_TRACE_ENABLED=NO \
 MULLE_OBJC_TRACE_LOAD=NO \
-MULLE_OBJC_TRACE_METHOD_CALL=NO \
 MULLE_OBJC_TRACE_THREAD=YES \
 MULLE_OBJC_TRACE_UNIVERSE=YES \
 MULLE_OBJC_WARN_ENABLED=YES "

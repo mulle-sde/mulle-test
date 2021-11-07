@@ -47,11 +47,88 @@ r_darwin_sdkpath()
    fi
 }
 
-# this is crap and needs some kind of plugin interface
-
-test_setup_language()
+#
+# thi sets up make/cmake and other tools
+#
+test_setup_tooling()
 {
-   log_entry "test_setup_language" "$@"
+   log_entry "test_setup_tooling" "$@"
+
+   local platform="$1"
+
+   case "${platform}" in
+      mingw*)
+         CC="`mingw_mangle_compiler_exe "${CC}" "CC"`"
+         CXX="`mingw_mangle_compiler_exe "${CXX}" "CXX"`"
+         CMAKE="${CMAKE:-cmake}"
+         MAKE="${MAKE:-nmake}"
+
+         case "${MAKE}" in
+            nmake)
+               CMAKE_GENERATOR="NMake Makefiles"
+            ;;
+
+            make|ming32-make|"")
+               CC="${CC:-cl}"
+               CXX="${CXX:-cl}"
+               CMAKE="mulle-mingw-cmake.sh"
+               MAKE="mulle-mingw-make.sh"
+               CMAKE_GENERATOR="MinGW Makefiles"
+               FILEPATH_DEMANGLER="mingw_demangle_path"
+            ;;
+
+            *)
+               CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
+            ;;
+         esac
+      ;;
+
+      windows)
+         CC="${CC:-cl.exe}"
+         CXX="${CXX:-cl.exe}"
+         MAKE="${MAKE:-ninja.exe}"
+
+         case "${MAKE}" in
+            nmake*)
+               CMAKE_GENERATOR="NMake Makefiles"
+            ;;
+
+            ninja*)
+               CMAKE_GENERATOR="Ninja"
+            ;;
+
+            *)
+               CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
+            ;;
+         esac
+      ;;
+
+      "")
+         fail "platform not set"
+      ;;
+
+      *)
+         CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
+         CMAKE="${CMAKE:-cmake}"
+         MAKE="${MAKE:-make}"
+         CC="${CC:-cc}"
+         CXX="${CXX:-c++}"
+      ;;
+   esac
+
+   #
+   #
+   #
+   MAKEFLAGS="${MAKEFLAGS:-${DEFAULT_MAKEFLAGS}}"
+}
+
+
+# this is crap and needs some kind of plugin interface
+# this sets up the compiler and linker and flags
+#
+test_setup_compiler()
+{
+   log_entry "test_setup_compiler" "$@"
 
    local platform="$1"
    local language="${2:-c}"
@@ -60,7 +137,7 @@ test_setup_language()
 
    case "${language}" in
       c)
-         RELEASE_GCC_CFLAGS="-O3 -g -DNDEBUG -DNS_BLOCK_ASSERTIONS"
+         RELEASE_GCC_CFLAGS="-O2 -g -DNDEBUG -DNS_BLOCK_ASSERTIONS"
          DEBUG_GCC_CFLAGS="-O0 -g"
 
          case "${platform}" in
@@ -152,21 +229,11 @@ test_setup_language()
          fail "unsupported language \"${language}\""
       ;;
    esac
-}
 
-
-test_setup_tooling()
-{
-   log_entry "test_setup_tooling" "$@"
-
-   local platform="$1"
-
-   case "$1" in
+   case "${platform}" in
       mingw*)
          CC="`mingw_mangle_compiler_exe "${CC}" "CC"`"
          CXX="`mingw_mangle_compiler_exe "${CXX}" "CXX"`"
-         CMAKE="${CMAKE:-cmake}"
-         MAKE="${MAKE:-nmake}"
 
          case "${MAKE}" in
             nmake)
@@ -176,10 +243,6 @@ test_setup_tooling()
             make|ming32-make|"")
                CC="${CC:-cl}"
                CXX="${CXX:-cl}"
-               CMAKE="mulle-mingw-cmake.sh"
-               MAKE="mulle-mingw-make.sh"
-               CMAKE_GENERATOR="MinGW Makefiles"
-               FILEPATH_DEMANGLER="mingw_demangle_path"
             ;;
 
             *)
@@ -191,21 +254,6 @@ test_setup_tooling()
       windows)
          CC="${CC:-cl.exe}"
          CXX="${CXX:-cl.exe}"
-         MAKE="${MAKE:-ninja.exe}"
-
-         case "${MAKE}" in
-            nmake*)
-               CMAKE_GENERATOR="NMake Makefiles"
-            ;;
-
-            ninja*)
-               CMAKE_GENERATOR="Ninja"
-            ;;
-
-            *)
-               CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
-            ;;
-         esac
       ;;
 
       "")
@@ -213,13 +261,11 @@ test_setup_tooling()
       ;;
 
       *)
-         CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
-         CMAKE="${CMAKE:-cmake}"
-         MAKE="${MAKE:-make}"
          CC="${CC:-cc}"
          CXX="${CXX:-c++}"
       ;;
    esac
+
 
    case "${CC}" in
       *-cl|*-cl.exe|cl.exe|cl)
@@ -233,6 +279,7 @@ test_setup_tooling()
       ;;
    esac
 }
+
 
 
 test_setup_platform()
@@ -314,20 +361,22 @@ test_setup_environment()
 {
    log_entry "test_setup_environment" "$@"
 
-   local platform="$1"
-   local dialect="$3"
-
    #
    #
    #
    r_suppress_crashdumping
    RESTORE_CRASHDUMP="${RVAL}"
-   trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
 
-   #
-   #
-   #
-   MAKEFLAGS="${MAKEFLAGS:-${DEFAULT_MAKEFLAGS}}"
+   trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
+}
+
+
+test_setup_debugger()
+{
+   log_entry "test_setup_debugger" "$@"
+
+   local platform="$1"
+   local dialect="$3"
 
    #
    # Find debugger, clear variable if not installed
@@ -396,9 +445,27 @@ test_setup_project()
    #
    # MULLE_TEST_OBJC_DIALECT to be set in environment
    #
-   test_setup_language "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" "${MULLE_TEST_OBJC_DIALECT}"
    test_setup_tooling "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+   test_setup_compiler "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" "${MULLE_TEST_OBJC_DIALECT}"
    test_setup_platform "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
+   test_setup_debugger "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
    test_setup_environment "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
+
+   if [ "${MULLE_FLAG_LOG_SETTINGS}" = 'YES' ]
+   then
+      log_trace2 "CC                  : ${CC}"
+      log_trace2 "CXX                 : ${CXX}"
+      log_trace2 "CFLAGS              : ${CFLAGS}" # environment only!
+      log_trace2 "DEBUGGER            : ${DEBUGGER}"
+      log_trace2 "DEBUG_CFLAGS        : ${DEBUG_CFLAGS}"
+      log_trace2 "DEBUG_EXE_EXTENSION : ${DEBUG_EXE_EXTENSION}"
+      log_trace2 "EXE_EXTENSION       : ${EXE_EXTENSION}"
+      log_trace2 "PROJECT_EXTENSIONS  : ${PROJECT_EXTENSIONS}"
+      log_trace2 "RELEASE_CFLAGS      : ${RELEASE_CFLAGS}"
+      log_trace2 "SHAREDLIB_EXTENSION : ${SHAREDLIB_EXTENSION}"
+      log_trace2 "SHAREDLIB_PREFIX    : ${SHAREDLIB_PREFIX}"
+      log_trace2 "STATICLIB_EXTENSION : ${STATICLIB_EXTENSION}"
+      log_trace2 "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
+   fi
 }
 

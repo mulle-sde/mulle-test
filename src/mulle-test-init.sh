@@ -41,8 +41,8 @@ Usage:
    ${MULLE_USAGE_NAME} init [options]
 
    Initialize a "test" directory for mulle-test inside an existing mulle-sde
-   project. This will create setup a new mulle-sde project, to build the
-   project library as a standalone shared library.
+   project. This will setup a new mulle-sde project, separate and largely
+   independent from the to be tested project.
 
    The test project will try to inherit the language settings from the project
    but these values can be overridden with options.
@@ -121,6 +121,7 @@ execute_test_init_script()
                  PROJECT_LANGUAGE="'${PROJECT_LANGUAGE}'" \
                  PROJECT_DIALECT="'${PROJECT_DIALECT}'" \
                  PROJECT_EXTENSIONS="'${PROJECT_EXTENSIONS}'" \
+                 PROJECT_TYPE="'${PROJECT_TYPE}'" \
                  GITHUB_USER="'${GITHUB_USER}'" \
                  PROJECT_ROOT_DIR="'${PROJECT_ROOT_DIR}'" \
                  PREFERRED_STARTUP_LIBRARY="'${PREFERRED_STARTUP_LIBRARY}'" \
@@ -135,6 +136,7 @@ test_init_main()
 
    local OPTION_DIRECTORY="test"
    local OPTION_STANDALONE='NO'
+   local OPTION_EXECUTABLE='NO'
 
    while :
    do
@@ -176,6 +178,17 @@ test_init_main()
             shift
 
             PROJECT_EXTENSIONS="$1"
+         ;;
+
+         --project-type)
+            [ $# -eq 1 ] && test_init_usage "missing argument to \"$1\""
+            shift
+
+            PROJECT_TYPE="$1"
+         ;;
+
+         --executable)
+            OPTION_EXECUTABLE='YES'
          ;;
 
          --github-name)
@@ -239,6 +252,23 @@ of a mulle-sde project"
       PROJECT_NAME="${RVAL}"
    fi
 
+   if [ "${OPTION_EXECUTABLE}" = 'YES' ]
+   then
+      PROJECT_TYPE="executable"
+      PROJECT_EXTENSIONS="args"
+   fi
+
+   # normalize...
+   case "${PROJECT_TYPE}" in
+      library)
+         # PROJECT_TYPE="library"
+      ;;
+
+      *)
+         PROJECT_TYPE="executable"
+      ;;
+   esac
+
    #
    # also set project language and dialect from main project
    # use wild, since we don't want to copy all the tools and optionaltools
@@ -257,7 +287,7 @@ of a mulle-sde project"
                     --project-dialect "${PROJECT_DIALECT}" \
                     --project-extensions "${PROJECT_EXTENSIONS}" \
                     -d "${OPTION_DIRECTORY}" \
-                    -m "mulle-sde/${PROJECT_DIALECT}-test" \
+                    -m "mulle-sde/${PROJECT_DIALECT}-test-${PROJECT_TYPE:-executable}" \
                     none || return $?
 
    # move below startup code if any

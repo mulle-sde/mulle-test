@@ -77,8 +77,9 @@ r_emit_include_cflags()
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
-      log_trace2 "DEPENDENCY_DIR:  ${DEPENDENCY_DIR}"
-      log_trace2 "ADDICTION_DIR:   ${ADDICTION_DIR}"
+#     log_trace2 "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
+      log_trace2 "DEPENDENCY_DIR      : ${DEPENDENCY_DIR}"
+      log_trace2 "ADDICTION_DIR       : ${ADDICTION_DIR}"
    fi
 
    if [ ! -z "${DEPENDENCY_DIR}" ]
@@ -112,9 +113,10 @@ r_emit_cflags()
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
-      log_trace2 "CFLAGS:          ${cflags}"
-      log_trace2 "OTHER_CFLAGS:    ${OTHER_CFLAGS}"
-      log_trace2 "APPLE_SDKPATH:   ${APPLE_SDKPATH}"
+#     log_trace2 "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
+      log_trace2 "CFLAGS              : ${cflags}"
+      log_trace2 "OTHER_CFLAGS        : ${OTHER_CFLAGS}"
+      log_trace2 "APPLE_SDKPATH       : ${APPLE_SDKPATH}"
    fi
 
    local cflagsname
