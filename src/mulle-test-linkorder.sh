@@ -64,22 +64,6 @@ _get_link_command()
 {
    log_entry "_get_link_command" "$@"
 
-   if [ -z "${MULLE_PLATFORM_LIBEXEC_DIR}" ]
-   then
-      MULLE_PLATFORM_LIBEXEC_DIR="`exekutor "${MULLE_PLATFORM:-mulle-platform}" libexec-dir`" || exit 1
-   fi
-
-   [ -z "${MULLE_PATH_SH}" ] && \
-      . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-path.sh"
-
-   [ -z "${MULLE_PLATFORM_TRANSLATE_SH}" ] && \
-      . "${MULLE_PLATFORM_LIBEXEC_DIR}/mulle-platform-translate.sh"
-
-   local format
-
-   r_platform_default_whole_archive_format
-   format="${RVAL}"
-
    exekutor mulle-sde \
                ${MULLE_TECHNICAL_FLAGS} \
                ${MULLE_SDE_FLAGS} \
@@ -87,7 +71,7 @@ _get_link_command()
                --output-format ld \
                --configuration "Test" \
                --output-no-final-lf \
-               --whole-archive-format "${format}" \
+               --whole-archive-format "DEFAULT" \
                "$@"  # shared libs only ATM
 }
 

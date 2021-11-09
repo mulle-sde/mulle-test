@@ -49,7 +49,28 @@ r_include_dir()
 }
 
 
-r_output_filename()
+r_output_object_filename()
+{
+   local filename="$1"
+   local quote="$2"
+
+   case "${MULLE_UNAME}" in
+      windows)
+         RVAL="/Fo${quote}`wslpath -w "${filename}"`${quote}"
+      ;;
+
+      mingw)
+         RVAL="-Fo${quote}${filename}${quote}"
+      ;;
+
+      *)
+         RVAL="-o ${quote}${filename}${quote}"
+      ;;
+   esac
+}
+
+
+r_output_exe_filename()
 {
    local filename="$1"
    local quote="$2"
@@ -57,6 +78,10 @@ r_output_filename()
    case "${MULLE_UNAME}" in
       windows)
          RVAL="/Fe${quote}`wslpath -w "${filename}"`${quote}"
+      ;;
+
+      mingw)
+         RVAL="-Fe${quote}`cygpath -w "${filename}"`${quote}"
       ;;
 
       *)

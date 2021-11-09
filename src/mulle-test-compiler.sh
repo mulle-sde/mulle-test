@@ -127,6 +127,12 @@ r_c_commandline()
       linkcommand="${NO_STARTUP_LINK_COMMAND}"
    fi
 
+   case "${MULLE_UNAME}" in 
+      mingw)
+         linkcommand="-link ${linkcommand}"
+      ;;
+   esac
+
    r_emit_cflags "${cflags}" "${srcfile}"
    cflags="${RVAL}"
 
@@ -180,7 +186,7 @@ r_c_commandline()
    r_concat "${cmdline}" "$*"
    cmdline="${RVAL}"
 
-   r_output_filename "${a_out}" "'"
+   r_output_exe_filename "${a_out}" "'"
    cmdline="${cmdline} ${RVAL}"
 
    cmdline="${cmdline} '${srcfile}'"
