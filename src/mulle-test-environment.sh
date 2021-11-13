@@ -32,21 +32,6 @@
 MULLE_TEST_ENVIRONMENT_SH="included"
 
 
-
-r_darwin_sdkpath()
-{
-   # on 10.6 this will fail as --show-sdk-path ain't there
-   RVAL="`xcrun --show-sdk-path 2> /dev/null`"
-   if [ -z "${RVAL}" ]
-   then
-      RVAL="`xcode-select -print-path`"
-      if [ ! -d "${RVAL}" ]
-      then
-         return 1
-      fi
-   fi
-}
-
 #
 # thi sets up make/cmake and other tools
 #
@@ -58,6 +43,8 @@ test_setup_tooling()
 
    case "${platform}" in
       mingw*)
+         include_mulle_tool_library "platform" "mingw"
+
          CC="`mingw_mangle_compiler_exe "${CC}" "CC"`"
          CXX="`mingw_mangle_compiler_exe "${CXX}" "CXX"`"
          CMAKE="${CMAKE:-cmake}"
@@ -74,7 +61,8 @@ test_setup_tooling()
                CMAKE="mulle-mingw-cmake.sh"
                MAKE="mulle-mingw-make.sh"
                CMAKE_GENERATOR="MinGW Makefiles"
-               FILEPATH_DEMANGLER="mingw_demangle_path"
+               # unused
+               # FILEPATH_DEMANGLER="mingw_demangle_path"
             ;;
 
             *)
@@ -121,6 +109,7 @@ test_setup_tooling()
    #
    MAKEFLAGS="${MAKEFLAGS:-${DEFAULT_MAKEFLAGS}}"
 }
+
 
 
 # this is crap and needs some kind of plugin interface
@@ -192,9 +181,11 @@ test_setup_compiler()
                         ;;
 
                         darwin)
-                           if ! r_darwin_sdkpath
+                           include_mulle_tool_library "platform" "sdkpath"
+
+                           if ! r_platform_darwin_sdkpath
                            then
-                              fail "Could not figure out sdk path with xcrun"
+                              fail "Could not figure out SDK path"
                            fi
                            APPLE_SDKPATH="${RVAL}"
 
@@ -232,6 +223,8 @@ test_setup_compiler()
 
    case "${platform}" in
       mingw*)
+         include_mulle_tool_library "platform" "mingw"
+
          CC="`mingw_mangle_compiler_exe "${CC}" "CC"`"
          CXX="`mingw_mangle_compiler_exe "${CXX}" "CXX"`"
 
@@ -281,7 +274,6 @@ test_setup_compiler()
 }
 
 
-
 test_setup_platform()
 {
    log_entry "test_setup_platform" "$@"
@@ -295,29 +287,27 @@ test_setup_platform()
    EXE_EXTENSION=".exe"
    DEBUG_EXE_EXTENSION=".debug.exe"
 
-   case "${platform}" in
-      windows|mingw)
-         SHAREDLIB_PREFIX=""
-         SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.lib}" # link with extension
-         STATICLIB_PREFIX=""
-         STATICLIB_EXTENSION="${STATICLIB_EXTENSION:-.lib}" # link with extension
-         ;;
+   include_mulle_tool_library "platform" "environment"
 
-      darwin)
-         SHAREDLIB_PREFIX="lib"
-         SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.dylib}" # link with extension
-         STATICLIB_PREFIX="lib"
-         STATICLIB_EXTENSION="${STATICLIB_EXTENSION:-.a}" # link with extension
-         ;;
+   local _option_frameworkpath
+   local _option_libpath
+   local _option_link_mode
+   local _option_linklib
+   local _option_rpath
+   local _prefix_framework
+   local _prefix_lib
+   local _suffix_dynamiclib
+   local _suffix_framework
+   local _suffix_staticlib
+   local _r_path_mangler
 
-      *)
-         SHAREDLIB_PREFIX="lib"
-         SHAREDLIB_EXTENSION="${SHAREDLIB_EXTENSION:-.so}" # link with extension
-         STATICLIB_PREFIX="lib"
-         STATICLIB_EXTENSION="${STATICLIB_EXTENSION:-.a}" # link with extension
-      ;;
-   esac
+   __platform_get_fix_definitions
 
+   SHAREDLIB_PREFIX="${_prefix_lib}"
+   SHAREDLIB_EXTENSION="${_suffix_dynamiclib}"
+
+   STATICLIB_PREFIX="${_prefix_lib}"
+   STATICLIB_EXTENSION="${_suffix_staticlib}"
 
    case "${platform}" in
       windows)
@@ -361,9 +351,6 @@ test_setup_environment()
 {
    log_entry "test_setup_environment" "$@"
 
-   #
-   #
-   #
    r_suppress_crashdumping
    RESTORE_CRASHDUMP="${RVAL}"
 
@@ -423,8 +410,6 @@ test_include_required()
    then
       . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-file.sh"
    fi
-
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-mingw.sh"
 
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-cmake.sh"
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-compiler.sh"

@@ -186,7 +186,9 @@ r_c_commandline()
    r_concat "${cmdline}" "$*"
    cmdline="${RVAL}"
 
-   r_output_exe_filename "${a_out}" "'"
+   include_mulle_tool_library "platform" "flags"
+
+   r_cc_output_exe_filename "${a_out}" "'"
    cmdline="${cmdline} ${RVAL}"
 
    cmdline="${cmdline} '${srcfile}'"
@@ -205,10 +207,12 @@ fail_test_c()
 {
    log_entry "fail_test_c" "$@"
 
-   local srcfile="$1"; shift
-   local a_out="$1"; shift
-   local ext="$1"; shift
-   local name="$1"; shift
+   local srcfile="$1"
+   local a_out="$2"
+   local ext="$3"
+   local name="$4"
+
+   shift 4
 
    if [ "${MULLE_FLAG_MAGNUM_FORCE}" = 'YES' ]
    then
@@ -216,12 +220,11 @@ fail_test_c()
       return
    fi
 
-   if [ "${TEST_CFLAGS}" != "${DEBUG_CFLAGS}" ]
-   then
-      local cmdline
-
+   local cmdline
    local cflags
 
+   if [ "${TEST_CFLAGS}" != "${DEBUG_CFLAGS}" ]
+   then
       r_concat "${DEBUG_CFLAGS}" "${CPPFLAGS}"
       r_concat "${RVAL}" "${CFLAGS}"
       cflags="${RVAL}"
@@ -234,6 +237,8 @@ fail_test_c()
 
       eval_exekutor "${cmdline}"
    fi
+
+   local stdin
 
    stdin="${name}.stdin"
    if rexekutor [ ! -f "${stdin}" ]
@@ -253,9 +258,11 @@ run_gcc_compiler()
 {
    log_entry "run_gcc_compiler" "$@"
 
-   local srcfile="$1"; shift
-   local a_out="$1"; shift
-   local errput="$1"; shift
+   local srcfile="$1"
+   local a_out="$2"
+   local errput="$3"
+
+   shift 3
 
    local cmdline
    local cflags
@@ -411,6 +418,7 @@ assert_binary()
    log_entry "assert_binary" "$@"
 
    local name="$1"
+
    local bin
 
    bin="`command -v "${name}"`"

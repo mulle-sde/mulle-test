@@ -46,15 +46,15 @@ Usage:
    There are two caches for the linkorder. One with the startup code and
    one without. To update both, run both commands:
 
-   ${MULLE_USAGE_NAME} linkorder --update-cache
-   ${MULLE_USAGE_NAME} linkorder --update-cache --startup
+   ${MULLE_USAGE_NAME} linkorder --update
+   ${MULLE_USAGE_NAME} linkorder --update --startup
 
 Options:
    --startup       : include startup libraries
    --no-startup    : exclude startup libraries
    --cached        : show cached valued (default)
    --uncached      : bypass cache
-   --update-cache  : bypass cache but then update it
+   --update        : bypass cache but then update it
 EOF
    exit 1
 }
@@ -147,7 +147,7 @@ test_linkorder_main()
             OPTION_STARTUP='NO'
          ;;
 
-         --update-cache)
+         --update|--update-cache)
             OPTION_UPDATE_CACHE='YES'
             OPTION_CACHED='NO'
          ;;

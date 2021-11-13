@@ -31,87 +31,6 @@
 #
 MULLE_TEST_FLAGBUILDER_SH="included"
 
-#
-# TODO: use mulle-platform for all this
-#
-r_mulle_wslpath()
-{
-   if [ ! -e "$1" ]
-   then
-      r_dirname "$1"
-      r_mulle_wslpath "${RVAL}"
-      tmp="${RVAL}"
-
-      r_basename "$1"
-      RVAL="${tmp}\\${RVAL}"
-      return 
-   fi
-
-   RVAL="`wslpath -w "$1" `"
-}
-
-
-r_include_dir()
-{
-   local dir="$1"
-   local quote="$2"
-
-   case "${MULLE_UNAME}" in
-      windows)
-         r_mulle_wslpath "${dir}"
-         RVAL="/I${quote}${RVAL}${quote}"
-      ;;
-
-      *)
-         RVAL="-I${quote}${dir}${quote}"
-      ;;
-   esac
-}
-
-
-r_output_object_filename()
-{
-   local filename="$1"
-   local quote="$2"
-
-   case "${MULLE_UNAME}" in
-      windows)
-         r_mulle_wslpath "${filename}"
-         RVAL="/Fo${quote}${RVAL}${quote}"
-      ;;
-
-      mingw)
-         RVAL="-Fo${quote}${filename}${quote}"
-      ;;
-
-      *)
-         RVAL="-o ${quote}${filename}${quote}"
-      ;;
-   esac
-}
-
-
-r_output_exe_filename()
-{
-   local filename="$1"
-   local quote="$2"
-
-   case "${MULLE_UNAME}" in
-      windows)
-         r_mulle_wslpath "${filename}"
-         RVAL="/Fe${quote}${RVAL}${quote}"
-      ;;
-
-      mingw)
-         RVAL="-Fe${quote}`cygpath -w "${filename}"`${quote}"
-      ;;
-
-      *)
-         RVAL="-o ${quote}${filename}${quote}"
-      ;;
-   esac
-}
-
 
 r_emit_include_cflags()
 {
@@ -128,20 +47,25 @@ r_emit_include_cflags()
       log_trace2 "ADDICTION_DIR       : ${ADDICTION_DIR}"
    fi
 
+   if [ ! -z "${DEPENDENCY_DIR}" -a ! -z "${ADDICTION_DIR}" ]
+   then
+      include_mulle_tool_library "platform" "flags"
+   fi
+
    if [ ! -z "${DEPENDENCY_DIR}" ]
    then
-      r_include_dir "${DEPENDENCY_DIR}/Test/include" "${quote}"
+      r_cc_include_dir "${DEPENDENCY_DIR}/Test/include" "${quote}"
       r_concat "${cflags}" "${RVAL}"
       cflags="${RVAL}"
 
-      r_include_dir "${DEPENDENCY_DIR}/include" "${quote}"
+      r_cc_include_dir "${DEPENDENCY_DIR}/include" "${quote}"
       r_concat "${cflags}" "${RVAL}"
       cflags="${RVAL}"
    fi
 
    if [ ! -z "${ADDICTION_DIR}" ]
    then
-      r_include_dir "${ADDICTION_DIR}/include" "${quote}"
+      r_cc_include_dir "${ADDICTION_DIR}/include" "${quote}"
       r_concat "${cflags}" "${RVAL}"
       cflags="${RVAL}"
    fi

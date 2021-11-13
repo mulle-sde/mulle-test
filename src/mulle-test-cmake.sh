@@ -31,6 +31,7 @@
 #
 MULLE_TEST_CMAKE_SH="included"
 
+
 r_test_cmd_add_cmakeflag()
 {
    local cmd="$1"
