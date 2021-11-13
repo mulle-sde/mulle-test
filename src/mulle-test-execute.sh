@@ -176,6 +176,34 @@ run_a_out()
          environment="${RVAL}"
       ;;
 
+      windows)
+         local custompath
+
+         custompath="${PATH}"
+         # add addiction/lib and depenedency/lib to PATH for dlls
+         if [ ! -z "${DEPENDENCY_DIR}" -a -e "${DEPENDENCY_DIR}/lib" ]
+         then
+            r_colon_concat "${RVAL}" "${custompath}"
+            custompath="${RVAL}"
+         fi
+
+         if [ ! -z "${ADDICTION_DIR}" -a -e "${ADDICTION_DIR}/lib" ]
+         then
+            r_colon_concat "${ADDICTION_DIR}/lib" "${custompath}"
+            custompath="${RVAL}"
+         fi
+
+         # kind of wrong, can we do this in MINGW ?
+         if [ ! -z "${insertlibpath}" ]
+         then
+            r_colon_concat "${insertlibpath}" "${custompath}"
+            custompath="${RVAL}"
+         fi
+
+         r_concat "${environment}" "WSLENV=PATH/l PATH='${custompath}'"
+         environment="${RVAL}"
+      ;;
+
       *)
          r_colon_concat "${insertlibpath}" "${LD_PRELOAD}"
          if [ ! -z "${RVAL}" ]

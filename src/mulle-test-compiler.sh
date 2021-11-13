@@ -128,7 +128,7 @@ r_c_commandline()
    fi
 
    case "${MULLE_UNAME}" in 
-      mingw)
+      mingw|windows)
          linkcommand="-link ${linkcommand}"
       ;;
    esac

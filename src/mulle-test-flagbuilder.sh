@@ -31,6 +31,25 @@
 #
 MULLE_TEST_FLAGBUILDER_SH="included"
 
+#
+# TODO: use mulle-platform for all this
+#
+r_mulle_wslpath()
+{
+   if [ ! -e "$1" ]
+   then
+      r_dirname "$1"
+      r_mulle_wslpath "${RVAL}"
+      tmp="${RVAL}"
+
+      r_basename "$1"
+      RVAL="${tmp}\\${RVAL}"
+      return 
+   fi
+
+   RVAL="`wslpath -w "$1" `"
+}
+
 
 r_include_dir()
 {
@@ -39,7 +58,8 @@ r_include_dir()
 
    case "${MULLE_UNAME}" in
       windows)
-         RVAL="/I${quote}`wslpath -w "${dir}"`${quote}"
+         r_mulle_wslpath "${dir}"
+         RVAL="/I${quote}${RVAL}${quote}"
       ;;
 
       *)
@@ -56,7 +76,8 @@ r_output_object_filename()
 
    case "${MULLE_UNAME}" in
       windows)
-         RVAL="/Fo${quote}`wslpath -w "${filename}"`${quote}"
+         r_mulle_wslpath "${filename}"
+         RVAL="/Fo${quote}${RVAL}${quote}"
       ;;
 
       mingw)
@@ -77,7 +98,8 @@ r_output_exe_filename()
 
    case "${MULLE_UNAME}" in
       windows)
-         RVAL="/Fe${quote}`wslpath -w "${filename}"`${quote}"
+         r_mulle_wslpath "${filename}"
+         RVAL="/Fe${quote}${RVAL}${quote}"
       ;;
 
       mingw)
@@ -89,7 +111,6 @@ r_output_exe_filename()
       ;;
    esac
 }
-
 
 
 r_emit_include_cflags()

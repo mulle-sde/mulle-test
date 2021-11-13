@@ -321,7 +321,7 @@ test_setup_platform()
 
    case "${platform}" in
       windows)
-         CRLFCAT="dos2unix.exe"
+         CRLFCAT="dos2unix"
       ;;
 
       mingw)

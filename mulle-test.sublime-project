@@ -3,6 +3,24 @@
 	[
 		{
 			"path": "."
+		},
+		{
+			"path": "E:\\home\\nat\\srcS\\mulle-craft"
+		},
+		{
+			"path": "E:\\home\\nat\\srcS\\mulle-platform"
+		},
+		{
+			"path": "E:\\home\\nat\\srcS\\mulle-sourcetree"
+		},
+		{
+			"path": "E:\\home\\nat\\srcS\\mulle-sde"
+		},
+		{
+			"path": "E:\\home\\nat\\srcS\\mulle-make"
+		},
+		{
+			"path": "E:\\home\\nat\\srcS\\mulle-sde-developer"
 		}
 	]
 }
