@@ -103,7 +103,7 @@ run_a_out()
       *:testallocator:*)
          local filepath
 
-         filepath="${DEPENDENCY_DIR}/lib/libmulle-testallocator${SHAREDLIB_EXTENSION}"
+         filepath="${DEPENDENCY_DIR}/lib/${SHAREDLIB_PREFIX}mulle-testallocator${SHAREDLIB_EXTENSION}"
          if [ -f "${filepath}" ]
          then
             r_colon_concat "${insertlibpath}" "${filepath}"
@@ -151,7 +151,7 @@ run_a_out()
       mingw*)
          local custompath
 
-         custompath="${PATH}"
+         custompath=""
          # add addiction/lib and depenedency/lib to PATH for dlls
          if [ ! -z "${DEPENDENCY_DIR}" -a -e "${DEPENDENCY_DIR}/lib" ]
          then
@@ -179,11 +179,11 @@ run_a_out()
       windows)
          local custompath
 
-         custompath="${PATH}"
+         custompath="" # "${PATH}"
          # add addiction/lib and depenedency/lib to PATH for dlls
          if [ ! -z "${DEPENDENCY_DIR}" -a -e "${DEPENDENCY_DIR}/lib" ]
          then
-            r_colon_concat "${RVAL}" "${custompath}"
+            r_colon_concat "${DEPENDENCY_DIR}/lib" "${custompath}"
             custompath="${RVAL}"
          fi
 
@@ -200,7 +200,7 @@ run_a_out()
             custompath="${RVAL}"
          fi
 
-         r_concat "${environment}" "WSLENV=PATH/l PATH='${custompath}'"
+         r_concat "${environment}" "PATH='${custompath}' WSLENV=PATH/l"
          environment="${RVAL}"
       ;;
 
