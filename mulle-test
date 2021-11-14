@@ -365,6 +365,12 @@ main()
                SANITIZER="gmalloc:testallocator"
             ;;
 
+            # mulle_atinit does not work on wimdows so we
+            # can't reliably inject the testallocator
+            mingw|windows)
+               SANITIZER=""
+            ;;
+
             *)
                SANITIZER="testallocator"
             ;;

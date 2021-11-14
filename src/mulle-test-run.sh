@@ -176,8 +176,8 @@ run_common_test()
    local cc_errput
    local random
 
-   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}.ccerr" "f" || exit 1
-   cc_errput="${RVAL}" || exit 1
+   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}" "f" || exit 1
+   cc_errput="${RVAL}.ccerr" || exit 1
 
    r_relative_path_between "${PWD}/${srcfile}" "${root}"
    pretty_source="${RVAL}" || exit 1
@@ -396,8 +396,8 @@ run_cxx_test()
 
 r_get_test_environmentfile()
 {
-   local varname="$1"
-   local name="$2"
+   local name="$1"
+   local varname="$2"
    local fallback="$3"
 
    RVAL="${name}.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
@@ -469,9 +469,12 @@ _run_test()
    [ -z "${ext}" ]  && internal_fail "ext must not be ? empty"
    [ -z "${root}" ] && internal_fail "root must not be empty"
 
-   if r_get_test_environmentfile "${name}" "environment" "environment"
+   local purename
+
+   purename="${name#"${name%%[!0-9_-]*}"}"
+   if r_get_test_environmentfile "${purename}" "environment" "environment"
    then
-      log_fluff "Read environment file \"${RVAL}\" (${PWD#${MULLE_USER_PWD}/}) "
+      log_verbose "Read environment file \"${RVAL}\" (${PWD#${MULLE_USER_PWD}/}) "
       # as we are running in a subshell this is OK
       . "${RVAL}" || fail "\"${RVAL}\" read failed"
    fi

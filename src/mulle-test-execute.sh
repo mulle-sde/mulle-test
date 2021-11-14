@@ -55,6 +55,64 @@ EOF
 }
 
 
+#
+# dlls are sometimes installed into bin
+#
+r_windows_custompath()
+{
+   local insertpath="$1"
+
+   local custompath
+
+   custompath=""
+
+   if [ -d "${TEST_KITCHEN_DIR:-kitchen}" ]
+   then
+      r_absolutepath "${TEST_KITCHEN_DIR:-kitchen}"
+      custompath="${RVAL}"
+   fi
+
+   # add addiction/lib and depenedency/lib to PATH for dlls
+   if [ ! -z "${DEPENDENCY_DIR}" ]
+   then
+      if [ -e "${DEPENDENCY_DIR}/bin" ]
+      then
+         r_colon_concat "${DEPENDENCY_DIR}/bin" "${custompath}"
+         custompath="${RVAL}"
+      fi
+
+      if [ -e "${DEPENDENCY_DIR}/lib" ]
+      then
+         r_colon_concat "${DEPENDENCY_DIR}/lib" "${custompath}"
+         custompath="${RVAL}"
+      fi
+   fi
+
+   if [ ! -z "${ADDICTION_DIR}" ]
+   then
+      if [ -e "${ADDICTION_DIR}/bin" ]
+      then
+         r_colon_concat "${ADDICTION_DIR}/bin" "${custompath}"
+         custompath="${RVAL}"
+      fi
+
+      if [ -e "${ADDICTION_DIR}/lib" ]
+      then
+         r_colon_concat "${ADDICTION_DIR}/lib" "${custompath}"
+         custompath="${RVAL}"
+      fi
+   fi
+
+   # kind of wrong, can we do this in MINGW ?
+   if [ ! -z "${insertlibpath}" ]
+   then
+      r_colon_concat "${insertlibpath}" "${custompath}"
+      custompath="${RVAL}"
+   fi
+   RVAL="${custompath}"   
+}
+
+
 run_a_out()
 {
    log_entry "run_a_out" "$@"
@@ -70,15 +128,15 @@ run_a_out()
       fail "Compiler unexpectedly did not produce ${a_out_ext}"
    fi
 
+   local environment
+
    if [ "${MULLE_FLAG_LOG_ENVIRONMENT}" = "YES" ]
    then
       log_fluff "Environment:"
       env | sort >&2
    fi
 
-   local environment
    local insertlibpath
-   local runner
 
    ###
    #
@@ -151,26 +209,8 @@ run_a_out()
       mingw*)
          local custompath
 
-         custompath=""
-         # add addiction/lib and depenedency/lib to PATH for dlls
-         if [ ! -z "${DEPENDENCY_DIR}" -a -e "${DEPENDENCY_DIR}/lib" ]
-         then
-            r_colon_concat "${DEPENDENCY_DIR}/lib" "${custompath}"
-            custompath="${RVAL}"
-         fi
-
-         if [ ! -z "${ADDICTION_DIR}" -a -e "${ADDICTION_DIR}/lib" ]
-         then
-            r_colon_concat "${ADDICTION_DIR}/lib" "${custompath}"
-            custompath="${RVAL}"
-         fi
-
-         # kind of wrong, can we do this in MINGW ?
-         if [ ! -z "${insertlibpath}" ]
-         then
-            r_colon_concat "${insertlibpath}" "${custompath}"
-            custompath="${RVAL}"
-         fi
+         r_windows_custompath "${insertpath}"
+         custompath="${RVAL}"
 
          r_concat "${environment}" " PATH='${custompath}'"
          environment="${RVAL}"
@@ -178,29 +218,15 @@ run_a_out()
 
       windows)
          local custompath
+         local wslenv 
 
-         custompath="" # "${PATH}"
-         # add addiction/lib and depenedency/lib to PATH for dlls
-         if [ ! -z "${DEPENDENCY_DIR}" -a -e "${DEPENDENCY_DIR}/lib" ]
-         then
-            r_colon_concat "${DEPENDENCY_DIR}/lib" "${custompath}"
-            custompath="${RVAL}"
-         fi
+         r_windows_custompath "${insertpath}"
+         custompath="${RVAL}"
 
-         if [ ! -z "${ADDICTION_DIR}" -a -e "${ADDICTION_DIR}/lib" ]
-         then
-            r_colon_concat "${ADDICTION_DIR}/lib" "${custompath}"
-            custompath="${RVAL}"
-         fi
+         r_colon_concat "${WSLENV}" "PATH/l"
+         wslenv="${RVAL}"
 
-         # kind of wrong, can we do this in MINGW ?
-         if [ ! -z "${insertlibpath}" ]
-         then
-            r_colon_concat "${insertlibpath}" "${custompath}"
-            custompath="${RVAL}"
-         fi
-
-         r_concat "${environment}" "PATH='${custompath}' WSLENV=PATH/l"
+         r_concat "${environment}" "PATH='${custompath}' WSLENV='${wslenv}'"
          environment="${RVAL}"
       ;;
 
@@ -242,6 +268,8 @@ MULLE_TESTALLOCATOR_FIRST_LEAK='YES'"
          environment="${RVAL}"
       ;;
    esac
+
+   local runner
 
    case ":${SANITIZER}:" in
       *:valgrind:*)
@@ -296,10 +324,13 @@ _check_test_output()
    then
       if [ ! -f "${errors}" ]
       then
-         cat "${errput}" >&2
+         log_info "Stdout"
+         rexekutor cat "${output}" >&2
+         log_info "Stderr"
+         rexekutor cat "${errput}" >&2
          if [ ${rval} -ne 1 ]
          then
-            log_error "TEST CRASHED: ${info_text}, ${errput})"
+            log_error "TEST CRASHED ($rval): ${info_text}, ${errput})"
          else
             log_error "TEST FAILED: ${info_text}, ${errput}) (returned ${rval})"
          fi
@@ -458,10 +489,9 @@ test_execute()
 
    [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"
 
-   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}.stdout" "f" || exit 1
-   output="${RVAL}"
-
-   errput="${output%.stdout}.stderr"
+   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}" "f" || exit 1
+   output="${RVAL}.stdout"
+   errput="${RVAL}.stderr"
 
    #
    # run test executable "${a_out}" feeding it "${stdin}" as input
@@ -798,6 +828,6 @@ test_execute_main()
                    "${stdin}" \
                    "${stdout}" \
                    "${stderr}" \
-                   "${errors}"
+                   "${errors}" 
    )
 }

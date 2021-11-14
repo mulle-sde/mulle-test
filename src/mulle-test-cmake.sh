@@ -70,6 +70,58 @@ r_test_cmd_add()
 }
 
 
+r_convert_to_cmake_list()
+{
+   local s
+   local o
+   local c
+
+   s="$1"
+   while [ ! -z "$s" ]
+   do 
+      c="${s:0:1}"
+      s="${s:1}"
+
+      case "${c}" in 
+         \"|\')
+            if [ -z "${mode}" ]
+            then
+               mode="$c"
+            else
+               if [ "${mode}" = "${c}" ]
+               then
+                  mode=""
+               fi
+            fi
+         ;;
+
+         \\)
+            case "${s:0:1}" in
+               \"|\')
+                  c="\\${s:0:1}"
+                  s="${s:1}"
+               ;;
+
+               *)
+                  c="\\\\" # hack
+               ;;
+            esac
+         ;;
+
+         ' ')
+            if [ -z "${mode}" ]
+            then
+               c="\\;"
+            fi
+         ;;
+      esac   
+      o="$o$c"
+   done
+
+   RVAL="${o}"
+}
+
+
 eval_mulle_make_cmake()
 {
    log_entry "eval_mulle_make_cmake" "$@"
@@ -123,10 +175,6 @@ eval_mulle_make_cmake()
    #    ;;
    # esac
 
-   local cmake_libraries
-
-   cmake_libraries="${LINK_COMMAND}"
-
    # TODO: build commandline nicer (definitions need MULLE_HOSTNAME check)
    # MEMO: unfortunately on linux, the order of linkage matters, but
    #       the CMAKE_EXE_LINKER_FLAGS are prepended to our .o files (bummer)
@@ -168,7 +216,14 @@ eval_mulle_make_cmake()
    r_test_cmd_add_cmakeflag "${cmd}" "CMAKE_SHARED_LINKER_FLAGS" "${cmake_shared_linker_flags}"
    cmd="${RVAL}"
 
-   r_test_cmd_add_cmakeflag "${cmd}" "TEST_LIBRARIES" "${cmake_libraries} ${RPATH_FLAGS}"
+   local cmake_libraries
+
+   cmake_libraries="${LINK_COMMAND}"
+   r_convert_to_cmake_list "${cmake_libraries}"
+   cmake_libraries="${RVAL}"
+
+   # already escaped
+   r_concat "${cmd}" "-DTEST_LIBRARIES=${cmake_libraries} ${RPATH_FLAGS}"
    cmd="${RVAL}"
 
    local argv
@@ -200,7 +255,7 @@ fail_test_cmake()
    [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
    [ -z "${a_out_ext}" ] && internal_fail "a_out_ext is empty"
 
-   if [ "${MULLE_FLAG_MAGNUM_FORCE}" = 'YES' ]
+   if [ "${MULLE_FLAG_MAGNUM_FORCE}" != 'NO' ]
    then
       return
    fi
