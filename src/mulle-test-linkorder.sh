@@ -68,8 +68,8 @@ _get_link_command()
                ${MULLE_TECHNICAL_FLAGS} \
                ${MULLE_SDE_FLAGS} \
             linkorder \
-               --output-format ld \
                --configuration "Test" \
+               --output-format ld \
                --output-no-final-lf \
                --preferred-library-style dynamic \
                --whole-archive-format "DEFAULT" \

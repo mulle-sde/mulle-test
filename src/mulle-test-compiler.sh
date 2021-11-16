@@ -129,7 +129,12 @@ r_c_commandline()
 
    case "${MULLE_UNAME}" in 
       mingw|windows)
-         linkcommand="-link ${linkcommand}"
+         if [ "${MULLE_FLAG_LOG_DEBUG}" = 'YES' ]
+         then
+            linkcommand="-link -verbose ${linkcommand}"
+         else
+            linkcommand="-link ${linkcommand}"
+         fi
       ;;
    esac
 

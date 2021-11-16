@@ -46,6 +46,8 @@ Usage:
    Options:
       -l         : be lenient, keep going if tests fail
       --serial   : run test one after the other
+      --debug    : build for debug
+      --release  : build for release
       --keep-exe : keep test executables around after a successful test
 EOF
    exit 1
@@ -869,7 +871,12 @@ test_run_main()
    DEFAULT_MAKEFLAGS="-s"
 
    test_setup_project "${MULLE_UNAME}"
-   TEST_CFLAGS="${RELEASE_CFLAGS}"
+
+   # for windows its kinda important, that the flags are 
+   # consistent with what we crafted
+   # TODO: figure out what we have...
+   
+   TEST_CFLAGS="${DEBUG_CFLAGS}"
 
    while [ $# -ne 0 ]
    do
