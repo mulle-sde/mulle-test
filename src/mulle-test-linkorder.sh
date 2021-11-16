@@ -71,7 +71,8 @@ _get_link_command()
                --output-format ld \
                --configuration "Test" \
                --output-no-final-lf \
-               --whole-archive-format "none" \
+               --preferred-library-style dynamic \
+               --whole-archive-format "DEFAULT" \
                "$@"  # shared libs only ATM
 }
 
