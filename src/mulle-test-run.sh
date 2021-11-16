@@ -875,7 +875,7 @@ test_run_main()
    # for windows its kinda important, that the flags are 
    # consistent with what we crafted
    # TODO: figure out what we have...
-   
+
    TEST_CFLAGS="${DEBUG_CFLAGS}"
 
    while [ $# -ne 0 ]
@@ -1040,7 +1040,17 @@ test_run_main()
          remove_file_if_present "${MULLE_TEST_SUCCESS_FILE}"
       fi
 
-      MULLE_TEST_SERIAL="${MULLE_TEST_SERIAL:-NO}"
+      # cl.exe likes to clobber a central file, when multiple
+      # tests are in one directory 
+      case "${MULLE_UNAME}" in 
+         mingw|windows)
+            MULLE_TEST_SERIAL='YES'
+         ;;
+
+         *)
+            MULLE_TEST_SERIAL="${MULLE_TEST_SERIAL:-NO}"
+         ;;
+      esac
       run_all_tests "$@"
       return $?
    fi
