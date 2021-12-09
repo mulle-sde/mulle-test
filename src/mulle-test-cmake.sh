@@ -238,7 +238,22 @@ eval_mulle_make_cmake()
       argv="$argv '$arg'"
    done
 
+   local old
+
+   old="${MULLE_FLAG_LOG_EXEKUTOR}"
+   if [ "${MULLE_FLAG_LOG_VERBOSE}" = 'YES' ]
+   then
+      MULLE_FLAG_LOG_EXEKUTOR="YES"
+   fi
+
+   local rval
+
    eval_exekutor "${environment}" "${cmd}" "${argv}"
+   rval=$?
+
+   MULLE_FLAG_LOG_EXEKUTOR="${old}"
+
+   return $rval
 }
 
 

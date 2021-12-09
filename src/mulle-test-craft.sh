@@ -127,12 +127,13 @@ test_craft_main()
    fi
 
    #  a bit too clang specific here or ?
-   local makeargs
 
    if [ "${OPTION_STANDALONE}" != 'YES' ]
    then
-      makeargs="${makeargs} --preferred-library-style dynamic"
+      craftargs="${craftargs} --preferred-library-style dynamic"
    fi
+
+   local makeargs
 
    case ":${SANITIZER}:" in
       *:undefined:*)

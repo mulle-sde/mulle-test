@@ -279,7 +279,22 @@ run_gcc_compiler()
    r_c_commandline "${cflags}" "${srcfile}" "${a_out}" "$@"
    cmdline="${RVAL}"
 
+   local old
+
+   old="${MULLE_FLAG_LOG_EXEKUTOR}"
+   if [ "${MULLE_FLAG_LOG_VERBOSE}" = 'YES' ]
+   then
+      MULLE_FLAG_LOG_EXEKUTOR="YES"
+   fi
+
+   local rval
+
    err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
+   rval=$?
+
+   MULLE_FLAG_LOG_EXEKUTOR="${RVAL}"
+
+   return $rval
 }
 
 

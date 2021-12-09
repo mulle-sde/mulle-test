@@ -167,7 +167,7 @@ run_a_out()
             r_colon_concat "${insertlibpath}" "${filepath}"
             insertlibpath="${RVAL}"
          else
-            log_warning "\"${filepath#${MULLE_USER_PWD}/}\" not found, memory checks will be unavailable"
+            log_verbose "\"${filepath#${MULLE_USER_PWD}/}\" not found, memory checks will be unavailable"
          fi
       ;;
    esac
@@ -390,13 +390,13 @@ _check_test_output()
          log_fluff "No differences in stdout found"
       fi
    else
-      local contents
+      local size
 
-      contents="`exekutor "${CAT}" "${output}"`" 2> /dev/null
-      if [ "${contents}" != "" ]
+      size="`file_size_in_bytes "${output}"`"
+      if [ "${size}" != 0 ]
       then
          log_warning "WARNING: \"${pretty_source}\" produced possibly unexpected output (${pretty_output})" >&2
-         echo "${contents}" >&2
+         "${CAT}" "${output}" >&2
          # return ${RVAL_OUTPUT_DIFFERENCES} just a warning though
       fi
    fi
