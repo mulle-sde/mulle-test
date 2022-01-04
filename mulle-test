@@ -32,73 +32,72 @@
 [ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
 
 
-####
-#
-# Prelude to be placed at top of each script. Rerun this script either in
-# bash or zsh, if not already running in either (which can happen!)
-# Allows script to run on systems that either have bash (linux) or
-# zsh (macOS) only by default.
+MULLE_EXECUTABLE_VERSION="6.0.0"
 
+##########################################################################
+###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###
+###########################################################################
+# #
+# # PRELUDE - Standard startup code for loading mulle-bashfunctions
+# #
+###
+
+#
+# Figure out MULLE_BASHFUNCTIONS_LIBEXEC_DIR on this machine if needed.
+#
+if [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ]
+then
+   MULLE_BASHFUNCTIONS_LIBEXEC_DIR="`mulle-bashfunctions libexec-dir`" || exit 1
+   export MULLE_BASHFUNCTIONS_LIBEXEC_DIR
+fi
+
+#
+# The booter reruns the executable either with bash or zsh, whatever the
+# system provides. On the second run --no-auto-shell will be set first.
+#
 if [ "$1" != --no-auto-shell ]
 then
-   if [ -z "${BASH_VERSION}" -a -z "${ZSH_VERSION}" ]
-   then
-      exe_shell="`command -v "bash" `"
-      exe_shell="${exe_shell:-`command -v "zsh" `}"
-
-      script="$0"
-
-      #
-      # Quote incoming arguments for shell expansion
-      #
-      args=""
-      for arg in "$@"
-      do
-         # True bourne sh doesn't know ${a//b/c} and <<<
-         case "${arg}" in
-            *\'*)
-               # Use cat instead of echo to avoid possible echo -n
-               # problems. Escape single quotes in string.
-               arg="`cat <<EOF | sed -e s/\'/\'\\\"\'\\\"\'/g
-${arg}
-EOF
-`"
-            ;;
-         esac
-         if [ -z "${args}" ]
-         then
-            args="'${arg}'"
-         else
-            args="${args} '${arg}'"
-         fi
-      done
-
-      #
-      # bash/zsh will use arg after -c <arg> as $0, convenient!
-      #
-
-      exec "${exe_shell:-bash}" -c ". ${script} --no-auto-shell ${args}" "${script}"
-   fi
-   if [ ! -z "${BASH_VERSION}" ]
-   then
-      set +o posix
-   fi
+   . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-boot.sh" || exit 1
 else
    shift    # get rid of --no-auto-shell
 fi
 
 
 #
-# Main script to follow, runs now either in zsh or bash
+# Include mulle-bashfunctions.sh         : default functions
+#         mulle-bashfunctions-none.sh    : almost no functions
+#         mulle-bashfunctions-minimal.sh : few functions for basic scripts
+#         mulle-bashfunctions-all.sh     : everything, even obscure functions
 #
-####
+# Do this first to get aliases
+#
+. "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-bashfunctions.sh" || exit 1
 
-MULLE_EXECUTABLE_VERSION="5.3.3"
+###
+# # Now we are in bash or zsh with mulle-bashfunctions loaded
+# #
+###########################################################################
+###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###
+###########################################################################
+
+MULLE_EXECUTABLE="${BASH_SOURCE[0]:-${(%):-%x}}"
+
+
+#
+# Determine location of own libexec directory. Which is `src` in development
+# and ../libexec when deployed. MULLE_EXECUTABLE needs to be defined for this.
+#
+
+if [ -z "${MULLE_TEST_LIBEXEC_DIR}" ]
+then
+   r_get_libexec_dir "${MULLE_EXECUTABLE}" "mulle-test" "mulle-test-init.sh"
+   MULLE_TEST_LIBEXEC_DIR="${RVAL}"
+fi
 
 # version is in mulle-test-env
 
 
-usage()
+test::usage()
 {
    cat <<EOF >&2
 Usage:
@@ -107,7 +106,7 @@ Usage:
    Run tests. Commands take options. Some commands take additional build and
    run options. Notice the -- separator.
 
-   Create your test environment with the \`mulle-test init\`. Then build your
+   Create your test environment with \`mulle-test init\`. Then build your
    test environment with \`mulle-test craft\`. Now you can run the tests with
    \`mulle-test run\`.
 
@@ -116,18 +115,18 @@ Flags:
 EOF
 
    (
-      options_technical_flags_usage "                : "
+      options_technical_flags_usage "                   : "
       cat <<EOF
-   --dir-name <name>    : specify test directory name (default: test)
-   --no-sanitizer       : no sanitizer
-   --coverage           : produce clang coverage information
-   --sanitize-address   : use address sanitizer to craft and run
-   --sanitize-thread    : use thread sanitizer to craft and run
-   --sanitize-undefined : use undefined sanitizer to craft and run
-   --testallocator      : use mulle-testallocator to run (default)
-   --valgrind           : use valgrind to run
-   --valgrind-no-leaks  : use valgrind without leak checker run
-   --zombie             : use zombie sanitizer ro run
+   --dir-name <name>       : specify test directory name (default: test)
+   --no-sanitizer          : no sanitizer
+   --coverage              : produce clang coverage information
+   --sanitize-address      : use address sanitizer to craft and run
+   --sanitize-thread       : use thread sanitizer to craft and run
+   --sanitize-undefined    : use undefined sanitizer to craft and run
+   --testallocator         : use mulle-testallocator to run (default)
+   --valgrind              : use valgrind to run
+   --valgrind-no-leaks     : use valgrind without leak checker run
+   --zombie                : use zombie sanitizer ro run
 
 EOF
    ) | sort >&2
@@ -136,19 +135,20 @@ EOF
    cat <<EOF >&2
 
 Commands:
-   clean                : remove dependency, kitchens and exe files
-   craft                : force rebuild of project, then run tests
-   init                 : setup a test project for the current project
-   recraft              : clean all, then craft
-   run                  : run tests, crafts beforehand if needed
-   rerun                : run failing tests again
-   test-dir             : locate test folder
+   clean                   : remove dependency, kitchens and exe files
+   craft                   : force rebuild of project, then run tests
+   init                    : setup a test project for the current project
+   recraft                 : clean all, then craft
+   run                     : run tests, crafts beforehand if needed
+   rerun                   : run failing tests again
+   test-dir                : locate test folder
 
 Environment:
-   MULLE_TEST_DIR       : tests directory (test)
-   PROJECT_DIALECT      : dialect of the tests, can be objc
-   PROJECT_EXTENSIONS   : file extensions of the test files
-   PROJECT_LANGUAGE     : language of the tests (c)
+   MULLE_TEST_DIR          : tests directory (test)
+   MULLE_TEST_OBJC_DIALECT : use mulle-objc for mulle-clang
+   PROJECT_DIALECT         : dialect of the tests, can be objc
+   PROJECT_EXTENSIONS      : file extensions of the test files
+   PROJECT_LANGUAGE        : language of the tests (c)
 
 EOF
 
@@ -160,15 +160,15 @@ EOF
 # 0 OK
 # 4 its a script
 #
-cd_test_dir()
+test::cd_test_dir()
 {
-   log_entry "cd_test_dir" "$@"
+   log_entry "test::cd_test_dir" "$@"
 
    # shellcheck source=src/mulle-test-locate.sh
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
 
    MULLE_TEST_DIR="${MULLE_TEST_DIR:-test}"
-   r_locate_test_dir "${MULLE_TEST_DIR}"
+   test::locate::r_test_dir "${MULLE_TEST_DIR}"
    rval=$?
 
    if [ $rval -eq 1 ]
@@ -196,9 +196,9 @@ ${C_RESET_BOLD}   mulle-sde test init"
 }
 
 
-test_do_craft()
+test::do_craft()
 {
-   log_entry "test_do_craft" "$@"
+   log_entry "test::do_craft" "$@"
 
    local cmd
 
@@ -219,7 +219,7 @@ test_do_craft()
          # shellcheck source=src/mulle-test-craft.sh
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-craft.sh"
 
-         cmd="test_craft_main"
+         cmd="test::craft::main"
 
       fi
    fi
@@ -235,9 +235,9 @@ test_do_craft()
 }
 
 
-test_do_run()
+test::do_run()
 {
-   log_entry "test_do_run" "$@"
+   log_entry "test::do_run" "$@"
 
    local cmd
 
@@ -250,7 +250,7 @@ test_do_run()
       # shellcheck source=src/mulle-test-run.sh
       . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-run.sh"
 
-      cmd="test_run_main"
+      cmd="test::run::main"
    fi
 
    eval `mulle-sde tool-env` || exit 1
@@ -262,9 +262,9 @@ test_do_run()
 }
 
 
-exec_in_subshell_if_needed()
+test::exec_in_subshell_if_needed()
 {
-   log_entry "exec_in_subshell_if_needed" "$@"
+   log_entry "test::exec_in_subshell_if_needed" "$@"
 
    if [ "${MULLE_VIRTUAL_ROOT}" != "${PWD}" ]
    then
@@ -287,9 +287,9 @@ ${C_RESET_BOLD}   mulle-test init"
 }
 
 
-get_quickstatus()
+test::get_quickstatus()
 {
-   log_entry "get_quickstatus" "$@"
+   log_entry "test::get_quickstatus" "$@"
 
    local rval
 
@@ -307,27 +307,27 @@ get_quickstatus()
 }
 
 
-run_or_rerun()
+test::run_or_rerun()
 {
-   log_entry "run_or_rerun" "$@"
+   log_entry "test::run_or_rerun" "$@"
 
    local cmd="$1"; shift
 
-   if ! get_quickstatus
+   if ! test::get_quickstatus
    then
-      test_do_craft "$@" || return 1
+      test::do_craft "$@" || return 1
    fi
 
    if [ "${cmd}" = "rerun" ]
    then
-      test_do_run --rerun "$@"
+      test::do_run --rerun "$@"
    else
-      test_do_run "$@"
+      test::do_run "$@"
    fi
 }
 
 
-main()
+test::main()
 {
    local MULLE_FLAG_MAGNUM_FORCE="NONE"
    local MULLE_FLAG_IGNORE_GRAVEYARD="NO"
@@ -399,7 +399,7 @@ main()
 
       case "$1" in
          -h|--help|help)
-            usage "${MULLE_TRACE}"
+            test::usage "${MULLE_TRACE}"
          ;;
 
          -f|--force)
@@ -503,6 +503,26 @@ main()
    local cmd="$1"
 
    case "$cmd" in
+      'arch')
+         printf "%s\n" "${MULLE_ARCH}"
+         exit 0
+      ;;
+
+      'version')
+         printf "%s\n" "${MULLE_EXECUTABLE_VERSION}"
+         exit 0
+      ;;
+
+      'uname')
+         printf "%s\n" "${MULLE_UNAME}"
+         exit 0
+      ;;
+
+      'libexec-dir')
+         printf "%s\n" "${MULLE_TEST_LIBEXEC_DIR}"
+         exit 0
+      ;;
+
       "")
          cmd=run
          [ $# -ne 0 ] && shift
@@ -537,54 +557,54 @@ main()
 
    case "${cmd}" in
       craft|build|crun)
-         if cd_test_dir
+         if test::cd_test_dir
          then
-            exec_in_subshell_if_needed "${cmd}" "$@"
+            test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                            clean "${PROJECT_NAME}" || return $?
 
-         test_do_craft "$@" || return $?
+         test::do_craft "$@" || return $?
 
          if [ "${cmd}" = "crun" ]
          then
-            run_or_rerun "run" "$@"
+            test::run_or_rerun "run" "$@"
          fi
       ;;
 
       recraft|rebuild|recrun)
-         if cd_test_dir
+         if test::cd_test_dir
          then
-            exec_in_subshell_if_needed "${cmd}" "$@"
+            test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                            clean all || return $?
 
-         test_do_craft "$@" || return $?
+         test::do_craft "$@" || return $?
 
          if [ "${cmd}" = "recrun" ]
          then
-            run_or_rerun "run" "$@"
+            test::run_or_rerun "run" "$@"
          fi
       ;;
 
       clean)
-         if cd_test_dir
+         if test::cd_test_dir
          then
-            exec_in_subshell_if_needed "${cmd}" "$@"
+            test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-clean.sh"
 
-         test_clean_main "$@"
+         test::clean::main "$@"
       ;;
 
       craftorder)
-         if cd_test_dir
+         if test::cd_test_dir
          then
-            exec_in_subshell_if_needed "${cmd}" "$@"
+            test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
@@ -597,9 +617,9 @@ main()
 
 
       fetch)
-         if cd_test_dir
+         if test::cd_test_dir
          then
-            exec_in_subshell_if_needed "${cmd}" "$@"
+            test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
@@ -608,7 +628,7 @@ main()
 
       init)
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-init.sh"
-         test_init_main "$@"
+         test::init::main "$@"
       ;;
 
       libexec-dir)
@@ -617,20 +637,20 @@ main()
       ;;
 
       linkorder)
-         if cd_test_dir
+         if test::cd_test_dir
          then
-            exec_in_subshell_if_needed "${cmd}" "$@"
+            test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
 
-         test_linkorder_main "$@"
+         test::linkorder::main "$@"
       ;;
 
       log)
-         if cd_test_dir
+         if test::cd_test_dir
          then
-            exec_in_subshell_if_needed "${cmd}" "$@"
+            test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
@@ -638,19 +658,19 @@ main()
       ;;
 
       run|rerun)
-         if cd_test_dir
+         if test::cd_test_dir
          then
-            exec_in_subshell_if_needed "${cmd}" "$@"
+            test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
-         run_or_rerun "${cmd}" "$@"
+         test::run_or_rerun "${cmd}" "$@"
       ;;
 
       test-dir)
          # shellcheck source=src/mulle-test-locate.sh
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
 
-         r_locate_main "$@"
+         test::locate::r_main "$@"
          printf "%s\n" "${RVAL}"
       ;;
 
@@ -661,91 +681,17 @@ main()
 
       *)
          log_error "Unknown command \"${cmd}\""
-         usage "${MULLE_TRACE}"
+         test::usage "${MULLE_TRACE}"
       ;;
    esac
 }
 
 
-#
-#
-#
-_fatal()
-{
-   echo "$0 fatal error: $*" >&2
-   exit 1
-}
+if [ -z "${MULLE_ARCH}" ]
+then
+   MULLE_ARCH="`gcc -v 2>&1  | sed -n -e '/Target:/s/.*: \([^-]*\)-.*/\1/p'`"
+   MULLE_ARCH="${MULLE_ARCH:-`arch 2> /dev/null`}"
+   MULLE_ARCH="${MULLE_ARCH:-x86_64}"
+fi
 
-_init()
-{
-   # mingw stuff
-   case "$PATH" in
-      '\\'*)
-         PATH="${PATH//\\/\/}"
-      ;;
-   esac
-
-   if [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ]
-   then
-      MULLE_BASHFUNCTIONS_LIBEXEC_DIR="`mulle-bashfunctions-env libexec-dir 2> /dev/null`"
-      [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ] && \
-         _fatal "mulle-bashfunctions-env not installed"
-   fi
-
-   . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-bashfunctions.sh" || exit 1
-
-   if [ -z "${MULLE_TEST_LIBEXEC_DIR}" ]
-   then
-      r_get_libexec_dir "${MULLE_EXECUTABLE}" "mulle-test" "mulle-test-run.sh"
-      MULLE_TEST_LIBEXEC_DIR="${RVAL}"
-   fi
-   #
-   # dependent on gcc again here, but on linux in a i386 docker the
-   # arch is x86_64 but we want i386 which we only get from gcc I think
-   # (or maybe apt, but gcc seems more cross-platformy)
-   #
-   if [ -z "${MULLE_ARCH}" ]
-   then
-      MULLE_ARCH="`gcc -v 2>&1  | sed -n -e '/Target:/s/.*: \([^-]*\)-.*/\1/p'`"
-      MULLE_ARCH="${MULLE_ARCH:-`arch 2> /dev/null`}"
-      MULLE_ARCH="${MULLE_ARCH:-x86_64}"
-   fi
-
-   #
-   # minimal setup exit
-   #
-   if [ "$#" -eq 1 ]
-   then
-      case "$1" in
-         "arch")
-            printf "%s\n" "${MULLE_ARCH}"
-            exit 0
-         ;;
-
-         "version")
-            printf "%s\n" "${MULLE_EXECUTABLE_VERSION}"
-            exit 0
-         ;;
-
-         "uname")
-            printf "%s\n" "${MULLE_UNAME}"
-            exit 0
-         ;;
-
-         "libexec-dir")
-            printf "%s\n" "${MULLE_TEST_LIBEXEC_DIR}"
-            exit 0
-         ;;
-      esac
-   fi
-
-   shell_enable_pipefail
-   shell_enable_extglob
-
-   call_main "${MULLE_TEST_FLAGS}" "$@"
-}
-
-
-MULLE_EXECUTABLE="${MULLE_EXECUTABLE:-${BASH_SOURCE[0]:-${(%):-%x}}}"
-
-_init "$@"
+call_with_flags "test::main" "${MULLE_TEST_FLAGS}" "$@"

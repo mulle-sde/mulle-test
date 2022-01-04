@@ -35,18 +35,18 @@ MULLE_TEST_ENVIRONMENT_SH="included"
 #
 # thi sets up make/cmake and other tools
 #
-test_setup_tooling()
+test::environment::setup_tooling()
 {
-   log_entry "test_setup_tooling" "$@"
+   log_entry "test::environment::setup_tooling" "$@"
 
    local platform="$1"
 
    case "${platform}" in
       mingw*)
-         include_mulle_tool_library "platform" "mingw"
+         include "platform::mingw"
 
-         CC="`mingw_mangle_compiler_exe "${CC}" "CC"`"
-         CXX="`mingw_mangle_compiler_exe "${CXX}" "CXX"`"
+         CC="`platform::mingw::mangle_compiler_exe "${CC}" "CC"`"
+         CXX="`platform::mingw::mangle_compiler_exe "${CXX}" "CXX"`"
          CMAKE="${CMAKE:-cmake}"
          MAKE="${MAKE:-nmake}"
 
@@ -62,7 +62,7 @@ test_setup_tooling()
                MAKE="mulle-mingw-make.sh"
                CMAKE_GENERATOR="MinGW Makefiles"
                # unused
-               # FILEPATH_DEMANGLER="mingw_demangle_path"
+               # FILEPATH_DEMANGLER="platform::mingw::demangle_path"
             ;;
 
             *)
@@ -115,9 +115,9 @@ test_setup_tooling()
 # this is crap and needs some kind of plugin interface
 # this sets up the compiler and linker and flags
 #
-test_setup_compiler()
+test::environment::setup_compiler()
 {
-   log_entry "test_setup_compiler" "$@"
+   log_entry "test::environment::setup_compiler" "$@"
 
    local platform="$1"
    local language="${2:-c}"
@@ -181,9 +181,9 @@ test_setup_compiler()
                         ;;
 
                         darwin)
-                           include_mulle_tool_library "platform" "sdkpath"
+                           include "platform::sdkpath"
 
-                           if ! r_platform_darwin_sdkpath
+                           if ! platform::sdkpath::r_darwin_sdkpath
                            then
                               fail "Could not figure out SDK path"
                            fi
@@ -223,10 +223,10 @@ test_setup_compiler()
 
    case "${platform}" in
       mingw*)
-         include_mulle_tool_library "platform" "mingw"
+         include "platform::mingw"
 
-         CC="`mingw_mangle_compiler_exe "${CC}" "CC"`"
-         CXX="`mingw_mangle_compiler_exe "${CXX}" "CXX"`"
+         CC="`platform::mingw::mangle_compiler_exe "${CC}" "CC"`"
+         CXX="`platform::mingw::mangle_compiler_exe "${CXX}" "CXX"`"
 
          case "${MAKE}" in
             nmake)
@@ -274,9 +274,9 @@ test_setup_compiler()
 }
 
 
-test_setup_platform()
+test::environment::setup_platform()
 {
-   log_entry "test_setup_platform" "$@"
+   log_entry "test::environment::setup_platform" "$@"
 
    local platform="$1"
 
@@ -287,7 +287,7 @@ test_setup_platform()
    EXE_EXTENSION=".exe"
    DEBUG_EXE_EXTENSION=".debug.exe"
 
-   include_mulle_tool_library "platform" "environment"
+   include "platform::environment"
 
    local _option_frameworkpath
    local _option_libpath
@@ -301,7 +301,7 @@ test_setup_platform()
    local _suffix_staticlib
    local _r_path_mangler
 
-   __platform_get_fix_definitions
+   platform::environment::__get_fix_definitions
 
    SHAREDLIB_PREFIX="${_prefix_lib}"
    SHAREDLIB_EXTENSION="${_suffix_dynamiclib}"
@@ -347,20 +347,20 @@ test_setup_platform()
 }
 
 
-test_setup_environment()
+test::environment::setup_environment()
 {
-   log_entry "test_setup_environment" "$@"
+   log_entry "test::environment::setup_environment" "$@"
 
-   r_suppress_crashdumping
+   test::run::r_suppress_crashdumping
    RESTORE_CRASHDUMP="${RVAL}"
 
-   trap 'trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
+   trap 'test::run::trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
 }
 
 
-test_setup_debugger()
+test::environment::setup_debugger()
 {
-   log_entry "test_setup_debugger" "$@"
+   log_entry "test::environment::setup_debugger" "$@"
 
    local platform="$1"
    local dialect="$3"
@@ -398,9 +398,9 @@ test_setup_debugger()
 }
 
 
-test_include_required()
+test::environment::include_required()
 {
-   log_entry "test_include_required" "$@"
+   log_entry "test::environment::include_required" "$@"
 
    if [ -z "${MULLE_PATH_SH}" ]
    then
@@ -417,24 +417,24 @@ test_include_required()
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-flagbuilder.sh"
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-logging.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-regexsearch.sh"
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-regex.sh"
 }
 
 
-test_setup_project()
+test::environment::setup_project()
 {
-   log_entry "test_setup_project" "$@"
+   log_entry "test::environment::setup_project" "$@"
 
    local platform="$1"
 
    #
    # MULLE_TEST_OBJC_DIALECT to be set in environment
    #
-   test_setup_tooling "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
-   test_setup_compiler "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" "${MULLE_TEST_OBJC_DIALECT}"
-   test_setup_platform "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
-   test_setup_debugger "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
-   test_setup_environment "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
+   test::environment::setup_tooling "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+   test::environment::setup_compiler "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" "${MULLE_TEST_OBJC_DIALECT}"
+   test::environment::setup_platform "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
+   test::environment::setup_debugger "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
+   test::environment::setup_environment "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = 'YES' ]
    then

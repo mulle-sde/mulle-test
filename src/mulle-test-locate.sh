@@ -32,9 +32,9 @@
 MULLE_TEST_LOCATE_SH="included"
 
 
-r_locate_script_test_dir()
+test::locate::r_script_test_dir()
 {
-   log_entry "r_locate_script_test_dir" "$@"
+   log_entry "test::locate::r_script_test_dir" "$@"
 
    local i
 
@@ -51,9 +51,9 @@ r_locate_script_test_dir()
 }
 
 
-r_locate_test_dir()
+test::locate::r_test_dir()
 {
-   log_entry "r_locate_test_dir" "$@"
+   log_entry "test::locate::r_test_dir" "$@"
 
    local testdir="$1"
 
@@ -64,7 +64,7 @@ r_locate_test_dir()
    then
       # not a mulle project, lets just check that there isn't a run-test
       # script there, wh
-      if ! r_locate_script_test_dir "$@"
+      if ! test::locate::r_script_test_dir "$@"
       then
          return 1
       fi
@@ -115,9 +115,9 @@ r_locate_test_dir()
 }
 
 
-r_locate_main()
+test::locate::r_main()
 {
-   log_entry "r_locate_main" "$@"
+   log_entry "test::locate::r_main" "$@"
 
-   r_locate_test_dir "${MULLE_TEST_DIR:-test}"
+   test::locate::r_test_dir "${MULLE_TEST_DIR:-test}"
 }

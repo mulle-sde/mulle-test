@@ -32,16 +32,16 @@
 MULLE_TEST_CRAFT_SH="included"
 
 
-test_craft_usage()
+test::craft::usage()
 {
    fail "$*"
    exit 1
 }
 
 
-test_craft_main()
+test::craft::main()
 {
-   log_entry "test_craft_main" "$@"
+   log_entry "test::craft::main" "$@"
 
    local args
    local craftargs
@@ -54,18 +54,7 @@ test_craft_main()
    do
       case "$1" in
          -h|--help|help)
-            test_craft_usage
-         ;;
-
-         --run-args)
-            while [ $# -ne 0 ]
-            do
-               shift
-            done
-         ;;
-
-         --standalone)
-            OPTION_STANDALONE='YES'
+            test::craft::usage
          ;;
 
          --build-args)
@@ -86,9 +75,8 @@ test_craft_main()
             done
          ;;
 
-         --serial|--no-parallel|--parallel)
-            r_concat "${craftargs}" "'$1'"
-            craftargs="${RVAL}"
+         --coverage|--valgrind|--sanitize*)
+            # ignore, don't complain
          ;;
 
          --debug)
@@ -99,8 +87,20 @@ test_craft_main()
             OPTION_CMAKE_BUILD_TYPE='Release';
          ;;
 
-         --coverage|--valgrind|--sanitize*)
-            # ignore, don't complain
+         --run-args)
+            while [ $# -ne 0 ]
+            do
+               shift
+            done
+         ;;
+
+         --serial|--no-parallel|--parallel)
+            r_concat "${craftargs}" "'$1'"
+            craftargs="${RVAL}"
+         ;;
+
+         --standalone)
+            OPTION_STANDALONE='YES'
          ;;
 
          --)

@@ -32,7 +32,7 @@
 MULLE_TEST_INIT_SH="included"
 
 
-test_init_usage()
+test::init::usage()
 {
    [ $# -ne 0 ] && log_error "$*"
 
@@ -62,9 +62,9 @@ EOF
 }
 
 
-r_find_initscript_filepath()
+test::init::r_find_initscript_filepath()
 {
-   log_entry "r_find_initscript_filepath" "$@"
+   log_entry "test::init::r_find_initscript_filepath" "$@"
 
    local filename="$1"
 
@@ -86,14 +86,14 @@ r_find_initscript_filepath()
 }
 
 
-execute_test_init_script()
+test::init::execute_script()
 {
-   log_entry "execute_test_init_script" "$@"
+   log_entry "test::init::execute_script" "$@"
 
    local script="$1"
    local standalone="$2"
 
-   if ! r_find_initscript_filepath "${script}"
+   if ! test::init::r_find_initscript_filepath "${script}"
    then
       log_verbose "No \"${script}\" script found"
       return
@@ -130,9 +130,9 @@ execute_test_init_script()
 }
 
 
-test_init_main()
+test::init::main()
 {
-   log_entry "test_init_main" "$@"
+   log_entry "test::init::main" "$@"
 
    local OPTION_DIRECTORY="test"
    local OPTION_STANDALONE='NO'
@@ -142,46 +142,46 @@ test_init_main()
    do
       case "$1" in
          -h*|--help|help)
-            test_init_usage
+            test::init::usage
          ;;
 
          -d|--directory)
-            [ $# -eq 1 ] && test_init_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::init::usage "missing argument to \"$1\""
             shift
 
             OPTION_DIRECTORY="$1"
          ;;
 
          --project-name)
-            [ $# -eq 1 ] && test_init_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::init::usage "missing argument to \"$1\""
             shift
 
             PROJECT_NAME="$1"
          ;;
 
          --project-language)
-            [ $# -eq 1 ] && test_init_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::init::usage "missing argument to \"$1\""
             shift
 
             PROJECT_LANGUAGE="$1"
          ;;
 
          --project-dialect)
-            [ $# -eq 1 ] && test_init_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::init::usage "missing argument to \"$1\""
             shift
 
             PROJECT_DIALECT="$1"
          ;;
 
          --project-extensions)
-            [ $# -eq 1 ] && test_init_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::init::usage "missing argument to \"$1\""
             shift
 
             PROJECT_EXTENSIONS="$1"
          ;;
 
          --project-type)
-            [ $# -eq 1 ] && test_init_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::init::usage "missing argument to \"$1\""
             shift
 
             PROJECT_TYPE="$1"
@@ -192,7 +192,7 @@ test_init_main()
          ;;
 
          --github-name)
-            [ $# -eq 1 ] && test_init_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::init::usage "missing argument to \"$1\""
             shift
 
             GITHUB_USER="$1"
@@ -214,7 +214,7 @@ test_init_main()
       shift
    done
 
-   [ $# -eq 0 ] || test_init_usage
+   [ $# -eq 0 ] || test::init::usage
 
    local parentdir
 
@@ -269,6 +269,12 @@ of a mulle-sde project"
       ;;
    esac
 
+   if [ -z "${PREFERRED_STARTUP_LIBRARY}" ]
+   then
+      PREFERRED_STARTUP_LIBRARY="`rexekutor mulle-env ${MULLE_TECHNICAL_FLAGS} \
+                                              environment get PREFERRED_STARTUP_LIBRARY`"
+   fi
+
    #
    # also set project language and dialect from main project
    # use wild, since we don't want to copy all the tools and optionaltools
@@ -277,18 +283,20 @@ of a mulle-sde project"
    PROJECT_LANGUAGE="${PROJECT_LANGUAGE:-c}"
    PROJECT_DIALECT="${PROJECT_DIALECT:-c}"
    PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-c}"
-   exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                      -s \
-               init --no-motd \
-                    --style mulle/wild \
-                    --github-user "${GITHUB_USER}" \
-                    --project-name "${PROJECT_NAME}" \
-                    --project-language "${PROJECT_LANGUAGE}" \
-                    --project-dialect "${PROJECT_DIALECT}" \
-                    --project-extensions "${PROJECT_EXTENSIONS}" \
-                    -d "${OPTION_DIRECTORY}" \
-                    -m "mulle-sde/${PROJECT_DIALECT}-test-${PROJECT_TYPE:-executable}" \
-                    none || return $?
+
+   eval_exekutor PREFERRED_STARTUP_LIBRARY="${PREFERRED_STARTUP_LIBRARY}" \
+      mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                         -s \
+                  init --no-motd \
+                       --style 'mulle/wild' \
+                       --github-user "'${GITHUB_USER}'" \
+                       --project-name "'${PROJECT_NAME}'" \
+                       --project-language "'${PROJECT_LANGUAGE}'" \
+                       --project-dialect "'${PROJECT_DIALECT}'" \
+                       --project-extensions "'${PROJECT_EXTENSIONS}'" \
+                       -d "'${OPTION_DIRECTORY}'" \
+                       -m "'mulle-sde/${PROJECT_DIALECT}-test-${PROJECT_TYPE:-executable}'" \
+                       none || return $?
 
    # move below startup code if any
    (

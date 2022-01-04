@@ -32,7 +32,7 @@
 MULLE_TEST_RUN_SH="included"
 
 
-test_run_usage()
+test::run::usage()
 {
    [ "$#" -ne 0 ] && log_error "$1"
 
@@ -58,9 +58,9 @@ EOF
 # this is system wide, not so great
 # and also not trapped...
 #
-r_suppress_crashdumping()
+test::run::r_suppress_crashdumping()
 {
-   log_entry "r_suppress_crashdumping" "$@"
+   log_entry "test::run::r_suppress_crashdumping" "$@"
 
    local restore
 
@@ -75,9 +75,9 @@ r_suppress_crashdumping()
 }
 
 
-restore_crashdumping()
+test::run::restore_crashdumping()
 {
-   log_entry "restore_crashdumping" "$@"
+   log_entry "test::run::restore_crashdumping" "$@"
 
    local restore="$1"
 
@@ -94,11 +94,11 @@ restore_crashdumping()
 }
 
 
-trace_ignore()
+test::run::trace_ignore()
 {
-   log_entry "trace_ignore" "$@"
+   log_entry "test::run::trace_ignore" "$@"
 
-   restore_crashdumping "$1"
+   test::run::restore_crashdumping "$1"
    return 0
 }
 
@@ -106,9 +106,9 @@ trace_ignore()
 #
 #
 #
-maybe_show_diagnostics()
+test::run::maybe_show_diagnostics()
 {
-   log_entry "maybe_show_diagnostics" "$@"
+   log_entry "test::run::maybe_show_diagnostics" "$@"
 #
 #   local errput="$1"
 #
@@ -127,9 +127,9 @@ maybe_show_diagnostics()
 }
 
 
-maybe_show_output()
+test::run::maybe_show_output()
 {
-   log_entry "maybe_show_output" "$@"
+   log_entry "test::run::maybe_show_output" "$@"
 
    local output="$1"
 
@@ -149,9 +149,9 @@ maybe_show_output()
 }
 
 
-run_common_test()
+test::run::common()
 {
-   log_entry "run_common_test" "$@"
+   log_entry "test::run::common" "$@"
 
    local args="$1"; shift
    local a_out="$1"; shift
@@ -194,7 +194,7 @@ run_common_test()
       "${TEST_BUILDER}" "${srcfile}" "${a_out_ext}" "${cc_errput}" "$@"
       rval="$?"
 
-      check_compiler_output "${srcfile}" "${cc_errput}" "${rval}" "${pretty_source}"
+      test::compiler::check_output "${srcfile}" "${cc_errput}" "${rval}" "${pretty_source}"
       rval="$?"
 
       if [ "$rval" -ne 0 ]
@@ -216,7 +216,7 @@ run_common_test()
 
    local cmd
 
-   cmd="test_execute_main"
+   cmd="test::execute::main"
    if [ ! -z "${flags}" ]
    then
        cmd="${cmd} ${flags}"
@@ -244,9 +244,7 @@ run_common_test()
    then
       if [ "${rval}" -ne 0 ]
       then
-         a_out_ext="${a_out}${DEBUG_EXE_EXTENSION}"
-
-         "${FAIL_TEST}" "${srcfile}" "${a_out_ext}" "${ext}" "${name}" "$@"
+         "${FAIL_TEST}" "${srcfile}" "${a_out}" "${ext}" "${name}" "$@"
       fi
    else
       log_debug "FAIL_TEST is undefined"
@@ -257,9 +255,9 @@ run_common_test()
 }
 
 
-run_cmake_test()
+test::run::cmake()
 {
-   log_entry "run_cmake_test" "$@"
+   log_entry "test::run::cmake" "$@"
 
    local name="$1"; shift
 
@@ -270,20 +268,20 @@ run_cmake_test()
    purename="${name#"${name%%[!0-9_-]*}"}"
    a_out="${PWD}/${purename}"
 
-   if r_get_test_environmentfile "${purename}" "cmake-output" "cmake-output"
+   if test::run::r_get_environmentfile "${purename}" "cmake-output" "cmake-output"
    then
       a_out="`egrep -v '^#' "${RVAL}"`"
    fi
 
-   TEST_BUILDER="run_cmake"
-   FAIL_TEST="fail_test_cmake"
-   run_common_test "" "${a_out}" "${a_out}${EXE_EXTENSION}" "${purename}" "$@"
+   TEST_BUILDER="test::cmake::run"
+   FAIL_TEST="test::cmake::fail_test"
+   test::run::common "" "${a_out}" "${a_out}${EXE_EXTENSION}" "${purename}" "$@"
 }
 
 
-run_c_test()
+test::run::c()
 {
-   log_entry "run_c_test" "$@"
+   log_entry "test::run::c" "$@"
 
    local name="$1"
    local ext="$2"
@@ -292,15 +290,15 @@ run_c_test()
 
    a_out="${PWD}/${name}"
 
-   TEST_BUILDER="run_compiler"
-   FAIL_TEST="fail_test_c"
-   run_common_test "" "${a_out}" "${a_out}${EXE_EXTENSION}" "$@"
+   TEST_BUILDER="test::compiler::run"
+   FAIL_TEST="test::compiler::fail_c"
+   test::run::common "" "${a_out}" "${a_out}${EXE_EXTENSION}" "$@"
 }
 
 
-run_exe_test()
+test::run::exe()
 {
-   log_entry "run_exe_test" "$@"
+   log_entry "test::run::exe" "$@"
 
    local name="$1"
    local ext="$2"
@@ -322,13 +320,13 @@ run_exe_test()
    TEST_BUILDER=""
    FAIL_TEST=""
 
-   run_common_test "" "${a_out}" "${a_out_ext}" "$@"
+   test::run::common "" "${a_out}" "${a_out_ext}" "$@"
 }
 
 
-run_args_exe_test()
+test::run::args_exe()
 {
-   log_entry "run_args_exe_test" "$@"
+   log_entry "test::run::args_exe" "$@"
 
    local args="$1"; shift
 
@@ -352,51 +350,51 @@ run_args_exe_test()
    TEST_BUILDER=""
    FAIL_TEST=""
 
-   run_common_test "${args}" "${a_out}" "${a_out_ext}" "$@"
+   test::run::common "${args}" "${a_out}" "${a_out_ext}" "$@"
 }
 
 
-run_m_test()
+test::run::m()
 {
-   log_entry "run_m_test" "$@"
+   log_entry "test::run::m" "$@"
 
-   run_c_test "$@"
+   test::run::c "$@"
 }
 
 
-run_aam_test()
+test::run::aam()
 {
-   log_entry "run_aam_test" "$@"
+   log_entry "test::run::aam" "$@"
 
-   run_m_test "$@"
+   test::run::m "$@"
 }
 
 
-run_h_test()
+test::run::h()
 {
-   log_entry "run_h_test" "$@"
+   log_entry "test::run::h" "$@"
 
-   run_args_exe_test "${name}${ext}" "$@"
+   test::run::args_exe "${name}${ext}" "$@"
 }
 
 
-run_cpp_test()
+test::run::cpp()
 {
-   log_entry "run_cpp_test" "$@"
+   log_entry "test::run::cpp" "$@"
 
    log_error "$1: cpp testing is not available yet"
 }
 
 
-run_cxx_test()
+test::run::cxx()
 {
-   log_entry "run_cxx_test" "$@"
+   log_entry "test::run::cxx" "$@"
 
-   run_cpp_test "$@"
+   test::run::cpp "$@"
 }
 
 
-r_get_test_environmentfile()
+test::run::r_get_environmentfile()
 {
    local name="$1"
    local varname="$2"
@@ -459,9 +457,9 @@ r_get_test_environmentfile()
 # runtest : is where the user started the search, its only used for printing
 # ext     : extension of the file used for tmp filename construction
 #
-_run_test()
+test::run::_run()
 {
-   log_entry "_run_test" "$@"
+   log_entry "test::run::_run" "$@"
 
    local name="$1"; shift
    local ext="$1"; shift
@@ -474,7 +472,7 @@ _run_test()
    local purename
 
    purename="${name#"${name%%[!0-9_-]*}"}"
-   if r_get_test_environmentfile "${purename}" "environment" "environment"
+   if test::run::r_get_environmentfile "${purename}" "environment" "environment"
    then
       log_verbose "Read environment file \"${RVAL}\" (${PWD#${MULLE_USER_PWD}/}) "
       # as we are running in a subshell this is OK
@@ -483,17 +481,17 @@ _run_test()
 
    case "${ext}" in
       cmake)
-         run_cmake_test "${name}" "" "${root}" "$@"
+         test::run::cmake "${name}" "" "${root}" "$@"
       ;;
 
       .args)
-         run_exe_test "${name}" "${ext}" "${root}" "$@"
+         test::run::exe "${name}" "${ext}" "${root}" "$@"
       ;;
 
       *)
          local functionname
 
-         functionname="run_${ext#.}_test"
+         functionname="test::run::${ext#.}"
          if ! shell_is_function "${functionname}"
          then
              fail "Don't know how to handle extension \"${ext}\""
@@ -504,9 +502,9 @@ _run_test()
 }
 
 
-has_test_run_successfully()
+test::run::has_run_successfully()
 {
-   log_entry "has_test_run_successfully" "$@"
+   log_entry "test::run::has_run_successfully" "$@"
 
    local directory="$1"
    local name="$2"
@@ -520,9 +518,9 @@ has_test_run_successfully()
 }
 
 
-handle_return_value()
+test::run::handle_return_value()
 {
-   log_entry "handle_return_value" "$@"
+   log_entry "test::run::handle_return_value" "$@"
 
    local rval=$1; shift
 
@@ -531,7 +529,7 @@ handle_return_value()
    local ext="$3"
    local root="$4"
 
-   log_debug "Return value of _run_test: ${rval}"
+   log_debug "Return value of test::run::_run: ${rval}"
 
    case "${rval}" in
       0|${RVAL_EXPECTED_FAILURE})
@@ -562,9 +560,9 @@ handle_return_value()
 }
 
 
-_run_test_in_directory()
+test::run::_run_in_directory()
 {
-   log_entry "_run_test_in_directory" "$@"
+   log_entry "test::run::_run_in_directory" "$@"
 
    local directory="$1"; shift
    local name="$1"
@@ -573,30 +571,30 @@ _run_test_in_directory()
       # this is OK since we are in a subshell here
       cd "${directory}" || exit 1
 
-      _run_test "$@"
+      test::run::_run "$@"
    )
 }
 
 
-_run_test_in_directory_parallel()
+test::run::_run_in_directory_parallel()
 {
-   log_entry "_run_test_in_directory_parallel" "$@"
+   log_entry "test::run::_run_in_directory_parallel" "$@"
 
    local directory="$1"; shift
 
    (
       cd "${directory}" || exit 1
-      _run_test "$@"
-      handle_return_value $? "${directory}" "$@"
+      test::run::_run "$@"
+      test::run::handle_return_value $? "${directory}" "$@"
    )
 }
 
 
-run_test_in_directory()
+test::run::run_in_directory()
 {
-   log_entry "run_test_in_directory" "$@"
+   log_entry "test::run::run_in_directory" "$@"
 
-   if has_test_run_successfully "$@"
+   if test::run::has_run_successfully "$@"
    then
       log_fluff "Test $2 already passed"
       return 0
@@ -604,19 +602,19 @@ run_test_in_directory()
 
    if [ "${MULLE_TEST_SERIAL}" = 'NO' ]
    then
-      _parallel_execute _run_test_in_directory_parallel "$@"
+      _parallel_execute test::run::_run_in_directory_parallel "$@"
       return 0
    fi
 
    RUNS="$((RUNS + 1))"
-   _run_test_in_directory "$@"
-   handle_return_value $? "$@"
+   test::run::_run_in_directory "$@"
+   test::run::handle_return_value $? "$@"
 }
 
 
-run_test_matching_extensions_in_directory()
+test::run::run_matching_extensions_in_directory()
 {
-   log_entry "run_test_matching_extensions_in_directory" "$@"
+   log_entry "test::run::run_matching_extensions_in_directory" "$@"
 
    local directory="$1"; shift
    local filename="$1"; shift
@@ -635,7 +633,7 @@ run_test_matching_extensions_in_directory()
       case "${filename}" in
          *${ext})
             r_extensionless_basename "${filename}"
-            run_test_in_directory "${directory}" \
+            test::run::run_in_directory "${directory}" \
                                   "${RVAL}" \
                                   "${ext}" \
                                   "${root}" \
@@ -648,9 +646,9 @@ run_test_matching_extensions_in_directory()
 }
 
 
-_scan_directory()
+test::run::_scan_directory()
 {
-   log_entry "_scan_directory" "$@" "(${PWD#${MULLE_USER_PWD}/})"
+   log_entry "test::run::_scan_directory" "$@" "(${PWD#${MULLE_USER_PWD}/})"
 
    local root="$1"; shift
    local extensions="$1"; shift
@@ -658,7 +656,7 @@ _scan_directory()
    if [ -f CMakeLists.txt ]
    then
       r_basename "${PWD}"
-      run_test_in_directory "${PWD}" "${RVAL}" "cmake" "${root}" "$@"
+      test::run::run_in_directory "${PWD}" "${RVAL}" "cmake" "${root}" "$@"
       return $?
    fi
 
@@ -680,12 +678,12 @@ _scan_directory()
 
       if [ -d "${i}" ]
       then
-         if ! scan_directory "${i}" "${root}" "${extensions}" "$@"
+         if ! test::run::scan_directory "${i}" "${root}" "${extensions}" "$@"
          then
             return 1
          fi
       else
-         if ! run_test_matching_extensions_in_directory "${PWD}" \
+         if ! test::run::run_matching_extensions_in_directory "${PWD}" \
                                                         "${i}" \
                                                         "${extensions}" \
                                                         "${root}" \
@@ -701,9 +699,9 @@ _scan_directory()
 }
 
 
-scan_directory()
+test::run::scan_directory()
 {
-   log_entry "scan_directory" "$@"
+   log_entry "test::run::scan_directory" "$@"
 
    local directory="$1"; shift
    local root="$1"; shift
@@ -719,7 +717,7 @@ scan_directory()
    # preserve shell context (no subshell here)
    old="$PWD"
 
-   rexekutor cd "${directory}" && _scan_directory "${root}" "${extensions}" "$@"
+   rexekutor cd "${directory}" && test::run::_scan_directory "${root}" "${extensions}" "$@"
    rval=$?
 
    cd "${old}"
@@ -727,9 +725,9 @@ scan_directory()
 }
 
 
-run_all_tests()
+test::run::all_tests()
 {
-   log_entry "run_all_tests" "$@"
+   log_entry "test::run::all_tests" "$@"
 
    local RUNS
    local FAILS
@@ -753,7 +751,7 @@ run_all_tests()
       log_verbose "Serial testing"
    fi
 
-   scan_directory "${PWD}" "${MULLE_USER_PWD}" "${MULLE_TEST_EXTENSIONS}" "$@"
+   test::run::scan_directory "${PWD}" "${MULLE_USER_PWD}" "${MULLE_TEST_EXTENSIONS}" "$@"
 
    if [ "${MULLE_TEST_SERIAL}" = 'NO' ]
    then
@@ -779,9 +777,9 @@ run_all_tests()
 }
 
 
-run_named_test()
+test::run::named_test()
 {
-   log_entry "run_named_test" "$@"
+   log_entry "test::run::named_test" "$@"
 
    local root="$1"; shift
    local filepath="$1"; shift
@@ -803,7 +801,7 @@ run_named_test()
 
    if [ -d "${filepath}" ]
    then
-      scan_directory "${filepath}" "${root}" "${MULLE_TEST_EXTENSIONS}" "$@"
+      test::run::scan_directory "${filepath}" "${root}" "${MULLE_TEST_EXTENSIONS}" "$@"
       return $?
    fi
 
@@ -834,7 +832,7 @@ run_named_test()
    local RUNS=0
    local FAILS=0
 
-   if ! run_test_matching_extensions_in_directory "${directory}" \
+   if ! test::run::run_matching_extensions_in_directory "${directory}" \
                                                   "${filename}" \
                                                   "${MULLE_TEST_EXTENSIONS}" \
                                                   "${root}" \
@@ -851,16 +849,16 @@ MULLE_TEST_EXTENSIONS \"${MULLE_TEST_EXTENSIONS}\""
 }
 
 
-test_run_main()
+test::run::main()
 {
-   log_entry "test_run_main" "$@"
+   log_entry "test::run::main" "$@"
 
    if [ -z "${MULLE_TEST_ENVIRONMENT_SH}" ]
    then
       . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-environment.sh"
    fi
 
-   test_include_required
+   test::environment::include_required
 
    local DEFAULT_MAKEFLAGS
    local OPTION_REQUIRE_LIBRARY="YES"
@@ -870,7 +868,7 @@ test_run_main()
 
    DEFAULT_MAKEFLAGS="-s"
 
-   test_setup_project "${MULLE_UNAME}"
+   test::environment::setup_project "${MULLE_UNAME}"
 
    # for windows its kinda important, that the flags are 
    # consistent with what we crafted
@@ -882,7 +880,7 @@ test_run_main()
    do
       case "$1" in
          -h|--help|help)
-            test_run_usage
+            test::run::usage
          ;;
 
          -l|--lenient)
@@ -925,7 +923,7 @@ test_run_main()
          ;;
 
          --project-extensions)
-            [ $# -eq 1 ] && test_run_usage "Missing argument to \"$1\""
+            [ $# -eq 1 ] && test::run::usage "Missing argument to \"$1\""
             shift
 
             PROJECT_EXTENSIONS="$1"
@@ -933,7 +931,7 @@ test_run_main()
 
          --path-prefix)
             shift
-            [ $# -eq 0 ] && test_run_usage
+            [ $# -eq 0 ] && test::run::usage
 
             TEST_PATH_PREFIX="$1"
          ;;
@@ -957,7 +955,7 @@ test_run_main()
          ;;
 
          --extensions)
-            [ $# -eq 1 ] && test_run_usage "Missing argument to \"$1\""
+            [ $# -eq 1 ] && test::run::usage "Missing argument to \"$1\""
             shift
 
             MULLE_TEST_EXTENSIONS="$1"
@@ -1024,10 +1022,10 @@ test_run_main()
    else
       . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
 
-      r_get_link_command "YES"
+      test::linkorder::r_get_link_command "YES"
       LINK_COMMAND="${RVAL}"
 
-      r_get_link_command "NO"
+      test::linkorder::r_get_link_command "NO"
       NO_STARTUP_LINK_COMMAND="${RVAL}"
    fi
 
@@ -1051,13 +1049,13 @@ test_run_main()
             MULLE_TEST_SERIAL="${MULLE_TEST_SERIAL:-NO}"
          ;;
       esac
-      run_all_tests "$@"
+      test::run::all_tests "$@"
       return $?
    fi
 
    MULLE_TEST_SERIAL='YES'
    MULLE_TEST_SUCCESS_FILE=""
-   if ! run_named_test "${MULLE_USER_PWD}" "$@"
+   if ! test::run::named_test "${MULLE_USER_PWD}" "$@"
    then
       return 1
    fi

@@ -32,7 +32,7 @@
 MULLE_TEST_LINKORDER_SH="included"
 
 
-test_linkorder_usage()
+test::linkorder::usage()
 {
    [ "$#" -ne 0 ] && log_error "$1"
 
@@ -60,9 +60,9 @@ EOF
 }
 
 
-_get_link_command()
+test::linkorder::_get_link_command()
 {
-   log_entry "_get_link_command" "$@"
+   log_entry "test::linkorder::_get_link_command" "$@"
 
    exekutor mulle-sde \
                ${MULLE_TECHNICAL_FLAGS} \
@@ -77,9 +77,9 @@ _get_link_command()
 }
 
 
-r_get_link_command()
+test::linkorder::r_get_link_command()
 {
-   log_entry "r_get_link_command" "$@"
+   log_entry "test::linkorder::r_get_link_command" "$@"
 
    local withstartup="${1:-YES}"
    local caching="${2:-YES}"
@@ -109,7 +109,7 @@ r_get_link_command()
 
    log_verbose "Compiling linkorder"
 
-   command="`_get_link_command ${args}`" || exit 1
+   command="`test::linkorder::_get_link_command ${args}`" || exit 1
 
    if [ "${updatecache}" = 'YES' ]
    then
@@ -123,9 +123,9 @@ r_get_link_command()
 }
 
 
-test_linkorder_main()
+test::linkorder::main()
 {
-   log_entry "test_linkorder_main" "$@"
+   log_entry "test::linkorder::main" "$@"
 
    [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR is empty"
 
@@ -137,7 +137,7 @@ test_linkorder_main()
    do
       case "$1" in
          -h|--help|help)
-            test_linkorder_usage
+            test::linkorder::usage
          ;;
 
          --startup)
@@ -162,7 +162,7 @@ test_linkorder_main()
          ;;
 
          -*)
-            test_linkorder_usage "Unknown option \"$1\""
+            test::linkorder::usage "Unknown option \"$1\""
          ;;
 
          *)
@@ -184,14 +184,14 @@ test_linkorder_main()
          if [ "${OPTION_STARTUP}" = 'DEFAULT' ]
          then
             log_info "Startup"
-            r_get_link_command 'YES' "${OPTION_CACHED}" "${OPTION_UPDATE_CACHE}"
+            test::linkorder::r_get_link_command 'YES' "${OPTION_CACHED}" "${OPTION_UPDATE_CACHE}"
             printf "%s\n\n" "${RVAL}"
 
             log_info "No Startup"
-            r_get_link_command 'NO' "${OPTION_CACHED}" "${OPTION_UPDATE_CACHE}"
+            test::linkorder::r_get_link_command 'NO' "${OPTION_CACHED}" "${OPTION_UPDATE_CACHE}"
             printf "%s\n" "${RVAL}"
          else
-            r_get_link_command "${OPTION_STARTUP}" "${OPTION_CACHED}" "${OPTION_UPDATE_CACHE}"
+            test::linkorder::r_get_link_command "${OPTION_STARTUP}" "${OPTION_CACHED}" "${OPTION_UPDATE_CACHE}"
             printf "%s\n" "${RVAL}"
          fi
       ;;

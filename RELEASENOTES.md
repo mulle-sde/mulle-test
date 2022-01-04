@@ -1,3 +1,16 @@
+# 6.0.0
+
+* big function rename to `<tool>`::`<file>`::`<function>` to make it easier to read hopefully
+* experimental support for coverage files and gcove
+* improved default contents of test directories after init
+* less verbosity with -lx
+* can now pass through CFLAGS and other such flags
+* improved testing under darwin without mulle-clang
+* uses mulle-bashfunctions 4 now
+* can now run under zsh if bash is not available
+* fix cmake test problem on macOS
+
+
 ### 5.3.3
 
 * fix cmake test problem on macOS

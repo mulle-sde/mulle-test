@@ -32,7 +32,7 @@
 MULLE_TEST_CMAKE_SH="included"
 
 
-r_test_cmd_add_cmakeflag()
+test::cmake::r_add_cmakeflag()
 {
    local cmd="$1"
    local flag="$2"
@@ -43,7 +43,7 @@ r_test_cmd_add_cmakeflag()
 }
 
 
-r_test_cmd_add_flag()
+test::cmake::r_add_flag()
 {
    local cmd="$1"
    local flag="$2"
@@ -54,7 +54,7 @@ r_test_cmd_add_flag()
 }
 
 
-r_test_cmd_add()
+test::cmake::r_add()
 {
    local cmd="$1"
    local value="$2"
@@ -70,7 +70,7 @@ r_test_cmd_add()
 }
 
 
-r_convert_to_cmake_list()
+test::cmake::r_convert_to_list()
 {
    local s
    local o
@@ -122,9 +122,9 @@ r_convert_to_cmake_list()
 }
 
 
-eval_mulle_make_cmake()
+test::cmake::eval_mulle_make()
 {
-   log_entry "eval_mulle_make_cmake" "$@"
+   log_entry "test::cmake::eval_mulle_make" "$@"
 
    local build_type="$1"; shift
 
@@ -136,7 +136,7 @@ eval_mulle_make_cmake()
    local cmake_c_flags
 
    # dem flags are already quoted
-   r_emit_include_cflags ""
+   test::flagbuilder::r_include_cflags ""
    cmake_c_flags="${RVAL}"
 
    r_concat "${cmake_c_flags}" "${OTHER_CFLAGS}"
@@ -146,7 +146,7 @@ eval_mulle_make_cmake()
    cmake_c_flags="${RVAL}"
 
    # add sanitizer flags
-   if r_c_sanitizer_flags "${SANITIZER}"
+   if test::compiler::r_c_sanitizer_flags "${SANITIZER}"
    then
       cmake_c_flags="${cmake_c_flags} ${RVAL}"
    fi
@@ -156,7 +156,7 @@ eval_mulle_make_cmake()
    cmake_exe_linker_flags="${RPATH_FLAGS}"
 
    # add sanitizer flags
-   if r_ld_sanitizer_flags "${SANITIZER}"
+   if test::compiler::r_ld_sanitizer_flags "${SANITIZER}"
    then
       cmake_exe_linker_flags="${cmake_exe_linker_flags} ${RVAL}"
    fi
@@ -198,28 +198,28 @@ eval_mulle_make_cmake()
 #     ;;
 #  esac
 
-   r_test_cmd_add_flag "${cmd}" "--configuration" "${build_type}"
+   test::cmake::r_add_flag "${cmd}" "--configuration" "${build_type}"
    cmd="${RVAL}"
-   r_test_cmd_add_flag "${cmd}" "--build-dir" "${TEST_KITCHEN_DIR:-kitchen}"
+   test::cmake::r_add_flag "${cmd}" "--build-dir" "${TEST_KITCHEN_DIR:-kitchen}"
    cmd="${RVAL}"
-   r_test_cmd_add_flag "${cmd}" "--info-dir" "${MULLE_VIRTUAL_ROOT}/.mulle/etc/craft/definition"
+   test::cmake::r_add_flag "${cmd}" "--info-dir" "${MULLE_VIRTUAL_ROOT}/.mulle/etc/craft/definition"
    cmd="${RVAL}"
-   r_test_cmd_add_cmakeflag "${cmd}" "CMAKE_RULE_MESSAGES" "OFF"
+   test::cmake::r_add_cmakeflag "${cmd}" "CMAKE_RULE_MESSAGES" "OFF"
    cmd="${RVAL}"
 
-   r_test_cmd_add_cmakeflag "${cmd}" "CMAKE_C_FLAGS" "${cmake_c_flags}"
+   test::cmake::r_add_cmakeflag "${cmd}" "CMAKE_C_FLAGS" "${cmake_c_flags}"
    cmd="${RVAL}"
-   r_test_cmd_add_cmakeflag "${cmd}" "CMAKE_CXX_FLAGS" "${cmake_c_flags}"
+   test::cmake::r_add_cmakeflag "${cmd}" "CMAKE_CXX_FLAGS" "${cmake_c_flags}"
    cmd="${RVAL}"
-   r_test_cmd_add_cmakeflag "${cmd}" "CMAKE_EXE_LINKER_FLAGS" "${cmake_exe_linker_flags}"
+   test::cmake::r_add_cmakeflag "${cmd}" "CMAKE_EXE_LINKER_FLAGS" "${cmake_exe_linker_flags}"
    cmd="${RVAL}"
-   r_test_cmd_add_cmakeflag "${cmd}" "CMAKE_SHARED_LINKER_FLAGS" "${cmake_shared_linker_flags}"
+   test::cmake::r_add_cmakeflag "${cmd}" "CMAKE_SHARED_LINKER_FLAGS" "${cmake_shared_linker_flags}"
    cmd="${RVAL}"
 
    local cmake_libraries
 
    cmake_libraries="${LINK_COMMAND}"
-   r_convert_to_cmake_list "${cmake_libraries}"
+   test::cmake::r_convert_to_list "${cmake_libraries}"
    cmake_libraries="${RVAL}"
 
    # already escaped
@@ -258,17 +258,17 @@ eval_mulle_make_cmake()
 
 
 # do not exit
-fail_test_cmake()
+test::cmake::fail_test()
 {
-   log_entry "fail_test_cmake" "$@"
+   log_entry "test::cmake::fail_test" "$@"
 
    local srcfile="$1"; shift
-   local a_out_ext="$1"; shift
+   local a_out="$1"; shift
    local ext="$1"; shift
    local name="$1"; shift
 
    [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
-   [ -z "${a_out_ext}" ] && internal_fail "a_out_ext is empty"
+   [ -z "${a_out}" ] && internal_fail "a_out is empty"
 
    if [ "${MULLE_FLAG_MAGNUM_FORCE}" != 'NO' ]
    then
@@ -287,7 +287,7 @@ fail_test_cmake()
    local produced
    local final
 
-   r_extensionless_basename "${a_out_ext}"
+   r_extensionless_basename "${a_out}"
    r_extensionless_basename "${RVAL}"
 
    if [ "${is_exe}" = 'YES' ]
@@ -309,17 +309,17 @@ fail_test_cmake()
 
    (
       exekutor cd "${directory}" &&
-      eval_mulle_make_cmake "Debug" "$@" &&
+      test::cmake::eval_mulle_make "Debug" "$@" &&
       exekutor cp -p "${TEST_KITCHEN_DIR:-kitchen}/${produced}" "./${final}"
    )
 
-   suggest_debugger_commandline "${final}" "${stdin}" "${is_exe}"
+   test::compiler::suggest_debugger_commandline "${final}" "${stdin}" "${is_exe}"
 }
 
 
-run_cmake()
+test::cmake::run()
 {
-   log_entry "run_cmake" "$@"
+   log_entry "test::cmake::run" "$@"
 
    local srcfile="$1"; shift
    local a_out_ext="$1"; shift
@@ -351,7 +351,7 @@ run_cmake()
    (
       rexekutor cd "${directory}"
 
-      eval_mulle_make_cmake "Test" "$@" || exit 1
+      test::cmake::eval_mulle_make "Test" "$@" || exit 1
 
       #
       # check if it produces a shlib or an exe

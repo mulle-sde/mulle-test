@@ -32,9 +32,9 @@
 MULLE_TEST_COMPILER_SH="included"
 
 
-r_c_sanitizer_flags()
+test::compiler::r_c_sanitizer_flags()
 {
-   log_entry "r_c_sanitizer_flags" "$@"
+   log_entry "test::compiler::r_c_sanitizer_flags" "$@"
 
    local sanitizer="$1"
 
@@ -67,9 +67,9 @@ r_c_sanitizer_flags()
 }
 
 
-r_ld_sanitizer_flags()
+test::compiler::r_ld_sanitizer_flags()
 {
-   log_entry "r_ld_sanitizer_flags" "$@"
+   log_entry "test::compiler::r_ld_sanitizer_flags" "$@"
 
    local sanitizer="$1"
 
@@ -99,9 +99,9 @@ r_ld_sanitizer_flags()
 }
 
 
-r_c_commandline()
+test::compiler::r_c_commandline()
 {
-   log_entry "r_c_commandline" "$@"
+   log_entry "test::compiler::r_c_commandline" "$@"
 
    local cflags="$1"; shift
    local srcfile="$1"; shift
@@ -138,7 +138,7 @@ r_c_commandline()
       ;;
    esac
 
-   r_emit_cflags "${cflags}" "${srcfile}"
+   test::flagbuilder::r_cflags "${cflags}" "${srcfile}"
    cflags="${RVAL}"
 
    case "${MULLE_UNAME}" in
@@ -153,16 +153,16 @@ r_c_commandline()
       ;;
    esac
 
-   r_emit_include_cflags "'"
+   test::flagbuilder::r_include_cflags "'"
    incflags="${RVAL}"
 
    cmdline="'${CC}' ${cflags} ${incflags}"
-   if r_c_sanitizer_flags "${SANITIZER}"
+   if test::compiler::r_c_sanitizer_flags "${SANITIZER}"
    then
       cmdline="${cmdline} ${RVAL}"
    fi
 
-   if r_ld_sanitizer_flags "${SANITIZER}"
+   if test::compiler::r_ld_sanitizer_flags "${SANITIZER}"
    then
       cmdline="${cmdline} ${RVAL}"
    fi
@@ -173,7 +173,8 @@ r_c_commandline()
             darwin)
                case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
                   mulle-objc)
-                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,___register_mulle_objc_universe"
+                     cmdline="${cmdline} -Wl,-exported_symbol \
+-Wl,___register_mulle_objc_universe"
                   ;;
                esac
             ;;
@@ -191,9 +192,9 @@ r_c_commandline()
    r_concat "${cmdline}" "$*"
    cmdline="${RVAL}"
 
-   include_mulle_tool_library "platform" "flags"
+   include "platform::flags"
 
-   r_cc_output_exe_filename "${a_out}" "'"
+   platform::flags::r_cc_output_exe_filename "${a_out}" "'"
    cmdline="${cmdline} ${RVAL}"
 
    cmdline="${cmdline} '${srcfile}'"
@@ -208,9 +209,9 @@ r_c_commandline()
 
 
 # do not exit
-fail_test_c()
+test::compiler::fail_c()
 {
-   log_entry "fail_test_c" "$@"
+   log_entry "test::compiler::fail_c" "$@"
 
    local srcfile="$1"
    local a_out="$2"
@@ -234,13 +235,19 @@ fail_test_c()
       r_concat "${RVAL}" "${CFLAGS}"
       cflags="${RVAL}"
 
-      r_c_commandline "${cflags}" "${srcfile}" "${a_out}" "$@"
+      a_out="${a_out%}${DEBUG_EXE_EXTENSION}"
+
+      test::compiler::r_c_commandline "${cflags}" "${srcfile}" "${a_out}" "$@"
       cmdline="${RVAL}"
 
       log_info "DEBUG: "
       log_info "Rebuilding as `basename -- ${a_out}` with ${cflags} ..."
 
       eval_exekutor "${cmdline}"
+   else
+      log_fluff "Don't recompile as DEBUG, because it's debuggable already"
+
+      a_out="${a_out%}${EXE_EXTENSION}"
    fi
 
    local stdin
@@ -255,13 +262,13 @@ fail_test_c()
       stdin="-"
    fi
 
-   suggest_debugger_commandline "${a_out}" "${stdin}"
+   test::compiler::suggest_debugger_commandline "${a_out}" "${stdin}"
 }
 
 
-run_gcc_compiler()
+test::compiler::run_gcc()
 {
-   log_entry "run_gcc_compiler" "$@"
+   log_entry "test::compiler::run_gcc" "$@"
 
    local srcfile="$1"
    local a_out="$2"
@@ -276,7 +283,7 @@ run_gcc_compiler()
    r_concat "${RVAL}" "${CFLAGS}"
    cflags="${RVAL}"
 
-   r_c_commandline "${cflags}" "${srcfile}" "${a_out}" "$@"
+   test::compiler::r_c_commandline "${cflags}" "${srcfile}" "${a_out}" "$@"
    cmdline="${RVAL}"
 
    local old
@@ -289,7 +296,7 @@ run_gcc_compiler()
 
    local rval
 
-   err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
+   test::logging::err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
    rval=$?
 
    MULLE_FLAG_LOG_EXEKUTOR="${RVAL}"
@@ -298,17 +305,17 @@ run_gcc_compiler()
 }
 
 
-run_compiler()
+test::compiler::run()
 {
-   log_entry "run_compiler" "$@"
+   log_entry "test::compiler::run" "$@"
 
    case "${CC}" in
       cl|cl.exe|*-cl|*-cl.exe)
-         run_gcc_compiler "$@"  #mingw magic
+         test::compiler::run_gcc "$@"  #mingw magic
       ;;
 
       *)
-         run_gcc_compiler "$@"
+         test::compiler::run_gcc "$@"
       ;;
    esac
 }
@@ -317,9 +324,9 @@ run_compiler()
 #
 #
 #
-suggest_debugger_commandline()
+test::compiler::suggest_debugger_commandline()
 {
-   log_entry "suggest_debugger_commandline" "$@"
+   log_entry "test::compiler::suggest_debugger_commandline" "$@"
 
    local a_out_ext="$1"
    local stdin="$2"
@@ -386,9 +393,9 @@ MULLE_OBJC_WARN_ENABLED=YES "
 }
 
 
-check_compiler_output()
+test::compiler::check_output()
 {
-   log_entry "check_compiler_output" "$@"
+   log_entry "test::compiler::check_output" "$@"
 
    local srcfile="$1"
    local errput="$2"
@@ -405,12 +412,12 @@ check_compiler_output()
       log_fluff "-----------------------"
    fi
 
-   r_get_test_datafile "ccdiag" "${name}" "-"
+   test::execute::r_get_test_datafile "ccdiag" "${name}" "-"
    ccdiag="${RVAL}"
 
    if [ "${ccdiag}" != "-" ]
    then
-      search_for_regexps "COMPILER FAILED TO PRODUCE ERRORS: \
+      test::regex::search "COMPILER FAILED TO PRODUCE ERRORS: \
 \"${TEST_PATH_PREFIX}${pretty_source}\" (${errput})" \
                          "${errput}" "${ccdiag}"
       if [ $? -eq 0 ]
@@ -427,23 +434,8 @@ check_compiler_output()
 
    log_error "COMPILER ERRORS: \"${TEST_PATH_PREFIX}${pretty_source}\""
 
-   maybe_show_diagnostics "${errput}"
+   test::run::maybe_show_diagnostics "${errput}"
 
    return ${RVAL_FAILURE}
 }
 
-
-assert_binary()
-{
-   log_entry "assert_binary" "$@"
-
-   local name="$1"
-
-   local bin
-
-   bin="`command -v "${name}"`"
-   if [ -z "$bin" ]
-   then
-      fail "\"${name}\" can not be found"
-   fi
-}

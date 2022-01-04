@@ -32,7 +32,7 @@
 MULLE_TEST_CLEAN_SH="included"
 
 
-test_clean_usage()
+test::clean::usage()
 {
    [ "$#" -ne 0 ] && log_error "$1"
 
@@ -54,7 +54,7 @@ EOF
 }
 
 
-depth_find_pwd()
+test::clean::depth_find_pwd()
 {
    case "${MULLE_UNAME}" in
       darwin|freebsd)
@@ -68,9 +68,9 @@ depth_find_pwd()
 }
 
 
-test_clean_main()
+test::clean::main()
 {
-   log_entry "test_clean_main" "$@"
+   log_entry "test::clean::main" "$@"
 
    [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR is empty"
 
@@ -80,7 +80,7 @@ test_clean_main()
    do
       case "$1" in
          -h|--help|help)
-            test_clean_usage
+            test::clean::usage
          ;;
 
          --no-var)
@@ -92,7 +92,7 @@ test_clean_main()
          ;;
 
          -*)
-            test_clean_usage "Unknown option \"$1\""
+            test::clean::usage "Unknown option \"$1\""
          ;;
 
          *)
@@ -111,7 +111,7 @@ test_clean_main()
                         "${1:-all}" &&
 
          log_verbose "Cleaning individual test kitchen directories"
-         depth_find_pwd -type d -name kitchen -exec rm -rf {} \;
+         test::clean::depth_find_pwd -type d -name kitchen -exec rm -rf {} \;
 
          log_verbose "Cleaning test executables"
          exekutor find . -type f -name "*.exe" -exec rm {} \;
@@ -140,5 +140,5 @@ test_clean_main()
 
    . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
 
-   test_linkorder_main clean
+   test::linkorder::main clean
 }

@@ -32,7 +32,7 @@
 MULLE_TEST_EXECUTE_SH="included"
 
 
-test_execute_usage()
+test::execute::usage()
 {
    [ $# -ne 0 ] && log_error "$*"
 
@@ -58,7 +58,7 @@ EOF
 #
 # dlls are sometimes installed into bin
 #
-r_windows_custompath()
+test::execute::r_windows_custompath()
 {
    local insertpath="$1"
 
@@ -113,9 +113,9 @@ r_windows_custompath()
 }
 
 
-run_a_out()
+test::execute::a_out()
 {
-   log_entry "run_a_out" "$@"
+   log_entry "test::execute::a_out" "$@"
 
    local a_out_ext="$1"
    local args="$2"
@@ -209,7 +209,7 @@ run_a_out()
       mingw*)
          local custompath
 
-         r_windows_custompath "${insertpath}"
+         test::execute::r_windows_custompath "${insertpath}"
          custompath="${RVAL}"
 
          r_concat "${environment}" " PATH='${custompath}'"
@@ -220,7 +220,7 @@ run_a_out()
          local custompath
          local wslenv 
 
-         r_windows_custompath "${insertpath}"
+         test::execute::r_windows_custompath "${insertpath}"
          custompath="${RVAL}"
 
          r_colon_concat "${WSLENV}" "PATH/l"
@@ -275,26 +275,33 @@ MULLE_TESTALLOCATOR_FIRST_LEAK='YES'"
       *:valgrind:*)
          runner="'${VALGRIND:-valgrind}'"
 
-         r_concat "${runner}" "${VALGRIND_OPTIONS:--q --error-exitcode=77 --leak-check=full --num-callers=500 --track-origins=yes}"
+         r_concat "${runner}" "${VALGRIND_OPTIONS:--q --error-exitcode=77 \
+--leak-check=full --num-callers=500 --track-origins=yes}"
          runner="${RVAL}"
       ;;
 
       *:valgrind-no-leaks:*)
          runner="'${VALGRIND:-valgrind}'"
 
-         r_concat "${runner}" "${VALGRIND_OPTIONS:--q --error-exitcode=77 --num-callers=500 --track-origins=yes}"
+         r_concat "${runner}" "${VALGRIND_OPTIONS:--q --error-exitcode=77 \
+--num-callers=500 --track-origins=yes}"
          runner="${RVAL}"
       ;;
    esac
 
-   full_redirekt_eval_exekutor "${input}" "${output}" "${errput}" \
-                                  "${environment}" "${runner}" "'${a_out_ext}'" ${args}
+   test::logging::full_redirekt_eval_exekutor "${input}" \
+                                              "${output}" \
+                                              "${errput}" \
+                                              "${environment}" \
+                                              "${runner}" \
+                                              "'${a_out_ext}'" \
+                                              ${args}
 }
 
 
-_check_test_output()
+test::execute::_check_output()
 {
-   log_entry "_check_test_output" "$@"
+   log_entry "test::execute::_check_output" "$@"
 
    local stdout="$1" # test provided
    local stderr="$2"
@@ -340,7 +347,7 @@ _check_test_output()
       local banner
 
       banner="TEST FAILED TO PRODUCE ERRORS: ${info_text} ,${errput})"
-      search_for_regexps "${banner}" "${errput}" "${errors}"
+      test::regex::search "${banner}" "${errput}" "${errors}"
       return $?
    fi
 
@@ -372,7 +379,7 @@ _check_test_output()
       result=`rexekutor "${CAT}" "${output}" | exekutor "${DIFF}" -q "${stdout}" -`
       if [ "${result}" != "" ]
       then
-         white=`rexekutor "${CAT}"  "${output}" | exekutor "${DIFF}" -q -w -B "${stdout}" -`
+         white=`rexekutor "${CAT}" "${output}" | exekutor "${DIFF}" -q -w -B "${stdout}" -`
          if [ "$white" != "" ]
          then
             log_error "FAILED: \"${pretty_source}\" produced unexpected output"
@@ -419,9 +426,9 @@ _check_test_output()
 }
 
 
-check_test_output()
+test::execute::check_output()
 {
-   log_entry "check_test_output" "$@"
+   log_entry "test::execute::check_output" "$@"
 
 #   local stdout="$1"
 #   local stderr="$2"
@@ -435,29 +442,29 @@ check_test_output()
 
    [ -z "${RVAL_OUTPUT_DIFFERENCES}" ] && internal_fail "RVAL_OUTPUT_DIFFERENCES undefined"
 
-   _check_test_output "$@"
+   test::execute::_check_output "$@"
    rval=$?
 
    if [ $rval -ne 0 ]
    then
       log_error "${TEST_PATH_PREFIX}${pretty_source}"
-      maybe_show_diagnostics "${errput}"
+      test::run::maybe_show_diagnostics "${errput}"
    else
       log_info "${TEST_PATH_PREFIX}${pretty_source}"
    fi
 
    if [ ${rval} -eq ${RVAL_OUTPUT_DIFFERENCES} ]
    then
-      maybe_show_output "${output}"
+      test::run::maybe_show_output "${output}"
    fi
 
    return $rval
 }
 
 
-test_execute()
+test::execute::run()
 {
-   log_entry "test_execute" "$@"
+   log_entry "test::execute::run" "$@"
 
    local a_out="$1" ; shift
    local args="$1"; shift
@@ -497,12 +504,12 @@ test_execute()
    # run test executable "${a_out}" feeding it "${stdin}" as input
    # retrieve stdout and stderr into temporary files
    #
-   run_a_out "${a_out}" "${args}" "${stdin}" "${output}.tmp" "${errput}.tmp"
+   test::execute::a_out "${a_out}" "${args}" "${stdin}" "${output}.tmp" "${errput}.tmp"
    rval=$?
 
    log_debug "Check test \"${name}\" output (rval: $rval)"
 
-   redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
+   test::logging::redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
       log_fluff "-----------------------"
@@ -512,7 +519,7 @@ test_execute()
       log_fluff "-----------------------"
    fi
 
-   redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${errput}.tmp"
+   test::logging::redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${errput}.tmp"
    remove_file_if_present "${output}.tmp"
    remove_file_if_present "${errput}.tmp"
 
@@ -527,15 +534,15 @@ test_execute()
 
    local rc
 
-   check_test_output  "${stdout}" \
-                      "${stderr}" \
-                      "${errors}" \
-                      "${output}" \
-                      "${errput}" \
-                      "${rval}"   \
-                      "${pretty_source}" \
-                      "${a_out}" \
-                      "${ext}"
+   test::execute::check_output  "${stdout}" \
+                                "${stderr}" \
+                                "${errors}" \
+                                "${output}" \
+                                "${errput}" \
+                                "${rval}"   \
+                                "${pretty_source}" \
+                                "${a_out}" \
+                                "${ext}"
    rc=$?
 
    if [ $rc -eq 0 ]
@@ -556,7 +563,7 @@ test_execute()
 }
 
 
-r_get_test_datafile()
+test::execute::r_get_test_datafile()
 {
    local varname="$1"
    local name="$2"
@@ -609,9 +616,9 @@ r_get_test_datafile()
 ###
 ### parameters and environment variables
 ###
-test_execute_main()
+test::execute::main()
 {
-   log_entry "test_execute_main" "$@"
+   log_entry "test::execute::main" "$@"
 
    local stdin
    local stdout
@@ -631,60 +638,60 @@ test_execute_main()
    do
       case "$1" in
          -h*|--help|help)
-            test_execute_usage
+            test::execute::usage
          ;;
 
          --args)
-            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::execute::usage "missing argument to \"$1\""
             shift
 
             args="$1"
          ;;
 
          --stdin)
-            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::execute::usage "missing argument to \"$1\""
             shift
 
             stdin="$1"
          ;;
 
          --stdout)
-            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::execute::usage "missing argument to \"$1\""
             shift
 
             stdout="$1"
          ;;
 
          --stderr)
-            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::execute::usage "missing argument to \"$1\""
             shift
 
             stderr="$1"
          ;;
 
          --errors)
-            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::execute::usage "missing argument to \"$1\""
             shift
 
             errors="$1"
          ;;
 
          --pretty)
-            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::execute::usage "missing argument to \"$1\""
             shift
 
             pretty_source="$1"
          ;;
 
          --diff)
-            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::execute::usage "missing argument to \"$1\""
             shift
 
             diff="$1"
          ;;
 
          --cat)
-            [ $# -eq 1 ] && test_execute_usage "missing argument to \"$1\""
+            [ $# -eq 1 ] && test::execute::usage "missing argument to \"$1\""
             shift
 
             cat="$1"
@@ -705,7 +712,7 @@ test_execute_main()
    local a_out
    local sourcefile
 
-   [ $# -eq 2 ] || test_execute_usage
+   [ $# -eq 2 ] || test::execute::usage
 
    a_out="$1"
    shift
@@ -713,7 +720,7 @@ test_execute_main()
    sourcefile="$1"
    shift
 
-   [ -z "${sourcefile}" ] && test_execute_usage "sourcefile is empty"
+   [ -z "${sourcefile}" ] && test::execute::usage "sourcefile is empty"
 
    pretty_source="${pretty_source:-${sourcefile}}"
 
@@ -728,7 +735,7 @@ test_execute_main()
       OPTION_REMOVE_EXE='NO'
    fi
 
-   [ -x "${a_out}" ] || test_execute_usage "Improper executable
+   [ -x "${a_out}" ] || test::execute::usage "Improper executable
 \"${a_out}\" (not there or lacking execute permissions)"
 
    local name
@@ -742,37 +749,37 @@ test_execute_main()
 
    if [ -z "${stdin}" ]
    then
-      r_get_test_datafile "stdin" "${name}" "/dev/null"
+      test::execute::r_get_test_datafile "stdin" "${name}" "/dev/null"
       stdin="${RVAL}"
    fi
 
    if [ -z "${stdout}" ]
    then
-      r_get_test_datafile "stdout" "${name}" "-"
+      test::execute::r_get_test_datafile "stdout" "${name}" "-"
       stdout="${RVAL}"
    fi
 
    if [ -z "${stderr}" ]
    then
-      r_get_test_datafile "stderr" "${name}" "-"
+      test::execute::r_get_test_datafile "stderr" "${name}" "-"
       stderr="${RVAL}"
    fi
 
    if [ -z "${errors}" ]
    then
-      r_get_test_datafile "errors" "${name}" "-"
+      test::execute::r_get_test_datafile "errors" "${name}" "-"
       errors="${RVAL}"
    fi
 
    if [ -z "${diff}" ]
    then
-      r_get_test_datafile "diff" "${name}" ""
+      test::execute::r_get_test_datafile "diff" "${name}" ""
       diff="${RVAL}"
    fi
 
    if [ -z "${cat}" ]
    then
-      r_get_test_datafile "cat" "${name}" ""
+      test::execute::r_get_test_datafile "cat" "${name}" ""
       cat="${RVAL}"
    fi
 
@@ -780,7 +787,7 @@ test_execute_main()
 
    if [ -z "${args}" ]
    then
-      r_get_test_datafile "args" "${name}" ""
+      test::execute::r_get_test_datafile "args" "${name}" ""
       args="${RVAL}"
 
       if [ ! -z "${args}" ]
@@ -819,15 +826,15 @@ test_execute_main()
       CAT="`command -v ${cat}`"
       [ -z "${CAT}" ] && fail "There is no ${cat} installed on this system"
 
-      test_execute "${a_out}" \
-                   "${args_text}" \
-                   "${name}" \
-                   "${root}" \
-                   "${ext}" \
-                   "${pretty_source}" \
-                   "${stdin}" \
-                   "${stdout}" \
-                   "${stderr}" \
-                   "${errors}" 
+      test::execute::run "${a_out}" \
+                         "${args_text}" \
+                         "${name}" \
+                         "${root}" \
+                         "${ext}" \
+                         "${pretty_source}" \
+                         "${stdin}" \
+                         "${stdout}" \
+                         "${stderr}" \
+                         "${errors}"
    )
 }

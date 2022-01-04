@@ -32,9 +32,9 @@
 MULLE_TEST_FLAGBUILDER_SH="included"
 
 
-r_emit_include_cflags()
+test::flagbuilder::r_include_cflags()
 {
-   log_entry "r_emit_include_cflags" "$@"
+   log_entry "test::flagbuilder::r_include_cflags" "$@"
 
    local quote="$1"
 
@@ -49,34 +49,63 @@ r_emit_include_cflags()
 
    if [ ! -z "${DEPENDENCY_DIR}" -a ! -z "${ADDICTION_DIR}" ]
    then
-      include_mulle_tool_library "platform" "flags"
+      include "platform::flags"
    fi
 
    if [ ! -z "${DEPENDENCY_DIR}" ]
    then
-      r_cc_include_dir "${DEPENDENCY_DIR}/Test/include" "${quote}"
+      if [ -d "${DEPENDENCY_DIR}/Test/include" ]
+      then
+         platform::flags::r_cc_include_dir "${DEPENDENCY_DIR}/Test/include" "${quote}"
+         r_concat "${cflags}" "${RVAL}"
+         cflags="${RVAL}"
+      fi
+
+      # do this always, so it's easier to figure out where things should
+      # have been
+      platform::flags::r_cc_include_dir "${DEPENDENCY_DIR}/include" "${quote}"
       r_concat "${cflags}" "${RVAL}"
       cflags="${RVAL}"
 
-      r_cc_include_dir "${DEPENDENCY_DIR}/include" "${quote}"
+      # will be empty on non-darwin platforms
+      if [ -d "${DEPENDENCY_DIR}/Test/Frameworks" ]
+      then
+         platform::flags::r_cc_framework_dir "${DEPENDENCY_DIR}/Test/Frameworks" "${quote}"
+         r_concat "${cflags}" "${RVAL}"
+         cflags="${RVAL}"
+      fi
+
+      # do this always, so it's easier to figure out where things should
+      # have been
+      platform::flags::r_cc_framework_dir "${DEPENDENCY_DIR}/Frameworks" "${quote}"
       r_concat "${cflags}" "${RVAL}"
       cflags="${RVAL}"
    fi
 
    if [ ! -z "${ADDICTION_DIR}" ]
    then
-      r_cc_include_dir "${ADDICTION_DIR}/include" "${quote}"
-      r_concat "${cflags}" "${RVAL}"
-      cflags="${RVAL}"
+      if [ -d "${ADDICTION_DIR}/include" ]
+      then
+         platform::flags::r_cc_include_dir "${ADDICTION_DIR}/include" "${quote}"
+         r_concat "${cflags}" "${RVAL}"
+         cflags="${RVAL}"
+      fi
+
+      if [ -d "${ADDICTION_DIR}/Frameworks" ]
+      then
+         platform::flags::r_cc_framework_dir "${DEPENDENCY_DIR}/Frameworks" "${quote}"
+         r_concat "${cflags}" "${RVAL}"
+         cflags="${RVAL}"
+      fi
    fi
 
    RVAL="${cflags}"
 }
 
 
-r_emit_cflags()
+test::flagbuilder::r_cflags()
 {
-   log_entry "r_emit_cflags" "$@"
+   log_entry "test::flagbuilder::r_cflags" "$@"
 
    local cflags="$1"
    local srcfile="$2"

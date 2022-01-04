@@ -33,9 +33,9 @@ MULLE_TEST_REGEX_SH="included"
 
 
 # returns 2 on failure
-search_for_regexps()
+test::regex::search()
 {
-   log_entry "search_for_regexps" "$@"
+   log_entry "test::regex::search" "$@"
 
    local banner="$1"
    local errput="$2"

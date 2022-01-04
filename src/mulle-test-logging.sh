@@ -38,41 +38,41 @@ MULLE_TEST_LOGGING_SH="included"
 #
 # also redirects error to output (for tests)
 #
-err_redirect_eval_exekutor()
-{
-   local output
+#test::logging::err_redirect_eval_exekutor()
+#{
+#   local output
+#
+#   output="$1"
+#   shift
+#
+#   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = "YES" -o "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+#   then
+#      if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
+#      then
+#         echo "==>" "$@" ">" "${output}" >&2
+#      else
+#         echo "==>" "$@" ">" "${output}" > "${MULLE_EXEKUTOR_LOG_DEVICE}"
+#      fi
+#   fi
+#
+#   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != "YES" ]
+#   then
+#      local rval
+#
+#      ( eval "$@" ) > "${output}" 2>&1
+#      rval=$?
+#
+#      if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+#      then
+#         cat "${output}" >&2 # get stderr mixed in :/
+#      fi
+#
+#      return $rval
+#   fi
+#}
 
-   output="$1"
-   shift
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = "YES" -o "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
-   then
-      if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
-      then
-         echo "==>" "$@" ">" "${output}" >&2
-      else
-         echo "==>" "$@" ">" "${output}" > "${MULLE_EXEKUTOR_LOG_DEVICE}"
-      fi
-   fi
-
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != "YES" ]
-   then
-      local rval
-
-      ( eval "$@" ) > "${output}" 2>&1
-      rval=$?
-
-      if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
-      then
-         cat "${output}" >&2 # get stderr mixed in :/
-      fi
-
-      return $rval
-   fi
-}
-
-
-log_grep_warning_error()
+test::logging::grep_warning_error()
 {
    #
    # error/warning grepper
@@ -120,7 +120,7 @@ log_grep_warning_error()
 #
 # also redirects error to output (for tests)
 #
-err_redirect_grepping_eval_exekutor()
+test::logging::err_redirect_grepping_eval_exekutor()
 {
    local output
 
@@ -141,7 +141,7 @@ err_redirect_grepping_eval_exekutor()
    then
       local rval
 
-      ( eval "$@" )  2>&1 | tee "${output}" | log_grep_warning_error
+      ( eval "$@" )  2>&1 | tee "${output}" | test::logging::grep_warning_error
       rval=$?
 
       if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
@@ -154,7 +154,7 @@ err_redirect_grepping_eval_exekutor()
 }
 
 
-redirect_eval_exekutor()
+test::logging::redirect_eval_exekutor()
 {
    local output
 
@@ -178,7 +178,7 @@ redirect_eval_exekutor()
 }
 
 
-full_redirekt_eval_exekutor()
+test::logging::full_redirekt_eval_exekutor()
 {
    local stdin
    local stdout
