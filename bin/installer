@@ -166,9 +166,6 @@ main()
       chmod 755 ./mulle-test
    fi
 
-   PROJECT_VERSION="`./mulle-test version`"
-   [ -z "${PROJECT_VERSION}" ] && echo "tragisches versagen" >&2 && exit 1
-
    bin="${prefix}/bin"
    libexec="${prefix}/libexec/mulle-test"
 

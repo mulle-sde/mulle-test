@@ -1,3 +1,7 @@
+### 6.0.1
+
+* fix installer (?)
+
 # 6.0.0
 
 * big function rename to `<tool>`::`<file>`::`<function>` to make it easier to read hopefully
