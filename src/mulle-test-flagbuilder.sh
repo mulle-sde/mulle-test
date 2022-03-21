@@ -40,12 +40,9 @@ test::flagbuilder::r_include_cflags()
 
    local cflags
 
-   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
-   then
-#     log_trace2 "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
-      log_trace2 "DEPENDENCY_DIR      : ${DEPENDENCY_DIR}"
-      log_trace2 "ADDICTION_DIR       : ${ADDICTION_DIR}"
-   fi
+#     log_setting "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
+   log_setting "DEPENDENCY_DIR      : ${DEPENDENCY_DIR}"
+   log_setting "ADDICTION_DIR       : ${ADDICTION_DIR}"
 
    if [ ! -z "${DEPENDENCY_DIR}" -a ! -z "${ADDICTION_DIR}" ]
    then
@@ -110,13 +107,10 @@ test::flagbuilder::r_cflags()
    local cflags="$1"
    local srcfile="$2"
 
-   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
-   then
-#     log_trace2 "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
-      log_trace2 "CFLAGS              : ${cflags}"
-      log_trace2 "OTHER_CFLAGS        : ${OTHER_CFLAGS}"
-      log_trace2 "APPLE_SDKPATH       : ${APPLE_SDKPATH}"
-   fi
+#     log_setting "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
+   log_setting "CFLAGS              : ${cflags}"
+   log_setting "OTHER_CFLAGS        : ${OTHER_CFLAGS}"
+   log_setting "APPLE_SDKPATH       : ${APPLE_SDKPATH}"
 
    local cflagsname
 

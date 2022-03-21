@@ -29,7 +29,7 @@
 #   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #   POSSIBILITY OF SUCH DAMAGE.
 #
-[ "${TRACE}" = "YES" -o "${MULLE_TEST_TRACE}" = "YES" ] && set -x && : "$0" "$@"
+[ "${TRACE:-}" = "YES" -o "${MULLE_TEST_TRACE:-}" = "YES" ] && set -x && : "$0" "$@"
 
 
 MULLE_EXECUTABLE_VERSION="6.0.1"
@@ -45,7 +45,7 @@ MULLE_EXECUTABLE_VERSION="6.0.1"
 #
 # Figure out MULLE_BASHFUNCTIONS_LIBEXEC_DIR on this machine if needed.
 #
-if [ -z "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}" ]
+if ! [ ${MULLE_BASHFUNCTIONS_LIBEXEC_DIR+x} ]
 then
    MULLE_BASHFUNCTIONS_LIBEXEC_DIR="`mulle-bashfunctions libexec-dir`" || exit 1
    export MULLE_BASHFUNCTIONS_LIBEXEC_DIR
@@ -55,7 +55,7 @@ fi
 # The booter reruns the executable either with bash or zsh, whatever the
 # system provides. On the second run --no-auto-shell will be set first.
 #
-if [ "$1" != --no-auto-shell ]
+if [ "${1:-}" != --no-auto-shell ]
 then
    . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-boot.sh" || exit 1
 else
@@ -71,6 +71,7 @@ fi
 #
 # Do this first to get aliases
 #
+MULLE_EXECUTABLE="${BASH_SOURCE[0]:-${(%):-%x}}"
 . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-bashfunctions.sh" || exit 1
 
 ###
@@ -80,21 +81,19 @@ fi
 ###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###
 ###########################################################################
 
-MULLE_EXECUTABLE="${BASH_SOURCE[0]:-${(%):-%x}}"
-
-
 #
 # Determine location of own libexec directory. Which is `src` in development
 # and ../libexec when deployed. MULLE_EXECUTABLE needs to be defined for this.
 #
 
-if [ -z "${MULLE_TEST_LIBEXEC_DIR}" ]
+if ! [ ${MULLE_TEST_LIBEXEC_DIR+x} ]
 then
    r_get_libexec_dir "${MULLE_EXECUTABLE}" "mulle-test" "mulle-test-init.sh"
    MULLE_TEST_LIBEXEC_DIR="${RVAL}"
 fi
 
 # version is in mulle-test-env
+set +u
 
 
 test::usage()
@@ -226,8 +225,8 @@ test::do_craft()
 
    eval `mulle-sde tool-env` || exit 1
 
-   [ -z "${DEPENDENCY_DIR}" ] && internal_fail "DEPENDENCY_DIR not set"
-   [ -z "${KITCHEN_DIR}" ]    && internal_fail "KITCHEN_DIR not set"
+   [ -z "${DEPENDENCY_DIR}" ] && _internal_fail "DEPENDENCY_DIR not set"
+   [ -z "${KITCHEN_DIR}" ]    && _internal_fail "KITCHEN_DIR not set"
 
    log_verbose "Craft test dependencies"
 
@@ -255,8 +254,8 @@ test::do_run()
 
    eval `mulle-sde tool-env` || exit 1
 
-   [ -z "${DEPENDENCY_DIR}" ] && internal_fail "DEPENDENCY_DIR not set"
-   [ -z "${KITCHEN_DIR}" ]    && internal_fail "KITCHEN_DIR not set"
+   [ -z "${DEPENDENCY_DIR}" ] && _internal_fail "DEPENDENCY_DIR not set"
+   [ -z "${KITCHEN_DIR}" ]    && _internal_fail "KITCHEN_DIR not set"
 
    ${cmd} "$@"
 }
@@ -486,12 +485,10 @@ test::main()
 
    MULLE_TEST_VAR_DIR="${MULLE_TEST_DIR:-${PWD}}/.mulle/var/${MULLE_HOSTNAME}/test"
 
-   if [ "${MULLE_FLAG_LOG_SETTINGS}" = 'YES' ]
-   then
-      log_trace2 "MULLE_VIRTUAL_ROOT=${MULLE_VIRTUAL_ROOT}"
-      log_trace2 "MULLE_USER_PWD=${MULLE_USER_PWD}"
-      log_trace2 "MULLE_TEST_VAR_DIR=${MULLE_TEST_VAR_DIR}"
-   fi
+   log_setting "MULLE_VIRTUAL_ROOT=${MULLE_VIRTUAL_ROOT}"
+   log_setting "MULLE_USER_PWD=${MULLE_USER_PWD}"
+   log_setting "MULLE_TEST_VAR_DIR=${MULLE_TEST_VAR_DIR}"
+
    #
    # this tells mulle-craft that everything is fine, though
    # .mulle/share/sde/mulle-sde is present, to prevent manual crafting
@@ -596,7 +593,7 @@ test::main()
             test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
-         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-clean.sh"
+         include "test::clean"
 
          test::clean::main "$@"
       ;;
@@ -627,7 +624,8 @@ test::main()
       ;;
 
       init)
-         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-init.sh"
+         include "test::init"
+
          test::init::main "$@"
       ;;
 
@@ -642,7 +640,7 @@ test::main()
             test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
-         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
+         include "test::linkorder"
 
          test::linkorder::main "$@"
       ;;
@@ -668,7 +666,7 @@ test::main()
 
       test-dir)
          # shellcheck source=src/mulle-test-locate.sh
-         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
+         include "test::locate"
 
          test::locate::r_main "$@"
          printf "%s\n" "${RVAL}"

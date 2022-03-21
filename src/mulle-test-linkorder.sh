@@ -88,7 +88,7 @@ test::linkorder::r_get_link_command()
    local linkorder_cache_filename
    local args
 
-   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"
+   [ -z "${MULLE_TEST_VAR_DIR}" ] && _internal_fail "MULLE_TEST_VAR_DIR undefined"
 
    linkorder_cache_filename="${MULLE_TEST_VAR_DIR}/linkorder"
    args='--startup'
@@ -127,7 +127,7 @@ test::linkorder::main()
 {
    log_entry "test::linkorder::main" "$@"
 
-   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR is empty"
+   [ -z "${MULLE_TEST_VAR_DIR}" ] && _internal_fail "MULLE_TEST_VAR_DIR is empty"
 
    local OPTION_STARTUP='DEFAULT'
    local OPTION_CACHED='YES'

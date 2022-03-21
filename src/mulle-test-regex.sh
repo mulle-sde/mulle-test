@@ -42,8 +42,8 @@ test::regex::search()
    local strings="$3"
    local indent="${4:-   }"
 
-   [ ! -f "${errput}" ] && internal_fail "errput \"${errput}\" is missing"
-   [ ! -f "${strings}" ] && internal_fail "strings \"${strings}\" is missing"
+   [ ! -f "${errput}" ] && _internal_fail "errput \"${errput}\" is missing"
+   [ ! -f "${strings}" ] && _internal_fail "strings \"${strings}\" is missing"
 
    local fail
    local regexp

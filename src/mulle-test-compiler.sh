@@ -107,8 +107,8 @@ test::compiler::r_c_commandline()
    local srcfile="$1"; shift
    local a_out="$1"; shift
 
-   [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
-   [ -z "${a_out}" ]   && internal_fail "a_out is empty"
+   [ -z "${srcfile}" ] && _internal_fail "srcfile is empty"
+   [ -z "${a_out}" ]   && _internal_fail "a_out is empty"
 
    # skip -- passed on command line for now
    while [ "$1" = "--" ]
@@ -145,11 +145,17 @@ test::compiler::r_c_commandline()
       windows)
          r_concat "${cflags}" "/DMULLE_TEST=1"
          cflags="${RVAL}"
+
+         r_concat "${cflags}" "/DMULLE_INCLUDE_DYNAMIC=1"
+         cflags="${RVAL}"      
       ;;
 
       *)
          r_concat "${cflags}" "-DMULLE_TEST=1"
          cflags="${RVAL}"
+
+         r_concat "${cflags}" "-DMULLE_INCLUDE_DYNAMIC=1"
+         cflags="${RVAL}"      
       ;;
    esac
 
@@ -182,12 +188,9 @@ test::compiler::r_c_commandline()
       ;;
    esac
 
-   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
-   then
-      log_debug "LINK_COMMAND=${linkcommand}"
-      log_debug "LDFLAGS=${LDFLAGS}"
-      log_debug "RPATH_FLAGS=${RPATH_FLAGS}"
-   fi
+   log_setting "LINK_COMMAND=${linkcommand}"
+   log_setting "LDFLAGS=${LDFLAGS}"
+   log_setting "RPATH_FLAGS=${RPATH_FLAGS}"
 
    r_concat "${cmdline}" "$*"
    cmdline="${RVAL}"
@@ -405,11 +408,11 @@ test::compiler::check_output()
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
-      log_fluff "-----------------------"
-      log_fluff "${errput}:"
-      log_fluff "-----------------------"
+      log_setting "-----------------------"
+      log_setting "${errput}:"
+      log_setting "-----------------------"
       cat "${errput}" >&2
-      log_fluff "-----------------------"
+      log_setting "-----------------------"
    fi
 
    test::execute::r_get_test_datafile "ccdiag" "${name}" "-"

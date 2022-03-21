@@ -216,6 +216,14 @@ test::environment::setup_compiler()
          esac
       ;;
 
+      sh)
+         PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-sh}"
+         CC=true
+         CXX=true
+         return   # early return!!
+      ;;
+
+
       *)
          fail "unsupported language \"${language}\""
       ;;
@@ -337,7 +345,7 @@ test::environment::setup_platform()
       ;;
 
       "")
-         log_fail "platform not set"
+         fail "platform not set"
       ;;
 
       *)
@@ -364,6 +372,12 @@ test::environment::setup_debugger()
 
    local platform="$1"
    local dialect="$3"
+
+   case "${language}" in
+      sh)
+         return
+      ;;
+   esac
 
    #
    # Find debugger, clear variable if not installed
@@ -436,21 +450,18 @@ test::environment::setup_project()
    test::environment::setup_debugger "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
    test::environment::setup_environment "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
 
-   if [ "${MULLE_FLAG_LOG_SETTINGS}" = 'YES' ]
-   then
-      log_trace2 "CC                  : ${CC}"
-      log_trace2 "CXX                 : ${CXX}"
-      log_trace2 "CFLAGS              : ${CFLAGS}" # environment only!
-      log_trace2 "DEBUGGER            : ${DEBUGGER}"
-      log_trace2 "DEBUG_CFLAGS        : ${DEBUG_CFLAGS}"
-      log_trace2 "DEBUG_EXE_EXTENSION : ${DEBUG_EXE_EXTENSION}"
-      log_trace2 "EXE_EXTENSION       : ${EXE_EXTENSION}"
-      log_trace2 "PROJECT_EXTENSIONS  : ${PROJECT_EXTENSIONS}"
-      log_trace2 "RELEASE_CFLAGS      : ${RELEASE_CFLAGS}"
-      log_trace2 "SHAREDLIB_EXTENSION : ${SHAREDLIB_EXTENSION}"
-      log_trace2 "SHAREDLIB_PREFIX    : ${SHAREDLIB_PREFIX}"
-      log_trace2 "STATICLIB_EXTENSION : ${STATICLIB_EXTENSION}"
-      log_trace2 "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
-   fi
+   log_setting "CC                  : ${CC}"
+   log_setting "CXX                 : ${CXX}"
+   log_setting "CFLAGS              : ${CFLAGS}" # environment only!
+   log_setting "DEBUGGER            : ${DEBUGGER}"
+   log_setting "DEBUG_CFLAGS        : ${DEBUG_CFLAGS}"
+   log_setting "DEBUG_EXE_EXTENSION : ${DEBUG_EXE_EXTENSION}"
+   log_setting "EXE_EXTENSION       : ${EXE_EXTENSION}"
+   log_setting "PROJECT_EXTENSIONS  : ${PROJECT_EXTENSIONS}"
+   log_setting "RELEASE_CFLAGS      : ${RELEASE_CFLAGS}"
+   log_setting "SHAREDLIB_EXTENSION : ${SHAREDLIB_EXTENSION}"
+   log_setting "SHAREDLIB_PREFIX    : ${SHAREDLIB_PREFIX}"
+   log_setting "STATICLIB_EXTENSION : ${STATICLIB_EXTENSION}"
+   log_setting "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
 }
 

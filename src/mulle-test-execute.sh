@@ -299,6 +299,36 @@ MULLE_TESTALLOCATOR_FIRST_LEAK='YES'"
 }
 
 
+test::execute::other()
+{
+   log_entry "test::execute::other" "$@"
+
+   local a_out_ext="$1"
+   local args="$2"
+   local input="$3"
+   local output="$4"
+   local errput="$5"
+
+   local environment
+
+   if [ "${MULLE_FLAG_LOG_ENVIRONMENT}" = "YES" ]
+   then
+      log_fluff "Environment:"
+      env | sort >&2
+   fi
+
+   local runner
+
+   test::logging::full_redirekt_eval_exekutor "${input}" \
+                                              "${output}" \
+                                              "${errput}" \
+                                              "${environment}" \
+                                              "${runner}" \
+                                              "'${a_out_ext}'" \
+                                              ${args}
+}
+
+
 test::execute::_check_output()
 {
    log_entry "test::execute::_check_output" "$@"
@@ -313,15 +343,15 @@ test::execute::_check_output()
    local a_out="$8"
    local ext="$9"
 
-   [ -z "${RVAL_FAILURE}" ] && internal_fail "RVAL_FAILURE undefined"
-   [ -z "${RVAL_OUTPUT_DIFFERENCES}" ] && internal_fail "RVAL_OUTPUT_DIFFERENCES undefined"
+   [ -z "${RVAL_FAILURE}" ] && _internal_fail "RVAL_FAILURE undefined"
+   [ -z "${RVAL_OUTPUT_DIFFERENCES}" ] && _internal_fail "RVAL_OUTPUT_DIFFERENCES undefined"
 
-   [ -z "${stdout}" ] && internal_fail "stdout must not be empty"
-   [ -z "${stderr}" ] && internal_fail "stderr must not be empty"
-   [ -z "${output}" ] && internal_fail "output must not be empty"
-   [ -z "${errput}" ] && internal_fail "errput must not be empty"
-   [ -z "${a_out}" ]  && internal_fail "a_out must not be empty"
-   [ "${rval}" = "" ] && internal_fail "rval must not be empty"
+   [ -z "${stdout}" ] && _internal_fail "stdout must not be empty"
+   [ -z "${stderr}" ] && _internal_fail "stderr must not be empty"
+   [ -z "${output}" ] && _internal_fail "output must not be empty"
+   [ -z "${errput}" ] && _internal_fail "errput must not be empty"
+   [ -z "${a_out}" ]  && _internal_fail "a_out must not be empty"
+   [ "${rval}" = "" ] && _internal_fail "rval must not be empty"
 
    local info_text
 
@@ -440,7 +470,7 @@ test::execute::check_output()
 #   local a_out="$8"
 #   local ext="$9"
 
-   [ -z "${RVAL_OUTPUT_DIFFERENCES}" ] && internal_fail "RVAL_OUTPUT_DIFFERENCES undefined"
+   [ -z "${RVAL_OUTPUT_DIFFERENCES}" ] && _internal_fail "RVAL_OUTPUT_DIFFERENCES undefined"
 
    test::execute::_check_output "$@"
    rval=$?
@@ -477,13 +507,13 @@ test::execute::run()
    local stderr="$1"; shift
    local errors="$1"; shift
 
-   [ -z "${a_out}" ]  && internal_fail "a_out must not be empty"
-   [ -z "${name}" ]   && internal_fail "name must not be empty"
-   [ -z "${root}" ]   && internal_fail "root must not be empty"
-   [ -z "${stdin}" ]  && internal_fail "stdin must not be empty"
-   [ -z "${stdout}" ] && internal_fail "stdout must not be empty"
-   [ -z "${stderr}" ] && internal_fail "stderr must not be empty"
-   [ -z "${pretty_source}" ] && internal_fail "stderr must not be empty"
+#   [ -z "${a_out}" ]  && _internal_fail "a_out must not be empty"
+   [ -z "${name}" ]   && _internal_fail "name must not be empty"
+   [ -z "${root}" ]   && _internal_fail "root must not be empty"
+   [ -z "${stdin}" ]  && _internal_fail "stdin must not be empty"
+   [ -z "${stdout}" ] && _internal_fail "stdout must not be empty"
+   [ -z "${stderr}" ] && _internal_fail "stderr must not be empty"
+   [ -z "${pretty_source}" ] && _internal_fail "stderr must not be empty"
 
    local srcfile
 
@@ -494,7 +524,7 @@ test::execute::run()
    local output
    local errput
 
-   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"
+   [ -z "${MULLE_TEST_VAR_DIR}" ] && _internal_fail "MULLE_TEST_VAR_DIR undefined"
 
    _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}" "f" || exit 1
    output="${RVAL}.stdout"
@@ -504,19 +534,32 @@ test::execute::run()
    # run test executable "${a_out}" feeding it "${stdin}" as input
    # retrieve stdout and stderr into temporary files
    #
-   test::execute::a_out "${a_out}" "${args}" "${stdin}" "${output}.tmp" "${errput}.tmp"
-   rval=$?
+   local executable
+
+   executable="${a_out}"
+   if [ ! -z "${executable}" ]
+   then
+      test::execute::a_out "${executable}" "${args}" "${stdin}" "${output}.tmp" "${errput}.tmp"
+      rval=$?
+   else
+      r_concat "${name}" "${ext}" "."
+      r_filepath_concat "${root}" "${RVAL}"
+      executable="${RVAL}"
+
+      test::execute::other "${executable}" "${args}" "${stdin}" "${output}.tmp" "${errput}.tmp"
+      rval=$?
+   fi
 
    log_debug "Check test \"${name}\" output (rval: $rval)"
 
    test::logging::redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
-      log_fluff "-----------------------"
-      log_fluff "${output}:"
-      log_fluff "-----------------------"
+      log_setting "-----------------------"
+      log_setting "${output}:"
+      log_setting "-----------------------"
       cat "${output}" >&2
-      log_fluff "-----------------------"
+      log_setting "-----------------------"
    fi
 
    test::logging::redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${errput}.tmp"
@@ -525,11 +568,11 @@ test::execute::run()
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
    then
-      log_fluff "-----------------------"
-      log_fluff "${errput}:"
-      log_fluff "-----------------------"
+      log_setting "-----------------------"
+      log_setting "${errput}:"
+      log_setting "-----------------------"
       cat "${errput}" >&2
-      log_fluff "-----------------------"
+      log_setting "-----------------------"
    fi
 
    local rc
@@ -541,7 +584,7 @@ test::execute::run()
                                 "${errput}" \
                                 "${rval}"   \
                                 "${pretty_source}" \
-                                "${a_out}" \
+                                "${executable}" \
                                 "${ext}"
    rc=$?
 
@@ -551,7 +594,7 @@ test::execute::run()
       remove_file_if_present "${errput}"
    fi
 
-   if [ $rc -eq 0 -a "${OPTION_REMOVE_EXE}" = 'YES' ]
+   if [ ! -z "${a_out}" -a $rc -eq 0 -a "${OPTION_REMOVE_EXE}" = 'YES' ]
    then
       # also remove debug file if present
       remove_file_if_present "${a_out##.exe}.debug.exe"
@@ -734,9 +777,6 @@ test::execute::main()
       a_out="${directory}/runner"
       OPTION_REMOVE_EXE='NO'
    fi
-
-   [ -x "${a_out}" ] || test::execute::usage "Improper executable
-\"${a_out}\" (not there or lacking execute permissions)"
 
    local name
    local ext

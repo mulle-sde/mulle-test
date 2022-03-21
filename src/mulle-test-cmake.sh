@@ -145,6 +145,9 @@ test::cmake::eval_mulle_make()
    r_concat "${cmake_c_flags}" "-DMULLE_TEST=1"
    cmake_c_flags="${RVAL}"
 
+   r_concat "${cmake_c_flags}" "-DMULLE_INCLUDE_DYNAMIC=1"
+   cmake_c_flags="${RVAL}"
+
    # add sanitizer flags
    if test::compiler::r_c_sanitizer_flags "${SANITIZER}"
    then
@@ -267,8 +270,8 @@ test::cmake::fail_test()
    local ext="$1"; shift
    local name="$1"; shift
 
-   [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
-   [ -z "${a_out}" ] && internal_fail "a_out is empty"
+   [ -z "${srcfile}" ] && _internal_fail "srcfile is empty"
+   [ -z "${a_out}" ] && _internal_fail "a_out is empty"
 
    if [ "${MULLE_FLAG_MAGNUM_FORCE}" != 'NO' ]
    then
@@ -325,9 +328,9 @@ test::cmake::run()
    local a_out_ext="$1"; shift
    local errput="$1"; shift # unused
 
-   [ -z "${srcfile}" ] && internal_fail "srcfile is empty"
-   [ -z "${a_out_ext}" ] && internal_fail "a_out_ext is empty"
-   [ ! -f "CMakeLists.txt" ] && internal_fail "CMakeLists.txt is missing (${PWD#${MULLE_USER_PWD}/})"
+   [ -z "${srcfile}" ] && _internal_fail "srcfile is empty"
+   [ -z "${a_out_ext}" ] && _internal_fail "a_out_ext is empty"
+   [ ! -f "CMakeLists.txt" ] && _internal_fail "CMakeLists.txt is missing (${PWD#${MULLE_USER_PWD}/})"
 
    local is_exe='NO'
 

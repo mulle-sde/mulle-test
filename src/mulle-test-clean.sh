@@ -72,7 +72,7 @@ test::clean::main()
 {
    log_entry "test::clean::main" "$@"
 
-   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR is empty"
+   [ -z "${MULLE_TEST_VAR_DIR}" ] && _internal_fail "MULLE_TEST_VAR_DIR is empty"
 
    local OPTION_CLEAN_VAR='YES'
 

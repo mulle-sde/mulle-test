@@ -160,9 +160,9 @@ test::run::common()
    local ext="$1"; shift
    local root="$1"; shift
 
-   [ -z "${a_out}" ] && internal_fail "a_out must not be empty"
-   [ -z "${name}" ] && internal_fail "name must not be empty"
-   [ -z "${root}" ] && internal_fail "root must not be empty"
+   [ -z "${a_out}" ] && _internal_fail "a_out must not be empty"
+   [ -z "${name}" ] && _internal_fail "name must not be empty"
+   [ -z "${root}" ] && _internal_fail "root must not be empty"
 
    local output
    local cc_errput
@@ -277,6 +277,23 @@ test::run::cmake()
    FAIL_TEST="test::cmake::fail_test"
    test::run::common "" "${a_out}" "${a_out}${EXE_EXTENSION}" "${purename}" "$@"
 }
+
+
+test::run::sh()
+{
+   log_entry "test::run::sh" "$@"
+
+   local name="$1"
+   local ext="$2"
+
+   local a_out
+
+   a_out="${PWD}/${name}"
+
+   TEST_BUILDER=""
+   test::run::common "" "${a_out}" "" "$@"
+}
+
 
 
 test::run::c()
@@ -465,9 +482,9 @@ test::run::_run()
    local ext="$1"; shift
    local root="$1"; shift
 
-   [ -z "${name}" ] && internal_fail "name must not be empty"
-   [ -z "${ext}" ]  && internal_fail "ext must not be ? empty"
-   [ -z "${root}" ] && internal_fail "root must not be empty"
+   [ -z "${name}" ] && _internal_fail "name must not be empty"
+   [ -z "${ext}" ]  && _internal_fail "ext must not be ? empty"
+   [ -z "${root}" ] && _internal_fail "root must not be empty"
 
    local purename
 
@@ -707,9 +724,9 @@ test::run::scan_directory()
    local root="$1"; shift
    local extensions="$1"; shift
 
-   [ -z "${directory}" ] && internal_fail "directory must not be empty"
-   [ ! -d "${directory}" ] && internal_fail "directory \"${directory}\" does not exist"
-   [ -z "${root}" ] && internal_fail "root must not be empty"
+   [ -z "${directory}" ] && _internal_fail "directory must not be empty"
+   [ ! -d "${directory}" ] && _internal_fail "directory \"${directory}\" does not exist"
+   [ -z "${root}" ] && _internal_fail "root must not be empty"
 
    local old
    local rval
@@ -999,8 +1016,8 @@ test::run::main()
       shift
    done
 
-   [ -z "${MULLE_TEST_DIR}" ] && internal_fail "MULLE_TEST_DIR undefined"
-   [ -z "${MULLE_TEST_VAR_DIR}" ] && internal_fail "MULLE_TEST_VAR_DIR undefined"
+   [ -z "${MULLE_TEST_DIR}" ] && _internal_fail "MULLE_TEST_DIR undefined"
+   [ -z "${MULLE_TEST_VAR_DIR}" ] && _internal_fail "MULLE_TEST_VAR_DIR undefined"
 
    MULLE_TEST_EXTENSIONS="${MULLE_TEST_EXTENSIONS:-${PROJECT_EXTENSIONS}}"
 
@@ -1015,19 +1032,22 @@ test::run::main()
    #
    # if extension is args, we just run a dependency/bin/executable
    #
-   if [ "${PROJECT_EXTENSIONS}" = "args" ]
-   then
-      MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-${PROJECT_NAME}}"
-      MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-run-test.exe}"
-   else
-      . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
+   case "${PROJECT_EXTENSIONS}" in
+      [Cc]|[Cc]++|[Cc][XxPp][XxPp]|[Mm]|aam)
+         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
 
-      test::linkorder::r_get_link_command "YES"
-      LINK_COMMAND="${RVAL}"
+         test::linkorder::r_get_link_command "YES"
+         LINK_COMMAND="${RVAL}"
 
-      test::linkorder::r_get_link_command "NO"
-      NO_STARTUP_LINK_COMMAND="${RVAL}"
-   fi
+         test::linkorder::r_get_link_command "NO"
+         NO_STARTUP_LINK_COMMAND="${RVAL}"
+      ;;
+
+      args)
+         MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-${PROJECT_NAME}}"
+         MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-run-test.exe}"
+      ;;
+   esac
 
    MULLE_TEST_SUCCESS_FILE="${MULLE_TEST_VAR_DIR}/passed.txt"
 

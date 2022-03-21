@@ -1,6 +1,6 @@
 # Run tests
 
-Use `mulle-sde test` or `mulle-sde test` to run the tests. Each test is
+Use `mulle-sde test` or `mulle-test test` to run the tests. Each test is
 specified by an `.args` file which gives command line parameters to the
 executable **<|PROJECT_NAME|>** to be tested.
 

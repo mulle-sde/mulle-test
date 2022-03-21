@@ -242,8 +242,7 @@ test::init::main()
       fi
    else
       [ ! -d "${parentdir}/.mulle/share/sde" ] && \
-      log_warning "warning: Test folder should be at the top level \
-of a mulle-sde project"
+      log_warning "warning: Test folder should be at the top level of a mulle-sde project"
    fi
 
    if [ -z "${PROJECT_NAME}" ]
@@ -269,9 +268,9 @@ of a mulle-sde project"
       ;;
    esac
 
-   if [ -z "${PREFERRED_STARTUP_LIBRARY}" ]
+   if [ -z "${PREFERRED_STARTUP_LIBRARY}" -a -d .mulle ]
    then
-      PREFERRED_STARTUP_LIBRARY="`rexekutor mulle-env ${MULLE_TECHNICAL_FLAGS} \
+      PREFERRED_STARTUP_LIBRARY="`rexekutor mulle-env -s ${MULLE_TECHNICAL_FLAGS} \
                                               environment get PREFERRED_STARTUP_LIBRARY`"
    fi
 
