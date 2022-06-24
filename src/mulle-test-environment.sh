@@ -223,7 +223,6 @@ test::environment::setup_compiler()
          return   # early return!!
       ;;
 
-
       *)
          fail "unsupported language \"${language}\""
       ;;

@@ -1,3 +1,8 @@
+## 6.1.0
+
+* fix for Windows
+
+
 ### 6.0.1
 
 * fix installer (?)

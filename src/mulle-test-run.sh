@@ -1032,8 +1032,8 @@ test::run::main()
    #
    # if extension is args, we just run a dependency/bin/executable
    #
-   case "${PROJECT_EXTENSIONS}" in
-      [Cc]|[Cc]++|[Cc][XxPp][XxPp]|[Mm]|aam)
+   case ":${PROJECT_EXTENSIONS}:" in
+      *:[Cc]:*|*:[Cc]++:*|*:[Cc][XxPp][XxPp]:*|*:[Mm]:*|*:aam:*)
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
 
          test::linkorder::r_get_link_command "YES"
@@ -1043,7 +1043,11 @@ test::run::main()
          NO_STARTUP_LINK_COMMAND="${RVAL}"
       ;;
 
-      args)
+      "")
+        _internal_fail "PROJECT_EXTENSIONS is empty"
+      ;;
+
+      *:args:*)
          MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-${PROJECT_NAME}}"
          MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-run-test.exe}"
       ;;
