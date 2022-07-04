@@ -183,7 +183,7 @@ test::logging::full_redirekt_eval_exekutor()
    local stdin
    local stdout
    local stderr
-
+ 
    stdin="$1"
    shift
    stdout="$1"

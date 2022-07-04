@@ -289,9 +289,9 @@ test::compiler::run_gcc()
    test::compiler::r_c_commandline "${cflags}" "${srcfile}" "${a_out}" "$@"
    cmdline="${RVAL}"
 
-   local old
+   local old_MULLE_FLAG_LOG_EXEKUTOR
 
-   old="${MULLE_FLAG_LOG_EXEKUTOR}"
+   old_MULLE_FLAG_LOG_EXEKUTOR="${MULLE_FLAG_LOG_EXEKUTOR}"
    if [ "${MULLE_FLAG_LOG_VERBOSE}" = 'YES' ]
    then
       MULLE_FLAG_LOG_EXEKUTOR="YES"
@@ -302,7 +302,7 @@ test::compiler::run_gcc()
    test::logging::err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
    rval=$?
 
-   MULLE_FLAG_LOG_EXEKUTOR="${RVAL}"
+   MULLE_FLAG_LOG_EXEKUTOR="${old_MULLE_FLAG_LOG_EXEKUTOR}"
 
    return $rval
 }
