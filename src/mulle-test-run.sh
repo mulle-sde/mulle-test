@@ -44,11 +44,12 @@ Usage:
    test.
 
    Options:
-      -l         : be lenient, keep going if tests fail
-      --serial   : run test one after the other
-      --debug    : build for debug
-      --release  : build for release
-      --keep-exe : keep test executables around after a successful test
+      -l          : be lenient, keep going if tests fail
+      --serial    : run test one after the other
+      --debug     : build for debug
+      --release   : build for release
+      --keep-exe  : keep test executables around after a successful test
+      --reuse-exe : if executable already exists, reuse it, don't rebuild
 EOF
    exit 1
 }
@@ -186,6 +187,12 @@ test::run::common()
 
    local rval
    local flags
+
+   if [ "${OPTION_REUSE_EXE}" = 'YES' -a -x "${a_out_ext}" ]
+   then
+      log_verbose "Reusing exectuable ${a_out_ext#${MULLE_USER_PWD}/}"
+      TEST_BUILDER=
+   fi
 
    if [ ! -z "${TEST_BUILDER}" ]
    then
@@ -633,33 +640,32 @@ test::run::run_matching_extensions_in_directory()
 {
    log_entry "test::run::run_matching_extensions_in_directory" "$@"
 
-   local directory="$1"; shift
-   local filename="$1"; shift
-   local extensions="$1"; shift
-   local root="$1"; shift
+   local directory="$1"
+   local filename="$2"
+   local extensions="$3"
+   local root="$4"
+
+   shift 4
 
    local name
    local ext
 
-   IFS=':'; shell_disable_glob
-   for ext in ${extensions}
-   do
-      shell_enable_glob; IFS="${DEFAULT_IFS}"
+   .foreachpath ext in ${extensions}
+   .do
       ext=".${ext}"
 
       case "${filename}" in
          *${ext})
             r_extensionless_basename "${filename}"
             test::run::run_in_directory "${directory}" \
-                                  "${RVAL}" \
-                                  "${ext}" \
-                                  "${root}" \
-                                  "$@"
+                                        "${RVAL}" \
+                                        "${ext}" \
+                                        "${root}" \
+                                        "$@"
             return $?
          ;;
       esac
-   done
-   shell_enable_glob; IFS="${DEFAULT_IFS}"
+   .done
 }
 
 
@@ -850,10 +856,10 @@ test::run::named_test()
    local FAILS=0
 
    if ! test::run::run_matching_extensions_in_directory "${directory}" \
-                                                  "${filename}" \
-                                                  "${MULLE_TEST_EXTENSIONS}" \
-                                                  "${root}" \
-                                                  "$@"
+                                                        "${filename}" \
+                                                        "${MULLE_TEST_EXTENSIONS}" \
+                                                        "${root}" \
+                                                        "$@"
    then
       return 1
    fi
@@ -882,6 +888,7 @@ test::run::main()
    local OPTION_LENIENT='NO'
    local OPTION_RERUN_FAILED='NO'
    local OPTION_DEBUG_DYLD='NO'
+   local OPTION_REUSE_EXE='NO'
 
    DEFAULT_MAKEFLAGS="-s"
 
@@ -996,6 +1003,12 @@ test::run::main()
                fi
                shift
             done
+         ;;
+
+         --reuse-exe)
+            # this passed "silently" to mulle-test-execute... ugly
+            OPTION_REUSE_EXE='YES'
+            OPTION_REMOVE_EXE='NO'
          ;;
 
          --keep-exe)

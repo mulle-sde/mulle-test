@@ -119,6 +119,7 @@ EOF
    --dir-name <name>       : specify test directory name (default: test)
    --no-sanitizer          : no sanitizer
    --coverage              : produce clang coverage information
+   --gdb                   : use gdb to run
    --sanitize-address      : use address sanitizer to craft and run
    --sanitize-thread       : use thread sanitizer to craft and run
    --sanitize-undefined    : use undefined sanitizer to craft and run
@@ -410,6 +411,11 @@ test::main()
             shift
 
             MULLE_TEST_DIR="$1"
+         ;;
+
+         --gdb)
+            r_colon_concat "${RVAL}" "gdb"
+            SANITIZER="${RVAL}"
          ;;
 
          --valgrind)

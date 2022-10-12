@@ -4,9 +4,14 @@ Use `mulle-sde test` or `mulle-test test` to run the tests. Each test is
 specified by a file with file extension `.<|PROJECT_EXTENSIONS|>`. This file
 is compiled and linked with **<|PROJECT_NAME|>**.
 
+* rebuild the main project with `mulle-sde test craft`
+* run specific test with `mulle-sde test run <testfile>`
+* rerun tests with `mulle-sde test rerun`
+
+
 Extension   | Description
 ------------|-------------------------
-`.<|PROJECT_EXTENSIONS|>` | Test source
+`.<|PROJECT_EXTENSIONS|>`      | Test source
 `.stdin`    | Command standard input
 `.stdout`   | Expected command standard output
 

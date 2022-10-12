@@ -272,6 +272,13 @@ MULLE_TESTALLOCATOR_FIRST_LEAK='YES'"
    local runner
 
    case ":${SANITIZER}:" in
+      *:gdb:*)
+         runner="'${GDB:-gdb}'"
+
+         r_concat "${runner}" "${GDB_OPTIONS:---silent --return-child-result -ex='set confirm on' -ex=run -ex bt -ex=quit --args}"
+         runner="${RVAL}"
+      ;;
+
       *:valgrind:*)
          runner="'${VALGRIND:-valgrind}'"
 
