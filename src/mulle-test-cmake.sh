@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+# shellcheck shell=bash
 #
 #   Copyright (c) 2018 Nat! - Mulle kybernetiK
 #   All rights reserved.
@@ -330,7 +330,7 @@ test::cmake::run()
 
    [ -z "${srcfile}" ] && _internal_fail "srcfile is empty"
    [ -z "${a_out_ext}" ] && _internal_fail "a_out_ext is empty"
-   [ ! -f "CMakeLists.txt" ] && _internal_fail "CMakeLists.txt is missing (${PWD#${MULLE_USER_PWD}/})"
+   [ ! -f "CMakeLists.txt" ] && _internal_fail "CMakeLists.txt is missing (${PWD#"${MULLE_USER_PWD}/"})"
 
    local is_exe='NO'
 

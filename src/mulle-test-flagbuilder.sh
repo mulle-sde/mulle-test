@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+# shellcheck shell=bash
 #
 #   Copyright (c) 2018 Nat! - Mulle kybernetiK
 #   All rights reserved.
@@ -40,61 +40,34 @@ test::flagbuilder::r_include_cflags()
 
    local cflags
 
-#     log_setting "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
-   log_setting "DEPENDENCY_DIR      : ${DEPENDENCY_DIR}"
-   log_setting "ADDICTION_DIR       : ${ADDICTION_DIR}"
-
    if [ ! -z "${DEPENDENCY_DIR}" -a ! -z "${ADDICTION_DIR}" ]
    then
       include "platform::flags"
    fi
 
-   if [ ! -z "${DEPENDENCY_DIR}" ]
-   then
-      if [ -d "${DEPENDENCY_DIR}/Test/include" ]
-      then
-         platform::flags::r_cc_include_dir "${DEPENDENCY_DIR}/Test/include" "${quote}"
-         r_concat "${cflags}" "${RVAL}"
-         cflags="${RVAL}"
-      fi
+   local frameworkpath
 
-      # do this always, so it's easier to figure out where things should
-      # have been
-      platform::flags::r_cc_include_dir "${DEPENDENCY_DIR}/include" "${quote}"
+   frameworkpath="`mulle-craft searchpath --if-exists --configuration "${OPTION_TEST_CONFIGURATION:-Debug}" framework`"
+
+   local headerpath
+
+   headerpath="`mulle-craft searchpath --if-exists --configuration "${OPTION_TEST_CONFIGURATION:-Debug}" header`"
+
+   local directory
+
+   .foreachpath directory in ${headerpath}
+   .do
+      platform::flags::r_cc_include_dir "${directory}" "${quote}"
       r_concat "${cflags}" "${RVAL}"
       cflags="${RVAL}"
+   .done
 
-      # will be empty on non-darwin platforms
-      if [ -d "${DEPENDENCY_DIR}/Test/Frameworks" ]
-      then
-         platform::flags::r_cc_framework_dir "${DEPENDENCY_DIR}/Test/Frameworks" "${quote}"
-         r_concat "${cflags}" "${RVAL}"
-         cflags="${RVAL}"
-      fi
-
-      # do this always, so it's easier to figure out where things should
-      # have been
-      platform::flags::r_cc_framework_dir "${DEPENDENCY_DIR}/Frameworks" "${quote}"
+   .foreachpath directory in ${frameworkpath}
+   .do
+      platform::flags::r_cc_framework_dir "${directory}" "${quote}"
       r_concat "${cflags}" "${RVAL}"
       cflags="${RVAL}"
-   fi
-
-   if [ ! -z "${ADDICTION_DIR}" ]
-   then
-      if [ -d "${ADDICTION_DIR}/include" ]
-      then
-         platform::flags::r_cc_include_dir "${ADDICTION_DIR}/include" "${quote}"
-         r_concat "${cflags}" "${RVAL}"
-         cflags="${RVAL}"
-      fi
-
-      if [ -d "${ADDICTION_DIR}/Frameworks" ]
-      then
-         platform::flags::r_cc_framework_dir "${DEPENDENCY_DIR}/Frameworks" "${quote}"
-         r_concat "${cflags}" "${RVAL}"
-         cflags="${RVAL}"
-      fi
-   fi
+   .done
 
    RVAL="${cflags}"
 }

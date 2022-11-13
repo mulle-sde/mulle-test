@@ -1,4 +1,5 @@
-#! /bin/sh
+#! /usr/bin/env mulle-bash
+# shellcheck shell=bash
 #
 #   Copyright (c) 2017 Nat! - Mulle kybernetiK
 #   All rights reserved.
@@ -188,7 +189,7 @@ ${C_RESET_BOLD}   mulle-sde test init"
 
    if [ "${PWD}" != "${MULLE_TEST_DIR}" ]
    then
-      log_fluff "Going to test directory \"${MULLE_TEST_DIR}\" (${PWD#${MULLE_USER_PWD}/})"
+      log_fluff "Going to test directory \"${MULLE_TEST_DIR}\" (${PWD#"${MULLE_USER_PWD}/"})"
       exekutor cd "${MULLE_TEST_DIR}" || exit 1
    fi
 
@@ -277,7 +278,7 @@ test::exec_in_subshell_if_needed()
          exekutor exec mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                            run mulle-test ${MULLE_TECHNICAL_FLAGS} "$@"
       else
-         fail "Not a proper initialized test directory (${PWD#${MULLE_USER_PWD}/})
+         fail "Not a proper initialized test directory (${PWD#"${MULLE_USER_PWD}/"})
 ${C_INFO}To initialize for mulle-test:
 ${C_RESET_BOLD}   mulle-test init"
       fi
@@ -315,7 +316,8 @@ test::run_or_rerun()
 
    if ! test::get_quickstatus
    then
-      test::do_craft "$@" || return 1
+      # MEMO can't forward flags here for run or rerun
+      test::do_craft || return 1
    fi
 
    if [ "${cmd}" = "rerun" ]

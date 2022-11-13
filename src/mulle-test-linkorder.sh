@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+# shellcheck shell=bash
 #
 #   Copyright (c) 2018 Nat! - Mulle kybernetiK
 #   All rights reserved.
@@ -68,7 +68,7 @@ test::linkorder::_get_link_command()
                ${MULLE_TECHNICAL_FLAGS} \
                ${MULLE_SDE_FLAGS} \
             linkorder \
-               --configuration "Test" \
+               --configuration "${OPTION_TEST_CONFIGURATION:-Debug}" \
                --output-format ld \
                --output-no-final-lf \
                --preferred-library-style dynamic \

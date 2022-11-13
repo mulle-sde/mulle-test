@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+# shellcheck shell=bash
 #
 #   Copyright (c) 2018 Nat! - Mulle kybernetiK
 #   All rights reserved.
@@ -167,7 +167,7 @@ test::execute::a_out()
             r_colon_concat "${insertlibpath}" "${filepath}"
             insertlibpath="${RVAL}"
          else
-            log_verbose "\"${filepath#${MULLE_USER_PWD}/}\" not found, memory checks will be unavailable"
+            log_verbose "\"${filepath#"${MULLE_USER_PWD}/"}\" not found, memory checks will be unavailable"
          fi
       ;;
    esac
@@ -395,7 +395,7 @@ test::execute::_check_output()
    fi
 
    pretty_source="${TEST_PATH_PREFIX}${pretty_source}"
-   pretty_source="${pretty_source#${MULLE_USER_PWD}/}"
+   pretty_source="${pretty_source#"${MULLE_USER_PWD}/"}"
 
    local pretty_stdout
    local pretty_output
@@ -403,11 +403,11 @@ test::execute::_check_output()
    local pretty_errput
 
    pretty_stdout="${TEST_PATH_PREFIX}${stdout}"
-   pretty_stdout="${pretty_stdout#${MULLE_USER_PWD}/}"
+   pretty_stdout="${pretty_stdout#"${MULLE_USER_PWD}/"}"
    pretty_stderr="${TEST_PATH_PREFIX}${stderr}"
-   pretty_stderr="${pretty_stderr#${MULLE_USER_PWD}/}"
-   pretty_output="${output#${MULLE_USER_PWD}/}"
-   pretty_errput="${errput#${MULLE_USER_PWD}/}"
+   pretty_stderr="${pretty_stderr#"${MULLE_USER_PWD}/"}"
+   pretty_output="${output#"${MULLE_USER_PWD}/"}"
+   pretty_errput="${errput#"${MULLE_USER_PWD}/"}"
 
    if [ "${stdout}" != "-" ]
    then

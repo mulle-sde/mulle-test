@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+# shellcheck shell=bash
 
 if [ "`type -t "_mulle_test_complete"`" != "function" ]
 then

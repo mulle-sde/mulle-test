@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+# shellcheck shell=bash
 #
 #   Copyright (c) 2018 Nat! - Mulle kybernetiK
 #   All rights reserved.
@@ -98,6 +98,14 @@ test::craft::main()
             r_concat "${craftargs}" "'$1'"
             craftargs="${RVAL}"
          ;;
+
+# TODO: Doesn't work for some reason
+#        --from)
+#           shift
+#           r_concat "${craftargs}" "--from '$1'"
+#           craftargs="${RVAL}"
+#        ;;
+
 
          --standalone)
             OPTION_STANDALONE='YES'

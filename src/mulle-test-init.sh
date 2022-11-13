@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+# shellcheck shell=bash
 #
 #   Copyright (c) 2018 Nat! - Mulle kybernetiK
 #   All rights reserved.
@@ -105,10 +105,10 @@ test::init::execute_script()
 
    if [ ! -x "${scriptpath}" ]
    then
-      fail "\"${scriptpath#${MULLE_USER_PWD}/}\" is not installed as an executable"
+      fail "\"${scriptpath#"${MULLE_USER_PWD}/"}\" is not installed as an executable"
    fi
 
-   log_verbose "Executing \"${scriptpath#${MULLE_USER_PWD}/} ${args}\""
+   log_verbose "Executing \"${scriptpath#"${MULLE_USER_PWD}/"} ${args}\""
 
    local args
 

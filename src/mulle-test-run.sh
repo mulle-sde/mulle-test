@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+# shellcheck shell=bash
 #
 #   Copyright (c) 2018 Nat! - Mulle kybernetiK
 #   All rights reserved.
@@ -190,7 +190,7 @@ test::run::common()
 
    if [ "${OPTION_REUSE_EXE}" = 'YES' -a -x "${a_out_ext}" ]
    then
-      log_verbose "Reusing exectuable ${a_out_ext#${MULLE_USER_PWD}/}"
+      log_verbose "Reusing exectuable ${a_out_ext#"${MULLE_USER_PWD}/"}"
       TEST_BUILDER=
    fi
 
@@ -493,12 +493,33 @@ test::run::_run()
    [ -z "${ext}" ]  && _internal_fail "ext must not be ? empty"
    [ -z "${root}" ] && _internal_fail "root must not be empty"
 
+
+   if [ ! -z "${SANITIZER}" ] && [ -e "${name}.no-sanitizers" ]
+   then
+      log_info "Skipped ${C_MAGENTA}${C_BOLD}${name}${C_INFO} as it doesn't work with any sanitizer"
+      return
+   fi
+
+   local sanitizer
+
+   .foreachpath sanitizer in ${SANITIZER}
+   .do
+      r_lowercase "${sanitizer%%-*}" # turn valgrind-no-leaks into valgrind
+      sanitizer="${RVAL}"
+
+      if [ -e "${name}.no-${sanitizer}" ]
+      then
+         log_info "Skipped ${C_MAGENTA}${C_BOLD}${name}${C_INFO} as it doesn't work with ${C_RESET_BOLD}${sanitizer}"
+         return
+      fi
+   .done
+
    local purename
 
    purename="${name#"${name%%[!0-9_-]*}"}"
    if test::run::r_get_environmentfile "${purename}" "environment" "environment"
    then
-      log_verbose "Read environment file \"${RVAL}\" (${PWD#${MULLE_USER_PWD}/}) "
+      log_verbose "Read environment file \"${RVAL}\" (${PWD#"${MULLE_USER_PWD}/"}) "
       # as we are running in a subshell this is OK
       . "${RVAL}" || fail "\"${RVAL}\" read failed"
    fi
@@ -671,7 +692,7 @@ test::run::run_matching_extensions_in_directory()
 
 test::run::_scan_directory()
 {
-   log_entry "test::run::_scan_directory" "$@" "(${PWD#${MULLE_USER_PWD}/})"
+   log_entry "test::run::_scan_directory" "$@" "(${PWD#"${MULLE_USER_PWD}/"})"
 
    local root="$1"; shift
    local extensions="$1"; shift
@@ -687,15 +708,12 @@ test::run::_scan_directory()
 
    local i
 
-   IFS=$'\n'
-   for i in `ls -1`
-   do
-      IFS="${DEFAULT_IFS}"
-
+   .foreachline i in `ls -1`
+   .do
       case "${i}" in
          _*|addiction|bin|build|kitchen|craftinfo|dependency|include|lib|libexec|old|stash|tmp)
             log_debug "Ignoring \"${i}\" because it's surely not a test directory"
-            continue
+            .continue
          ;;
       esac
 
@@ -715,9 +733,8 @@ test::run::_scan_directory()
             return 1
          fi
       fi
-   done
+   .done
 
-   IFS="${DEFAULT_IFS}"
    return 0
 }
 
@@ -780,8 +797,8 @@ test::run::all_tests()
    then
       _parallel_end
 
-      RUNS="${_parallel_jobs}"
-      FAILS="${_parallel_fails}"
+      RUNS="${_parallel_jobs:-0}"
+      FAILS="${_parallel_fails:-1}"
    fi
 
    if [ "${RUNS}" -ne 0 -o "${OPTION_RERUN_FAILED}" = 'YES' ]
@@ -889,6 +906,7 @@ test::run::main()
    local OPTION_RERUN_FAILED='NO'
    local OPTION_DEBUG_DYLD='NO'
    local OPTION_REUSE_EXE='NO'
+   local OPTION_TEST_CONFIGURATION="Debug"
 
    DEFAULT_MAKEFLAGS="-s"
 
@@ -987,10 +1005,12 @@ test::run::main()
 
          --release)
             TEST_CFLAGS="${RELEASE_CFLAGS}"
+            OPTION_TEST_CONFIGURATION="Release"
          ;;
 
          --debug)
             TEST_CFLAGS="${DEBUG_CFLAGS}"
+            OPTION_TEST_CONFIGURATION="Debug"
          ;;
 
          --build-args)
