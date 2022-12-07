@@ -117,8 +117,6 @@ test::compiler::r_c_commandline()
    done
 
    #hacque
-   local cflags
-   local incflags
    local linkcommand
 
    linkcommand="${LINK_COMMAND}"
@@ -159,9 +157,13 @@ test::compiler::r_c_commandline()
       ;;
    esac
 
+   local incflags
+
    test::flagbuilder::r_include_cflags "'"
    incflags="${RVAL}"
 
+   local cmdline
+   
    cmdline="'${CC}' ${cflags} ${incflags}"
    if test::compiler::r_c_sanitizer_flags "${SANITIZER}"
    then

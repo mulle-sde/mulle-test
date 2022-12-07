@@ -165,28 +165,23 @@ test::run::common()
    [ -z "${name}" ] && _internal_fail "name must not be empty"
    [ -z "${root}" ] && _internal_fail "root must not be empty"
 
-   local output
-   local cc_errput
-   local errput
-   local random
-   local match
-   local pretty_source
-
    local srcfile
 
    srcfile="${name}${ext}"
 
    local cc_errput
-   local random
 
    _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}" "f" || exit 1
    cc_errput="${RVAL}.ccerr" || exit 1
+
+   local pretty_source
 
    r_relative_path_between "${PWD}/${srcfile}" "${root}"
    pretty_source="${RVAL}" || exit 1
 
    local rval
    local flags
+   local output
 
    if [ "${OPTION_REUSE_EXE}" = 'YES' -a -x "${a_out_ext}" ]
    then
@@ -647,7 +642,7 @@ test::run::run_in_directory()
 
    if [ "${MULLE_TEST_SERIAL}" = 'NO' ]
    then
-      _parallel_execute test::run::_run_in_directory_parallel "$@"
+      __parallel_execute test::run::_run_in_directory_parallel "$@"
       return 0
    fi
 
@@ -786,7 +781,7 @@ test::run::all_tests()
          . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-parallel.sh"
 
       log_verbose "Parallel testing"
-      _parallel_begin "${OPTION_MAXJOBS}"
+      __parallel_begin "${OPTION_MAXJOBS}"
    else
       log_verbose "Serial testing"
    fi
@@ -795,7 +790,7 @@ test::run::all_tests()
 
    if [ "${MULLE_TEST_SERIAL}" = 'NO' ]
    then
-      _parallel_end
+      __parallel_end
 
       RUNS="${_parallel_jobs:-0}"
       FAILS="${_parallel_fails:-1}"
@@ -1017,7 +1012,7 @@ test::run::main()
             # remove build-only flags, which must appear first
             while [ $# -ne 0 ]
             do
-               if [ "$1" == "--run-args" ]
+               if [ "$1" = "--run-args" ]
                then
                   continue
                fi

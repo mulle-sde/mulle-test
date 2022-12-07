@@ -219,6 +219,8 @@ test::cmake::eval_mulle_make()
    test::cmake::r_add_cmakeflag "${cmd}" "CMAKE_SHARED_LINKER_FLAGS" "${cmake_shared_linker_flags}"
    cmd="${RVAL}"
 
+   log_setting "LINK_COMMAND=${LINK_COMMAND}"
+
    local cmake_libraries
 
    cmake_libraries="${LINK_COMMAND}"

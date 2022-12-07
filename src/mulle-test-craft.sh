@@ -60,7 +60,7 @@ test::craft::main()
          --build-args)
             while [ $# -ne 0 ]
             do
-               if [ "$1" == "--run-args" ]
+               if [ "$1" = "--run-args" ]
                then
                   while [ $# -ne 0 ]
                   do
@@ -105,7 +105,6 @@ test::craft::main()
 #           r_concat "${craftargs}" "--from '$1'"
 #           craftargs="${RVAL}"
 #        ;;
-
 
          --standalone)
             OPTION_STANDALONE='YES'

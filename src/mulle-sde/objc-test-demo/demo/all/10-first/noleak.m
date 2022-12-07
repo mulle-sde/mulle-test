@@ -3,6 +3,6 @@
 
 int   main( int argc, char *argv[])
 {
-   printf( "%s\n", [@"VfL Bochum <missing number, please fix>" UTF8String]);
+   mulle_printf( "%@\n", @"VfL Bochum <missing number, please fix>");
    return( 0);
 }

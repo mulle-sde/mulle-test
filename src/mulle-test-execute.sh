@@ -55,6 +55,57 @@ EOF
 }
 
 
+test::execute::r_add_bin_lib_to_custompath()
+{
+   local directory="$1"
+   local configuration="$2"
+   local custompath="$3"
+
+   if [ ! -e "${directory}" ]
+   then
+      RVAL="${custompath}"
+      return
+   fi
+
+   r_filepath_concat "${directory}" "${configuration}" "bin"
+   if [ -e "${RVAL}" ]
+   then
+      r_colon_concat "${RVAL}" "${custompath}"
+      custompath="${RVAL}"
+   fi
+
+   if [ ! -z "${configuration}" ]
+   then
+      r_filepath_concat "${directory}" "bin"
+      if [ -e "${RVAL}" ]
+      then
+         r_colon_concat "${RVAL}" "${custompath}"
+         custompath="${RVAL}"
+      fi
+   fi
+
+   r_filepath_concat "${directory}" "${configuration}" "lib"
+   if [ -e "${RVAL}" ]
+   then
+      r_colon_concat "${RVAL}" "${custompath}"
+      custompath="${RVAL}"
+   fi
+
+   if [ ! -z "${configuration}" ]
+   then
+      r_filepath_concat "${directory}" "lib"
+      if [ -e "${RVAL}" ]
+      then
+         r_colon_concat "${RVAL}" "${custompath}"
+         custompath="${RVAL}"
+      fi
+   fi
+
+
+
+   RVAL="${custompath}"
+}
+
 #
 # dlls are sometimes installed into bin
 #
@@ -72,36 +123,14 @@ test::execute::r_windows_custompath()
       custompath="${RVAL}"
    fi
 
-   # add addiction/lib and depenedency/lib to PATH for dlls
-   if [ ! -z "${DEPENDENCY_DIR}" ]
-   then
-      if [ -e "${DEPENDENCY_DIR}/bin" ]
-      then
-         r_colon_concat "${DEPENDENCY_DIR}/bin" "${custompath}"
-         custompath="${RVAL}"
-      fi
+   #
+   # add addiction/lib and dependency/lib to PATH for dlls
+   #
+   test::execute::r_add_bin_lib_to_custompath "${DEPENDENCY_DIR:-dependency}" "${OPTION_CMAKE_BUILD_TYPE:-Debug}" "${custompath}"
+   custompath="${RVAL}"
 
-      if [ -e "${DEPENDENCY_DIR}/lib" ]
-      then
-         r_colon_concat "${DEPENDENCY_DIR}/lib" "${custompath}"
-         custompath="${RVAL}"
-      fi
-   fi
-
-   if [ ! -z "${ADDICTION_DIR}" ]
-   then
-      if [ -e "${ADDICTION_DIR}/bin" ]
-      then
-         r_colon_concat "${ADDICTION_DIR}/bin" "${custompath}"
-         custompath="${RVAL}"
-      fi
-
-      if [ -e "${ADDICTION_DIR}/lib" ]
-      then
-         r_colon_concat "${ADDICTION_DIR}/lib" "${custompath}"
-         custompath="${RVAL}"
-      fi
-   fi
+   test::execute::r_add_bin_lib_to_custompath "${ADDICTION_DIR:-addiction}" "" "${custompath}"
+   custompath="${RVAL}"
 
    # kind of wrong, can we do this in MINGW ?
    if [ ! -z "${insertlibpath}" ]

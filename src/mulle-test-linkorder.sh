@@ -60,9 +60,9 @@ EOF
 }
 
 
-test::linkorder::_get_link_command()
+test::linkorder::do_get_link_command()
 {
-   log_entry "test::linkorder::_get_link_command" "$@"
+   log_entry "test::linkorder::do_get_link_command" "$@"
 
    exekutor mulle-sde \
                ${MULLE_TECHNICAL_FLAGS} \
@@ -90,7 +90,7 @@ test::linkorder::r_get_link_command()
 
    [ -z "${MULLE_TEST_VAR_DIR}" ] && _internal_fail "MULLE_TEST_VAR_DIR undefined"
 
-   linkorder_cache_filename="${MULLE_TEST_VAR_DIR}/linkorder"
+   linkorder_cache_filename="${MULLE_TEST_VAR_DIR}/cache/linkorder"
    args='--startup'
    if [ "${withstartup}" = 'NO' ]
    then
@@ -109,11 +109,11 @@ test::linkorder::r_get_link_command()
 
    log_verbose "Compiling linkorder"
 
-   command="`test::linkorder::_get_link_command ${args}`" || exit 1
+   command="`test::linkorder::do_get_link_command ${args}`" || exit 1
 
    if [ "${updatecache}" = 'YES' ]
    then
-      mkdir_if_missing "${MULLE_TEST_VAR_DIR}"
+      mkdir_if_missing "${MULLE_TEST_VAR_DIR}/cache"
       redirect_exekutor "${linkorder_cache_filename}" printf "%s\n" "${command}"
 
       log_verbose "Linkorder has been cached in \"${linkorder_cache_filename}\""
