@@ -292,6 +292,7 @@ test::main()
    local BUILD_OPTIONS="--clean"
    local RUN_FLAGS
    local RUN_OPTIONS
+   local OPTION_CONFIGURATION
 
    #
    # On MacOS with the default Foundation/objc we can't
@@ -344,6 +345,14 @@ test::main()
 
          -f|--force)
             MULLE_FLAG_MAGNUM_FORCE="BOTH"
+         ;;
+
+         --debug)
+            OPTION_CONFIGURATION="Debug"
+         ;;
+
+         --release)
+            OPTION_CONFIGURATION="Release"
          ;;
 
          -d|--dir-name)

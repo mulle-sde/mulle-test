@@ -68,7 +68,7 @@ test::linkorder::do_get_link_command()
                ${MULLE_TECHNICAL_FLAGS} \
                ${MULLE_SDE_FLAGS} \
             linkorder \
-               --configuration "${OPTION_TEST_CONFIGURATION:-Debug}" \
+               --configuration "${OPTION_CONFIGURATION:-Debug}" \
                --output-format ld \
                --output-no-final-lf \
                --preferred-library-style dynamic \

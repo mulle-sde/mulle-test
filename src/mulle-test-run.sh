@@ -901,7 +901,7 @@ test::run::main()
    local OPTION_RERUN_FAILED='NO'
    local OPTION_DEBUG_DYLD='NO'
    local OPTION_REUSE_EXE='NO'
-   local OPTION_TEST_CONFIGURATION="Debug"
+
 
    DEFAULT_MAKEFLAGS="-s"
 
@@ -912,6 +912,7 @@ test::run::main()
    # TODO: figure out what we have...
 
    TEST_CFLAGS="${DEBUG_CFLAGS}"
+   OPTION_CONFIGURATION="${OPTION_CONFIGURATION:-Debug}"
 
    while [ $# -ne 0 ]
    do
@@ -1000,12 +1001,12 @@ test::run::main()
 
          --release)
             TEST_CFLAGS="${RELEASE_CFLAGS}"
-            OPTION_TEST_CONFIGURATION="Release"
+            OPTION_CONFIGURATION="Release"
          ;;
 
          --debug)
             TEST_CFLAGS="${DEBUG_CFLAGS}"
-            OPTION_TEST_CONFIGURATION="Debug"
+            OPTION_CONFIGURATION="Debug"
          ;;
 
          --build-args)
