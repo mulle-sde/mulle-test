@@ -47,11 +47,11 @@ test::flagbuilder::r_include_cflags()
 
    local frameworkpath
 
-   frameworkpath="`mulle-craft searchpath --if-exists --configuration "${OPTION_TEST_CONFIGURATION:-Debug}" framework`"
+   frameworkpath="`mulle-craft searchpath --if-exists --configuration "${OPTION_CONFIGURATION:-Debug}" framework`"
 
    local headerpath
 
-   headerpath="`mulle-craft searchpath --if-exists --configuration "${OPTION_TEST_CONFIGURATION:-Debug}" header`"
+   headerpath="`mulle-craft searchpath --if-exists --configuration "${OPTION_CONFIGURATION:-Debug}" header`"
 
    local directory
 
