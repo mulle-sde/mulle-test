@@ -126,7 +126,7 @@ test::execute::r_windows_custompath()
    #
    # add addiction/lib and dependency/lib to PATH for dlls
    #
-   test::execute::r_add_bin_lib_to_custompath "${DEPENDENCY_DIR:-dependency}" "${OPTION_CMAKE_BUILD_TYPE:-Debug}" "${custompath}"
+   test::execute::r_add_bin_lib_to_custompath "${DEPENDENCY_DIR:-dependency}" "${OPTION_CONFIGURATION:-Debug}" "${custompath}"
    custompath="${RVAL}"
 
    test::execute::r_add_bin_lib_to_custompath "${ADDICTION_DIR:-addiction}" "" "${custompath}"

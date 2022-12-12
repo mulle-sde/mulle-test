@@ -80,11 +80,11 @@ test::craft::main()
          ;;
 
          --debug)
-            OPTION_CMAKE_BUILD_TYPE='Debug';
+            OPTION_CONFIGURATION='Debug';
          ;;
 
          --release)
-            OPTION_CMAKE_BUILD_TYPE='Release';
+            OPTION_CONFIGURATION='Release';
          ;;
 
          --run-args)
@@ -127,10 +127,12 @@ test::craft::main()
    # only craftorders
    sdeargs="${sdeargs} --no-clean"
 
-   if [ ! -z "${OPTION_CMAKE_BUILD_TYPE}" ]
+   configuration="${OPTION_CONFIGURATION:-Debug}"
+
+   if [ ! -z "${configuration}" ]
    then
-      craftargs="${craftargs} --configuration '${OPTION_CMAKE_BUILD_TYPE}'"
-#      makeargs="${makeargs} -DCMAKE_BUILD_TYPE='${OPTION_CMAKE_BUILD_TYPE}'"
+      craftargs="${craftargs} --configuration '${configuration}'"
+#      makeargs="${makeargs} -DCMAKE_BUILD_TYPE='${configuration}'"
    fi
 
    #  a bit too clang specific here or ?
