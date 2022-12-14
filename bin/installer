@@ -2,8 +2,7 @@
 #
 # (c) 2015, coded by Nat!, Mulle KybernetiK
 #
-
-if [ "${MULLE_NO_COLOR}" != "YES" ]
+if [ "${MULLE_NO_COLOR}" != 'YES' ]
 then
    # Escape sequence and resets
    C_RESET="\033[0m"
@@ -23,7 +22,7 @@ then
 fi
 
 
-fail()
+installer_fail()
 {
    printf "${C_BR_RED}Error: $*${C_RESET}\n" >&2
    exit 1
@@ -38,7 +37,7 @@ fail()
 # http://stackoverflow.com/questions/1055671/how-can-i-get-the-behavior-of-gnus-readlink-f-on-a-mac
 # ----
 #
-_prepend_path_if_relative()
+_installer_prepend_path_if_relative()
 {
    case "$2" in
       /*)
@@ -52,22 +51,20 @@ _prepend_path_if_relative()
 }
 
 
-resolve_symlinks()
+installer_resolve_symlinks()
 {
-   local dir_context path
-
-   path="`readlink "$1"`"
+   filepath="`readlink "$1"`"
    if [ $? -eq 0 ]
    then
       dir_context=`dirname -- "$1"`
-      resolve_symlinks "`_prepend_path_if_relative "$dir_context" "$path"`"
+      installer_resolve_symlinks "`_installer_prepend_path_if_relative "$dir_context" "$filepath"`"
    else
       printf "%s\n" "$1"
    fi
 }
 
 
-canonicalize_path()
+installer_canonicalize_path()
 {
    if [ -d "$1" ]
    then
@@ -75,9 +72,6 @@ canonicalize_path()
       cd "$1" 2>/dev/null && pwd -P
    )
    else
-      local dir
-      local file
-
       dir="`dirname "$1"`"
       file="`basename -- "$1"`"
       (
@@ -88,54 +82,68 @@ canonicalize_path()
 }
 
 
-realpath()
+installer_realpath()
 {
-   canonicalize_path "`resolve_symlinks "$1"`"
+   installer_canonicalize_path "`installer_resolve_symlinks "$1"`"
 }
 
 
-get_windows_path()
+installer_get_windows_path()
 {
-   local directory
-
    directory="$1"
    if [ -z "${directory}" ]
    then
       return 1
    fi
 
-   ( cd "$directory" ; pwd -PW ) || fail "failed to get pwd"
+   ( cd "$directory" ; pwd -PW ) || installer_fail "installer_failed to get pwd"
    return 0
 }
 
 
-get_sh_windows_path()
+installer_get_sh_windows_path()
 {
-   local directory
-
    directory="`which sh`"
    directory="`dirname -- "${directory}"`"
-   directory="`get_windows_path "${directory}"`"
+   directory="`installer_get_windows_path "${directory}"`"
 
    if [ -z "${directory}" ]
    then
-      fail "could not find sh.exe"
+      installer_fail "could not find sh.exe"
    fi
    printf "%s\n" "${directory}/sh.exe"
 }
 
 
-sed_mangle_escape_slashes()
+installer_sed_mangle_escape_slashes()
 {
    sed -e 's|/|\\\\|g'
 }
 
 
+r_installer_install_prefix()
+{
+   prefix="`installer_realpath "$1" 2> /dev/null`"
+   if [ ! -d "${prefix}" ]
+   then
+      installer_fail "\"${prefix}\" does not exist"
+   fi
+
+   directory="`dirname -- "$0"`"
+   cd "${directory}" || installer_fail "Could not cd to \"$directory\" ($PWD)"
+   cd .. || installer_fail "Could not cd to \"..\" ($PWD)"  # compensate for installer being in bin
+
+   bindir="${prefix}/bin"
+   if [ -d "${bindir}" ]
+   then
+      bindir="`installer_realpath "${bindir}"`"
+   fi
+   RVAL="`dirname -- "${bindir}"`"
+}
+
+
 main()
 {
-   local prefix
-   local mode
-
    prefix=${1:-"/usr/local"}
    [ $# -eq 0 ] || shift
    mode=${1:-755}
@@ -146,38 +154,16 @@ main()
       fail "usage: install.sh [prefix] [mode]"
    fi
 
-   prefix="`realpath "${prefix}" 2> /dev/null`"
-   if [ ! -d "${prefix}" ]
-   then
-      fail "\"${prefix}\" does not exist"
-   fi
-
-   local bin
-   local libexec
-
-   local directory
-
-   directory="`dirname -- "$0"`"
-   cd "${directory}" || installer_fail "Could not cd to \"$directory\" ($PWD)"
-   cd .. || installer_fail "Could not cd to \"..\" ($PWD)"  # compensate for installer being in bin
-
-   if [ ! -x mulle-test ]
-   then
-      chmod 755 ./mulle-test
-   fi
+   r_installer_install_prefix "${prefix}"
+   prefix="${RVAL}"
 
    bin="${prefix}/bin"
+   share="${prefix}/share/mulle-test"
    libexec="${prefix}/libexec/mulle-test"
 
-   if [ ! -d "${bin}" ]
-   then
-      mkdir -p "${bin}" || fail "could not create ${bin}"
-   fi
-
-   if [ ! -d "${libexec}" ]
-   then
-      mkdir -p "${libexec}" || fail "could not create ${libexec}"
-   fi
+   mkdir -p "${bin}" || installer_fail "could not create ${bin}"
+   mkdir -p "${share}" || installer_fail "could not create ${share}"
+   mkdir -p "${libexec}" || installer_fail "could not create ${libexec}"
 
    install -m "${mode}" "mulle-test" "${bin}/mulle-test" || exit 1
    printf "install: ${C_MAGENTA}${C_BOLD}%s${C_RESET}\n" "${bin}/mulle-test" >&2
@@ -188,9 +174,6 @@ main()
       install ${VERBOSE} -m "${mode}" "${i}" "${libexec}" || exit 1
    done
 
-   local share
-
-   share="${prefix}/share/mulle-sde"
    EXTENSION_DIR="${share}/extensions"
    mkdir -p "${EXTENSION_DIR}" || exit 1
    cp -Ra ${VERBOSE} "src/mulle-sde" "${EXTENSION_DIR}/" || exit 1
