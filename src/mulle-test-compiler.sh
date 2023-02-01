@@ -126,7 +126,7 @@ test::compiler::r_c_commandline()
    fi
 
    case "${MULLE_UNAME}" in 
-      mingw|windows)
+      'mingw'|'windows')
          if [ "${MULLE_FLAG_LOG_DEBUG}" = 'YES' ]
          then
             linkcommand="-link -verbose ${linkcommand}"
@@ -139,8 +139,8 @@ test::compiler::r_c_commandline()
    test::flagbuilder::r_cflags "${cflags}" "${srcfile}"
    cflags="${RVAL}"
 
-   case "${MULLE_UNAME}" in
-      windows)
+   case "${CC}" in
+      *-cl.exe)
          r_concat "${cflags}" "/DMULLE_TEST=1"
          cflags="${RVAL}"
 
@@ -278,14 +278,15 @@ test::compiler::run_gcc()
    local srcfile="$1"
    local a_out="$2"
    local errput="$3"
+   local cflags="$4"
 
-   shift 3
+   shift 4
 
    local cmdline
-   local cflags
 
    r_concat "${TEST_CFLAGS}" "${CPPFLAGS}"
    r_concat "${RVAL}" "${CFLAGS}"
+   r_concat "${RVAL}" "${cflags}"
    cflags="${RVAL}"
 
    test::compiler::r_c_commandline "${cflags}" "${srcfile}" "${a_out}" "$@"

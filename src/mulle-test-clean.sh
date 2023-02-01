@@ -57,7 +57,7 @@ EOF
 test::clean::depth_find_pwd()
 {
    case "${MULLE_UNAME}" in
-      darwin|freebsd)
+      darwin|*bsd|dragonfly)
          exekutor find -d . "$@"
       ;;
 

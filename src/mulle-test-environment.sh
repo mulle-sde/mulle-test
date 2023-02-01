@@ -42,11 +42,13 @@ test::environment::setup_tooling()
    local platform="$1"
 
    case "${platform}" in
-      mingw*)
+      mingw)
          include "platform::mingw"
 
-         CC="`platform::mingw::mangle_compiler_exe "${CC}" "CC"`"
-         CXX="`platform::mingw::mangle_compiler_exe "${CXX}" "CXX"`"
+         platform::mingw::r_mangle_compiler_exe "${CC}" "CC"
+         CC="${RVAL}"
+         platform::mingw::r_mangle_compiler_exe "${CXX}" "CXX"
+         CXX="${RVAL}"
          CMAKE="${CMAKE:-cmake}"
          MAKE="${MAKE:-nmake}"
 
@@ -95,6 +97,22 @@ test::environment::setup_tooling()
          fail "platform not set"
       ;;
 
+      *bsd|dragonfly)
+         CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
+         CMAKE="${CMAKE:-cmake}"
+         MAKE="${MAKE:-make}"
+         CC="${CC:-clang}"
+         CXX="${CXX:-clang++}"
+      ;;
+
+      sunos)
+         CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
+         CMAKE="${CMAKE:-cmake}"
+         MAKE="${MAKE:-make}"
+         CC="${CC:-gcc}"
+         CXX="${CXX:-g++}"
+      ;;
+
       *)
          CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
          CMAKE="${CMAKE:-cmake}"
@@ -130,7 +148,7 @@ test::environment::setup_compiler()
          DEBUG_GCC_CFLAGS="-O0 -g"
 
          case "${platform}" in
-            mingw*)
+            'mingw')
                RELEASE_CL_CFLAGS="-O2 -MD -wd4068 -DNDEBUG -DNS_BLOCK_ASSERTIONS" #-/W /O0"
                # http://stackoverflow.com/questions/3007312/resolving-lnk4098-defaultlib-msvcrt-conflicts-with
                # we link vs. cmake generated stuff, that is usually a DLL or will be wrapped into a DLL
@@ -138,7 +156,7 @@ test::environment::setup_compiler()
                DEBUG_CL_CFLAGS="-Zi -DEBUG -MDd -Od -wd4068" #-/W /O0"
             ;;
 
-            windows)
+            'windows')
                RELEASE_CL_CFLAGS="/O2 /MD /wd4068 /DNDEBUG /DNS_BLOCK_ASSERTIONS" #-/W /O0"
                # http://stackoverflow.com/questions/3007312/resolving-lnk4098-defaultlib-msvcrt-conflicts-with
                # we link vs. cmake generated stuff, that is usually a DLL or will be wrapped into a DLL
@@ -148,12 +166,12 @@ test::environment::setup_compiler()
          esac
 
          case "${dialect}" in
-            c)
+            'c')
                PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-c}"
                STANDALONE_SUFFIX="-standalone"
             ;;
 
-            objc)
+            'objc')
                case "${objc_dialect}" in
                   [Aa]pple|[Gg][Nn][Uu][Ss]tep)
                      PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-m}"
@@ -164,7 +182,7 @@ test::environment::setup_compiler()
                      STANDALONE_SUFFIX="-standalone"
 
                      case "${platform}" in
-                        mingw*)
+                        mingw)
                            CC="mulle-clang-cl"
                            CXX="mulle-clang-cl"
 
@@ -216,7 +234,7 @@ test::environment::setup_compiler()
          esac
       ;;
 
-      sh)
+      'sh')
          PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-sh}"
          CC=true
          CXX=true
@@ -229,18 +247,18 @@ test::environment::setup_compiler()
    esac
 
    case "${platform}" in
-      mingw*)
-         include "platform::mingw"
+      'mingw') # assume msys is more gcc oriented
+          include "platform::mingw"
 
-         CC="`platform::mingw::mangle_compiler_exe "${CC}" "CC"`"
-         CXX="`platform::mingw::mangle_compiler_exe "${CXX}" "CXX"`"
-
+#         CC="`platform::mingw::mangle_compiler_exe "${CC}" "CC"`"
+#         CXX="`platform::mingw::mangle_compiler_exe "${CXX}" "CXX"`"
+#
          case "${MAKE}" in
-            nmake)
+            'nmake')
                CMAKE_GENERATOR="NMake Makefiles"
             ;;
 
-            make|ming32-make|"")
+            'make'|'ming32-make'|"")
                CC="${CC:-cl}"
                CXX="${CXX:-cl}"
             ;;
@@ -251,19 +269,19 @@ test::environment::setup_compiler()
          esac
       ;;
 
-      windows)
-         CC="${CC:-cl.exe}"
-         CXX="${CXX:-cl.exe}"
-      ;;
-
-      "")
-         fail "platform not set"
-      ;;
-
-      *)
-         CC="${CC:-cc}"
-         CXX="${CXX:-c++}"
-      ;;
+#      windows)
+#         CC="${CC:-cl.exe}"
+#         CXX="${CXX:-cl.exe}"
+#      ;;
+#
+#      "")
+#         fail "platform not set"
+#      ;;
+#
+#      *)
+#         CC="${CC:-cc}"
+#         CXX="${CXX:-c++}"
+#      ;;
    esac
 
 
@@ -317,15 +335,15 @@ test::environment::setup_platform()
    STATICLIB_EXTENSION="${_suffix_staticlib}"
 
    case "${platform}" in
-      windows)
+      'windows')
          CRLFCAT="dos2unix"
       ;;
 
-      mingw)
+      'mingw'|'msys')
          CRLFCAT="dos2unix"
       ;;
 
-      darwin)
+      'darwin')
          case "${CC}" in
             mulle-cl*)
                # do nuthing
@@ -338,7 +356,7 @@ test::environment::setup_platform()
          CRLFCAT="cat"
       ;;
 
-      windows|linux)
+      'windows'|'linux')
 #         LDFLAGS="${LDFLAGS} -ldl -lpthread"  # weak and lame
          CRLFCAT="cat"
       ;;
@@ -443,10 +461,10 @@ test::environment::setup_project()
    #
    # MULLE_TEST_OBJC_DIALECT to be set in environment
    #
-   test::environment::setup_tooling "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
-   test::environment::setup_compiler "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" "${MULLE_TEST_OBJC_DIALECT}"
-   test::environment::setup_platform "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
-   test::environment::setup_debugger "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
+   test::environment::setup_tooling     "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+   test::environment::setup_compiler    "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" "${MULLE_TEST_OBJC_DIALECT}"
+   test::environment::setup_platform    "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
+   test::environment::setup_debugger    "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
    test::environment::setup_environment "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
 
    log_setting "CC                  : ${CC}"

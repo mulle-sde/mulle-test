@@ -282,7 +282,7 @@ test::cmake::fail_test()
 
    local is_exe='NO'
 
-   if egrep -s -q '^[Aa][Dd][Dd]_[Ee][Xx][Ee][Cc][Uu][Tt][Aa][Bb][Ll][Ee]\(' "CMakeLists.txt"
+   if grep -E -s -q '^[Aa][Dd][Dd]_[Ee][Xx][Ee][Cc][Uu][Tt][Aa][Bb][Ll][Ee]\(' "CMakeLists.txt"
    then
       is_exe='YES'
    fi
@@ -336,7 +336,7 @@ test::cmake::run()
 
    local is_exe='NO'
 
-   if egrep -s -q '^[Aa][Dd][Dd]_[Ee][Xx][Ee][Cc][Uu][Tt][Aa][Bb][Ll][Ee]\(' "CMakeLists.txt"
+   if grep -E -s -q '^[Aa][Dd][Dd]_[Ee][Xx][Ee][Cc][Uu][Tt][Aa][Bb][Ll][Ee]\(' "CMakeLists.txt"
    then
       is_exe='YES'
    fi

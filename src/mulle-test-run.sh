@@ -158,6 +158,7 @@ test::run::common()
    local a_out="$1"; shift
    local a_out_ext="$1"; shift
    local name="$1"; shift
+   local flags="$1" ; shift
    local ext="$1"; shift
    local root="$1"; shift
 
@@ -180,7 +181,7 @@ test::run::common()
    pretty_source="${RVAL}" || exit 1
 
    local rval
-   local flags
+   local exeflags
    local output
 
    if [ "${OPTION_REUSE_EXE}" = 'YES' -a -x "${a_out_ext}" ]
@@ -193,7 +194,7 @@ test::run::common()
    then
       log_fluff "Build test ${pretty_source}"
 
-      "${TEST_BUILDER}" "${srcfile}" "${a_out_ext}" "${cc_errput}" "$@"
+      "${TEST_BUILDER}" "${srcfile}" "${a_out_ext}" "${cc_errput}" "${flags}" "$@"
       rval="$?"
 
       test::compiler::check_output "${srcfile}" "${cc_errput}" "${rval}" "${pretty_source}"
@@ -211,7 +212,7 @@ test::run::common()
          return $rval
       fi
    else
-      flags="--keep-exe"
+      exeflags="--keep-exe"
    fi
 
    log_verbose "Run test ${pretty_source}"
@@ -219,9 +220,9 @@ test::run::common()
    local cmd
 
    cmd="test::execute::main"
-   if [ ! -z "${flags}" ]
+   if [ ! -z "${exeflags}" ]
    then
-       cmd="${cmd} ${flags}"
+       cmd="${cmd} ${exeflags}"
    fi
    if [ ! -z "${args}" ]
    then
@@ -263,21 +264,25 @@ test::run::cmake()
 
    local name="$1"; shift
 
-   local a_out
    local purename
 
    # remove leading 20_ or 20-
    purename="${name#"${name%%[!0-9_-]*}"}"
+
+   local a_out
+
    a_out="${PWD}/${purename}"
 
-   if test::run::r_get_environmentfile "${purename}" "cmake-output" "cmake-output"
+   local cmakeflags
+
+   if test::run::r_get_environmentfile "${purename}" "cmakeflags" "cmakeflags"
    then
-      a_out="`egrep -v '^#' "${RVAL}"`"
+      cmakeflags="`grep -E -v '^#' "${RVAL}"`"
    fi
 
    TEST_BUILDER="test::cmake::run"
    FAIL_TEST="test::cmake::fail_test"
-   test::run::common "" "${a_out}" "${a_out}${EXE_EXTENSION}" "${purename}" "$@"
+   test::run::common "" "${a_out}" "${a_out}${EXE_EXTENSION}" "${name}" "${cmakeflags}" "$@"
 }
 
 
@@ -285,15 +290,20 @@ test::run::sh()
 {
    log_entry "test::run::sh" "$@"
 
-   local name="$1"
-   local ext="$2"
+   local name="$1"; shift
+   local ext="$1"
 
    local a_out
 
    a_out="${PWD}/${name}"
 
+   # local purename
+   #
+   # remove leading 20_ or 20-
+   # purename="${name#"${name%%[!0-9_-]*}"}"
+
    TEST_BUILDER=""
-   test::run::common "" "${a_out}" "" "$@"
+   test::run::common "" "${a_out}" "" "${name}" "" "$@"
 }
 
 
@@ -302,16 +312,34 @@ test::run::c()
 {
    log_entry "test::run::c" "$@"
 
-   local name="$1"
-   local ext="$2"
+   local name="$1"; shift
+   local ext="$1"
+
+   local purename
+
+   # remove leading 20_ or 20-
+   purename="${name#"${name%%[!0-9_-]*}"}"
 
    local a_out
 
    a_out="${PWD}/${name}"
 
+   # cmake-output: hein ?
+   if test::run::r_get_environmentfile "${purename}" "cmake-output" "cmake-output"
+   then
+      a_out="`grep -E -v '^#' "${RVAL}"`"
+   fi
+
+   local cflags
+
+   if test::run::r_get_environmentfile "${purename}" "cflags" "cflags"
+   then
+      cflags="`grep -E -v '^#' "${RVAL}"`"
+   fi
+
    TEST_BUILDER="test::compiler::run"
    FAIL_TEST="test::compiler::fail_c"
-   test::run::common "" "${a_out}" "${a_out}${EXE_EXTENSION}" "$@"
+   test::run::common "" "${a_out}" "${a_out}${EXE_EXTENSION}" "${name}" "${cflags}" "$@"
 }
 
 
@@ -319,15 +347,20 @@ test::run::exe()
 {
    log_entry "test::run::exe" "$@"
 
-   local name="$1"
-   local ext="$2"
+   local name="$1" ; shift
+   local ext="$1"
+
+   local purename
+
+   # remove leading 20_ or 20-
+   purename="${name#"${name%%[!0-9_-]*}"}"
 
    local a_out
    local a_out_ext
 
    a_out="${DEPENDENCY_DIR}/bin/${MULLE_TEST_EXECUTABLE}"
    case "${MULLE_UNAME}" in
-      mingw|windows)
+      'mingw'|'msys'|'windows')
          a_out="${a_out}${EXE_EXTENSION}"
       ;;
 
@@ -339,7 +372,7 @@ test::run::exe()
    TEST_BUILDER=""
    FAIL_TEST=""
 
-   test::run::common "" "${a_out}" "${a_out_ext}" "$@"
+   test::run::common "" "${a_out}" "${a_out_ext}" "${name}" "" "$@"
 }
 
 
@@ -349,15 +382,21 @@ test::run::args_exe()
 
    local args="$1"; shift
 
-   local name="$1"
-   local ext="$2"
+   local name="$1" ; shift
+   local ext="$1"
+
+   local purename
+
+   # remove leading 20_ or 20-
+   purename="${name#"${name%%[!0-9_-]*}"}"
+
 
    local a_out
    local a_out_ext
 
    a_out="${DEPENDENCY_DIR}/bin/${MULLE_TEST_EXECUTABLE}"
    case "${MULLE_UNAME}" in
-      mingw|windows)
+      'mingw'|'msys'|'windows')
          a_out="${a_out}${EXE_EXTENSION}"
       ;;
 
@@ -369,7 +408,7 @@ test::run::args_exe()
    TEST_BUILDER=""
    FAIL_TEST=""
 
-   test::run::common "${args}" "${a_out}" "${a_out_ext}" "$@"
+   test::run::common "${args}" "${a_out}" "${a_out_ext}" "${name}" "" "$@"
 }
 
 
@@ -452,7 +491,7 @@ test::run::r_get_environmentfile()
                         then
                            log_debug "\"${RVAL}\" not present"
                            RVAL="${fallback}"
-                           if [ ! -f "${RVAL}" ]
+                           if [ ! -z "${RVAL}" ] || [ ! -f "${RVAL}" ]
                            then
                               log_debug "\"${RVAL}\" not present"
                               RVAL=
@@ -487,7 +526,6 @@ test::run::_run()
    [ -z "${name}" ] && _internal_fail "name must not be empty"
    [ -z "${ext}" ]  && _internal_fail "ext must not be ? empty"
    [ -z "${root}" ] && _internal_fail "root must not be empty"
-
 
    if [ ! -z "${SANITIZER}" ] && [ -e "${name}.no-sanitizers" ]
    then
@@ -536,6 +574,7 @@ test::run::_run()
          then
              fail "Don't know how to handle extension \"${ext}\""
          fi
+         # will call test::run:c for C
          "${functionname}" "${name}" "${ext}" "${root}" "$@"
       ;;
    esac
@@ -551,7 +590,7 @@ test::run::has_run_successfully()
 
    if [ ! -z "${MULLE_TEST_SUCCESS_FILE}" ]
    then
-      rexekutor fgrep -s -q -x "${directory}/${name}" "${MULLE_TEST_SUCCESS_FILE}"
+      rexekutor grep -F -s -q -x "${directory}/${name}" "${MULLE_TEST_SUCCESS_FILE}"
       return $?
    fi
    return 1
@@ -720,10 +759,10 @@ test::run::_scan_directory()
          fi
       else
          if ! test::run::run_matching_extensions_in_directory "${PWD}" \
-                                                        "${i}" \
-                                                        "${extensions}" \
-                                                        "${root}" \
-                                                        "$@"
+                                                              "${i}" \
+                                                              "${extensions}" \
+                                                              "${root}" \
+                                                              "$@"
          then
             return 1
          fi
@@ -842,7 +881,7 @@ test::run::named_test()
 
    # not so good on windows
    case "${MULLE_UNAME}" in
-      mingw*|windows)
+      'mingw'|'windows')
       ;;
 
       *)
@@ -1094,7 +1133,7 @@ test::run::main()
       # cl.exe likes to clobber a central file, when multiple
       # tests are in one directory 
       case "${MULLE_UNAME}" in 
-         mingw|windows)
+         'mingw'|'msys'|'windows')
             MULLE_TEST_SERIAL='YES'
          ;;
 

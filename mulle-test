@@ -308,7 +308,7 @@ test::main()
 
             # mulle_atinit does not work on wimdows so we
             # can't reliably inject the testallocator
-            mingw|windows)
+            'mingw'|'msys'|'windows')
                SANITIZER=""
             ;;
 

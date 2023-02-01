@@ -58,7 +58,7 @@ test::regex::search()
          continue
       fi
 
-      if ! exekutor egrep -q -s "${regexp}" "${errput}"
+      if ! exekutor grep -E -q -s "${regexp}" "${errput}"
       then
          if [ $fail -eq 0 ]
          then

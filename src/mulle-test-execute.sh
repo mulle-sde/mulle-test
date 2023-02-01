@@ -55,11 +55,15 @@ EOF
 }
 
 
-test::execute::r_add_bin_lib_to_custompath()
+test::execute::r_add_name_to_custompath()
 {
+   log_entry "test::execute::r_add_name_to_custompath" "$@"
+
+   local name="$1"; shift
+
    local directory="$1"
    local configuration="$2"
-   local custompath="$3"
+   local custompath="${3:-}"
 
    if [ ! -e "${directory}" ]
    then
@@ -67,7 +71,7 @@ test::execute::r_add_bin_lib_to_custompath()
       return
    fi
 
-   r_filepath_concat "${directory}" "${configuration}" "bin"
+   r_filepath_concat "${directory}" "${configuration}" "${name}"
    if [ -e "${RVAL}" ]
    then
       r_colon_concat "${RVAL}" "${custompath}"
@@ -76,34 +80,22 @@ test::execute::r_add_bin_lib_to_custompath()
 
    if [ ! -z "${configuration}" ]
    then
-      r_filepath_concat "${directory}" "bin"
+      r_filepath_concat "${directory}" "${name}"
       if [ -e "${RVAL}" ]
       then
          r_colon_concat "${RVAL}" "${custompath}"
          custompath="${RVAL}"
       fi
    fi
-
-   r_filepath_concat "${directory}" "${configuration}" "lib"
-   if [ -e "${RVAL}" ]
-   then
-      r_colon_concat "${RVAL}" "${custompath}"
-      custompath="${RVAL}"
-   fi
-
-   if [ ! -z "${configuration}" ]
-   then
-      r_filepath_concat "${directory}" "lib"
-      if [ -e "${RVAL}" ]
-      then
-         r_colon_concat "${RVAL}" "${custompath}"
-         custompath="${RVAL}"
-      fi
-   fi
-
-
 
    RVAL="${custompath}"
+}
+
+
+test::execute::r_add_bin_lib_to_custompath()
+{
+   test::execute::r_add_name_to_custompath bin "$1" "$2" "$3"
+   test::execute::r_add_name_to_custompath lib "$1" "$2" "${RVAL}"
 }
 
 #
@@ -111,6 +103,8 @@ test::execute::r_add_bin_lib_to_custompath()
 #
 test::execute::r_windows_custompath()
 {
+   log_entry "test::execute::r_windows_custompath" "$@"
+
    local insertpath="$1"
 
    local custompath
@@ -126,10 +120,14 @@ test::execute::r_windows_custompath()
    #
    # add addiction/lib and dependency/lib to PATH for dlls
    #
-   test::execute::r_add_bin_lib_to_custompath "${DEPENDENCY_DIR:-dependency}" "${OPTION_CONFIGURATION:-Debug}" "${custompath}"
+   test::execute::r_add_bin_lib_to_custompath "${DEPENDENCY_DIR:-dependency}" \
+                                              "${OPTION_CONFIGURATION:-Debug}" \
+                                              "${custompath}"
    custompath="${RVAL}"
 
-   test::execute::r_add_bin_lib_to_custompath "${ADDICTION_DIR:-addiction}" "" "${custompath}"
+   test::execute::r_add_bin_lib_to_custompath "${ADDICTION_DIR:-addiction}" \
+                                              "" \
+                                              "${custompath}"
    custompath="${RVAL}"
 
    # kind of wrong, can we do this in MINGW ?
@@ -166,6 +164,18 @@ test::execute::a_out()
    fi
 
    local insertlibpath
+   local libdir
+   local frameworksdir
+
+   test::execute::r_add_name_to_custompath "lib" \
+                                            "${DEPENDENCY_DIR}" \
+                                            "${OPTION_CONFIGURATION:-Debug}"
+   libdir="${RVAL}"
+
+   test::execute::r_add_name_to_custompath "Frameworks" \
+                                            "${DEPENDENCY_DIR}" \
+                                            "${OPTION_CONFIGURATION:-Debug}"
+   frameworksdir="${RVAL}"
 
    ###
    #
@@ -180,7 +190,7 @@ test::execute::a_out()
             ;;
 
             *)
-               insertlibpath="${DEPENDENCY_DIR}/lib/libgmalloc${SHAREDLIB_EXTENSION}"
+               insertlibpath="${libdir}/libgmalloc${SHAREDLIB_EXTENSION}"
             ;;
          esac
       ;;
@@ -190,7 +200,7 @@ test::execute::a_out()
       *:testallocator:*)
          local filepath
 
-         filepath="${DEPENDENCY_DIR}/lib/${SHAREDLIB_PREFIX}mulle-testallocator${SHAREDLIB_EXTENSION}"
+         filepath="${libdir}/${SHAREDLIB_PREFIX}mulle-testallocator${SHAREDLIB_EXTENSION}"
          if [ -f "${filepath}" ]
          then
             r_colon_concat "${insertlibpath}" "${filepath}"
@@ -215,7 +225,7 @@ test::execute::a_out()
    fi
 
    case "${MULLE_UNAME}" in
-      darwin)
+      'darwin')
          r_colon_concat "${insertlibpath}" "${DYLD_INSERT_LIBRARIES}"
          if [ ! -z "${RVAL}" ]
          then
@@ -228,14 +238,14 @@ test::execute::a_out()
             fi
          fi
 
-         r_concat "${environment}" "DYLD_FRAMEWORK_PATH='${DEPENDENCY_DIR}/Frameworks'"
+         r_concat "${environment}" "DYLD_FRAMEWORK_PATH='${frameworksdir}'"
          environment="${RVAL}"
 
-         r_concat "${environment}" "DYLD_LIBRARY_PATH='${DEPENDENCY_DIR}/lib'"
+         r_concat "${environment}" "DYLD_LIBRARY_PATH='${libdir}'"
          environment="${RVAL}"
       ;;
 
-      mingw*)
+      'mingw'|'msys')
          local custompath
 
          test::execute::r_windows_custompath "${insertpath}"
@@ -245,7 +255,14 @@ test::execute::a_out()
          environment="${RVAL}"
       ;;
 
-      windows)
+      'sunos')
+         local custompath
+
+         r_concat "${environment}" "LD_LIBRARY_PATH='${libdir}'"
+         environment="${RVAL}"
+      ;;
+
+      'windows')
          local custompath
          local wslenv 
 
@@ -365,6 +382,158 @@ test::execute::other()
 }
 
 
+#
+# translate flags for platform if possible
+#
+mulle_diff()
+{
+   local OPTION_TERSE
+   local OPTION_WIDTH=0
+   local OPTION_TWO_COLUMNS
+   local OPTION_IGNORE_BLANK_LINES
+   local OPTION_IGNORE_WHITESPACE
+
+   while [ $# -ne 0 ]
+   do
+      case "$1" in
+         -q)
+            OPTION_TERSE='YES'
+         ;;
+
+         -w)
+            OPTION_IGNORE_WHITESPACE="$1"
+         ;;
+
+         -W)
+            shift
+            OPTION_WIDTH="$1"
+         ;;
+
+         -y)
+            OPTION_TWO_COLUMNS='YES'
+         ;;
+
+         -B)
+            OPTION_IGNORE_BLANK_LINES='YES'
+         ;;
+
+         -)
+            break
+         ;;
+
+         -*)
+            _internal_fail "unsupported diff flag $1"
+         ;;
+
+         *)
+            break
+         ;;
+      esac
+
+      shift
+   done
+
+   local file_a
+   local file_b
+
+   [ $# -eq  2 ] || _internal_fail "need two arguments"
+
+   file_a="$1"
+   file_b="$2"
+
+   DIFF="${DIFF:-`command -v diff`}"
+   [ -z "${DIFF}" ] && fail "There is no diff command installed on this system"
+
+   set -- "${DIFF}"
+
+   if [ "${OPTION_IGNORE_WHITESPACE}" = 'YES' ]
+   then
+      set -- "$@" -w
+   fi
+
+   if [ "${OPTION_TWO_COLUMNS}" = 'YES' ]
+   then
+      case "${MULLE_UNAME}" in
+         sunos)
+            # just no way
+         ;;
+
+         *)
+            set -- "$@" -y
+         ;;
+      esac
+   fi
+
+   if [ "${OPTION_WIDTH}" -gt 0 ]
+   then
+      case "${MULLE_UNAME}" in
+         sunos)
+            # just no way
+         ;;
+
+         *)
+            set -- "$@" -W "${OPTION_WIDTH}"
+         ;;
+      esac
+   fi
+
+   local tmp_file_a
+   local tmp_file_b
+
+   if [ "${OPTION_IGNORE_BLANK_LINES}" = 'YES' ]
+   then
+      case "${MULLE_UNAME}" in
+         sunos)
+            r_make_tmp_file
+            tmp_file_a="${RVAL}"
+            if [ "${file_a}" = "-" ]
+            then
+               sed '/^[:white:]*$/d' > "${tmp_file_a}"
+            else
+               sed '/^[:white:]*$/d' < "${file_a}" > "${tmp_file_a}"
+            fi
+
+            r_make_tmp_file
+            tmp_file_b="${RVAL}"
+            if [ "${file_b}" = "-" ]
+            then
+               sed '/^[:white:]*$/d' > "${tmp_file_b}"
+            else
+               sed '/^[:white:]*$/d' < "${file_b}" > "${tmp_file_b}"
+            fi
+         ;;
+
+         *)
+            set -- "$@" "-B"
+         ;;
+      esac
+   fi
+
+   local rval
+
+   set -- "$@" "${file_a}" "${file_b}"
+   if [ "${OPTION_TERSE}" = 'YES' ]
+   then
+      rexekutor "$@" > /dev/null
+      rval=$?
+      if [ $rval -ne 0 ]
+      then
+         echo "Files differ"
+      fi
+   else
+      rexekutor "$@"
+      rval=$?
+   fi
+
+   [ ! -z "${tmp_file_a}" ] && exekutor rm "${tmp_file_a}"
+   [ ! -z "${tmp_file_b}" ] && exekutor rm "${tmp_file_b}"
+
+   log_debug "rval: ${rval}"
+
+   return $rval
+}
+
+
 test::execute::_check_output()
 {
    log_entry "test::execute::_check_output" "$@"
@@ -442,22 +611,22 @@ test::execute::_check_output()
    then
       local result
 
-      result=`rexekutor "${CAT}" "${output}" | exekutor "${DIFF}" -q "${stdout}" -`
+      result=`rexekutor "${CAT}" "${output}" | mulle_diff -q "${stdout}" -`
       if [ "${result}" != "" ]
       then
-         white=`rexekutor "${CAT}" "${output}" | exekutor "${DIFF}" -q -w -B "${stdout}" -`
+         white=`rexekutor "${CAT}" "${output}" | mulle_diff -q -w -B "${stdout}" -`
          if [ "$white" != "" ]
          then
             log_error "FAILED: \"${pretty_source}\" produced unexpected output"
             log_info  "DIFF: (${pretty_output} vs. ${pretty_stdout})"
-            rexekutor "${CAT}"  "${output}" | exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} - "${stdout}" >&2
+            rexekutor "${CAT}"  "${output}" | mulle_diff -y -W ${DIFF_COLUMN_WIDTH:-160} - "${stdout}" >&2
             return ${RVAL_OUTPUT_DIFFERENCES}
          else
             log_warning "WARNING: \"${pretty_source}\" produced different whitespace output"
             log_info  "DIFF: (${pretty_output#{MULLE_USER_PWD}/} vs. ${pretty_stdout#{MULLE_USER_PWD}/})"
             redirect_exekutor "${output}.actual.hex" od -a "${output}"
             redirect_exekutor "${output}.expect.hex" od -a "${stdout}"
-            rexekutor cat "${output}.actual.hex" |  exekutor "${DIFF}" -y -W ${DIFF_COLUMN_WIDTH:-160} - "${output}.expect.hex"  >&2
+            rexekutor cat "${output}.actual.hex" | mulle_diff -y -W ${DIFF_COLUMN_WIDTH:-160} - "${output}.expect.hex"  >&2
          fi
       else
          log_fluff "No differences in stdout found"
@@ -476,12 +645,12 @@ test::execute::_check_output()
 
    if [ "${stderr}" != "-" ]
    then
-      result=`exekutor "${DIFF}" -w "${stderr}" "${errput}"`
+      result=`mulle_diff -w "${stderr}" "${errput}"`
       if [ "${result}" != "" ]
       then
          log_error "FAILED: \"${pretty_source}\" produced unexpected diagnostics (${pretty_errput})" >&2
          exekutor echo "" >&2
-         exekutor "${DIFF}" "${pretty_stderr}" "${pretty_errput}" >&2
+         exekutor mulle_diff "${pretty_stderr}" "${pretty_errput}" >&2
          return ${RVAL_OUTPUT_DIFFERENCES}
       else
          log_fluff "No differences in stderr found"
@@ -706,6 +875,7 @@ test::execute::main()
    local args
    local diff
    local cat
+   local cflags
    local pretty_source
 
    if [ -z "${OPTION_REMOVE_EXE}" ]

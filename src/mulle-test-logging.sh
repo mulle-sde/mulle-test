@@ -180,16 +180,11 @@ test::logging::redirect_eval_exekutor()
 
 test::logging::full_redirekt_eval_exekutor()
 {
-   local stdin
-   local stdout
-   local stderr
- 
-   stdin="$1"
-   shift
-   stdout="$1"
-   shift
-   stderr="$1"
-   shift
+   local stdin="$1"
+   local stdout="$2"
+   local stderr="$3"
+
+   shift 3
 
    if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = "YES" -o "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
    then
