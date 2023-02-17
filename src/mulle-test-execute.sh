@@ -29,7 +29,7 @@
 #   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #   POSSIBILITY OF SUCH DAMAGE.
 #
-MULLE_TEST_EXECUTE_SH="included"
+MULLE_TEST_EXECUTE_SH='included'
 
 
 test::execute::usage()
@@ -157,7 +157,7 @@ test::execute::a_out()
 
    local environment
 
-   if [ "${MULLE_FLAG_LOG_ENVIRONMENT}" = "YES" ]
+   if [ "${MULLE_FLAG_LOG_ENVIRONMENT}" = 'YES' ]
    then
       log_fluff "Environment:"
       env | sort >&2
@@ -364,7 +364,7 @@ test::execute::other()
 
    local environment
 
-   if [ "${MULLE_FLAG_LOG_ENVIRONMENT}" = "YES" ]
+   if [ "${MULLE_FLAG_LOG_ENVIRONMENT}" = 'YES' ]
    then
       log_fluff "Environment:"
       env | sort >&2
@@ -758,7 +758,7 @@ test::execute::run()
    log_debug "Check test \"${name}\" output (rval: $rval)"
 
    test::logging::redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
-   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
+   if [ "${MULLE_FLAG_LOG_SETTINGS}" = 'YES' ]
    then
       log_setting "-----------------------"
       log_setting "${output}:"
@@ -771,7 +771,7 @@ test::execute::run()
    remove_file_if_present "${output}.tmp"
    remove_file_if_present "${errput}.tmp"
 
-   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
+   if [ "${MULLE_FLAG_LOG_SETTINGS}" = 'YES' ]
    then
       log_setting "-----------------------"
       log_setting "${errput}:"

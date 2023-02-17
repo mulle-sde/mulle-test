@@ -31,3 +31,6 @@ tmp.*/
 
 EVAL_PRINTF.md
 .mulle-make-build-dir
+cola/wilted/
+mulle-markdown-preview-*.html
+build-*/

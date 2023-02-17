@@ -29,105 +29,7 @@
 #   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #   POSSIBILITY OF SUCH DAMAGE.
 #
-MULLE_TEST_ENVIRONMENT_SH="included"
-
-
-#
-# thi sets up make/cmake and other tools
-#
-test::environment::setup_tooling()
-{
-   log_entry "test::environment::setup_tooling" "$@"
-
-   local platform="$1"
-
-   case "${platform}" in
-      mingw)
-         include "platform::mingw"
-
-         platform::mingw::r_mangle_compiler_exe "${CC}" "CC"
-         CC="${RVAL}"
-         platform::mingw::r_mangle_compiler_exe "${CXX}" "CXX"
-         CXX="${RVAL}"
-         CMAKE="${CMAKE:-cmake}"
-         MAKE="${MAKE:-nmake}"
-
-         case "${MAKE}" in
-            nmake)
-               CMAKE_GENERATOR="NMake Makefiles"
-            ;;
-
-            make|ming32-make|"")
-               CC="${CC:-cl}"
-               CXX="${CXX:-cl}"
-               CMAKE="mulle-mingw-cmake.sh"
-               MAKE="mulle-mingw-make.sh"
-               CMAKE_GENERATOR="MinGW Makefiles"
-               # unused
-               # FILEPATH_DEMANGLER="platform::mingw::demangle_path"
-            ;;
-
-            *)
-               CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
-            ;;
-         esac
-      ;;
-
-      windows)
-         CC="${CC:-cl.exe}"
-         CXX="${CXX:-cl.exe}"
-         MAKE="${MAKE:-ninja.exe}"
-
-         case "${MAKE}" in
-            nmake*)
-               CMAKE_GENERATOR="NMake Makefiles"
-            ;;
-
-            ninja*)
-               CMAKE_GENERATOR="Ninja"
-            ;;
-
-            *)
-               CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
-            ;;
-         esac
-      ;;
-
-      "")
-         fail "platform not set"
-      ;;
-
-      *bsd|dragonfly)
-         CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
-         CMAKE="${CMAKE:-cmake}"
-         MAKE="${MAKE:-make}"
-         CC="${CC:-clang}"
-         CXX="${CXX:-clang++}"
-      ;;
-
-      sunos)
-         CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
-         CMAKE="${CMAKE:-cmake}"
-         MAKE="${MAKE:-make}"
-         CC="${CC:-gcc}"
-         CXX="${CXX:-g++}"
-      ;;
-
-      *)
-         CMAKE_GENERATOR="${CMAKE_GENERATOR:-Unix Makefiles}"
-         CMAKE="${CMAKE:-cmake}"
-         MAKE="${MAKE:-make}"
-         CC="${CC:-cc}"
-         CXX="${CXX:-c++}"
-      ;;
-   esac
-
-   #
-   #
-   #
-   MAKEFLAGS="${MAKEFLAGS:-${DEFAULT_MAKEFLAGS}}"
-}
-
+MULLE_TEST_ENVIRONMENT_SH='included'
 
 
 # this is crap and needs some kind of plugin interface
@@ -324,6 +226,8 @@ test::environment::setup_platform()
    local _suffix_dynamiclib
    local _suffix_framework
    local _suffix_staticlib
+   local _suffix_object
+   local _suffix_executable
    local _r_path_mangler
 
    platform::environment::__get_fix_definitions
@@ -378,6 +282,8 @@ test::environment::setup_environment()
 
    test::run::r_suppress_crashdumping
    RESTORE_CRASHDUMP="${RVAL}"
+
+   MAKEFLAGS="${MAKEFLAGS:-${DEFAULT_MAKEFLAGS}}"
 
    trap 'test::run::trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
 }
@@ -461,7 +367,9 @@ test::environment::setup_project()
    #
    # MULLE_TEST_OBJC_DIALECT to be set in environment
    #
-   test::environment::setup_tooling     "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+   eval `mulle-platform environment --platform "$1" --build-tools`
+
+#   test::environment::setup_tooling     "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
    test::environment::setup_compiler    "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" "${MULLE_TEST_OBJC_DIALECT}"
    test::environment::setup_platform    "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
    test::environment::setup_debugger    "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling

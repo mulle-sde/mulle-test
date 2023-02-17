@@ -29,7 +29,7 @@
 #   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #   POSSIBILITY OF SUCH DAMAGE.
 #
-MULLE_TEST_CMAKE_SH="included"
+MULLE_TEST_CMAKE_SH='included'
 
 
 test::cmake::r_add_cmakeflag()
@@ -248,7 +248,7 @@ test::cmake::eval_mulle_make()
    old_MULLE_FLAG_LOG_EXEKUTOR="${MULLE_FLAG_LOG_EXEKUTOR}"
    if [ "${MULLE_FLAG_LOG_VERBOSE}" = 'YES' ]
    then
-      MULLE_FLAG_LOG_EXEKUTOR="YES"
+      MULLE_FLAG_LOG_EXEKUTOR='YES'
    fi
 
    local rval

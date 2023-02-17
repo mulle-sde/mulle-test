@@ -29,7 +29,7 @@
 #   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #   POSSIBILITY OF SUCH DAMAGE.
 #
-MULLE_TEST_COMPILER_SH="included"
+MULLE_TEST_COMPILER_SH='included'
 
 
 test::compiler::r_c_sanitizer_flags()
@@ -297,7 +297,7 @@ test::compiler::run_gcc()
    old_MULLE_FLAG_LOG_EXEKUTOR="${MULLE_FLAG_LOG_EXEKUTOR}"
    if [ "${MULLE_FLAG_LOG_VERBOSE}" = 'YES' ]
    then
-      MULLE_FLAG_LOG_EXEKUTOR="YES"
+      MULLE_FLAG_LOG_EXEKUTOR='YES'
    fi
 
    local rval
@@ -409,7 +409,7 @@ test::compiler::check_output()
    local pretty_source="$4"
    local ccdiag="$5"
 
-   if [ "${MULLE_FLAG_LOG_SETTINGS}" = "YES" ]
+   if [ "${MULLE_FLAG_LOG_SETTINGS}" = 'YES' ]
    then
       log_setting "-----------------------"
       log_setting "${errput}:"

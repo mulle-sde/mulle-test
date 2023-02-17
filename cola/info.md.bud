@@ -1,0 +1,5 @@
+## Technical info
+
+**mulle-test** is based on **mulle-sde**. mulle-test compiles your project and
+all dependencies as *shared* libraries. This is different from **mulle-sde**,
+which compiles *static* libraries by default.

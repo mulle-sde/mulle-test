@@ -29,7 +29,7 @@
 #   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #   POSSIBILITY OF SUCH DAMAGE.
 #
-MULLE_TEST_RUN_SH="included"
+MULLE_TEST_RUN_SH='included'
 
 
 test::run::usage()
@@ -343,6 +343,32 @@ test::run::c()
 }
 
 
+test::run::find_a_out_ext()
+{
+   log_entry "test::run::find_a_out_ext" "$@"
+
+   local executable="$1"
+
+   local exename
+   local exename_ext
+
+   EXE_SEARCH_PATH="${EXE_SEARCH_PATH:-"`mulle-sde searchpath --if-exists binary`"}"
+   exename="${executable}"
+
+   case "${MULLE_UNAME}" in
+      'mingw'|'msys'|'windows')
+         exename_ext="${exename}${EXE_EXTENSION}"
+      ;;
+
+      *)
+         exename_ext="${exename}"
+      ;;
+   esac
+
+   command -v "${exename_ext}"
+}
+
+
 test::run::exe()
 {
    log_entry "test::run::exe" "$@"
@@ -350,24 +376,16 @@ test::run::exe()
    local name="$1" ; shift
    local ext="$1"
 
-   local purename
-
-   # remove leading 20_ or 20-
-   purename="${name#"${name%%[!0-9_-]*}"}"
+#   local purename
+#
+#   # remove leading 20_ or 20-
+#   purename="${name#"${name%%[!0-9_-]*}"}"
 
    local a_out
    local a_out_ext
 
-   a_out="${DEPENDENCY_DIR}/bin/${MULLE_TEST_EXECUTABLE}"
-   case "${MULLE_UNAME}" in
-      'mingw'|'msys'|'windows')
-         a_out="${a_out}${EXE_EXTENSION}"
-      ;;
-
-      *)
-         a_out_ext="${a_out}"
-      ;;
-   esac
+   a_out_ext="`test::run::find_a_out_ext "${MULLE_TEST_EXECUTABLE}" `"
+   a_out="${a_out_ext%${EXE_EXTENSION}}"
 
    TEST_BUILDER=""
    FAIL_TEST=""
@@ -385,26 +403,16 @@ test::run::args_exe()
    local name="$1" ; shift
    local ext="$1"
 
-   local purename
-
-   # remove leading 20_ or 20-
-   purename="${name#"${name%%[!0-9_-]*}"}"
-
+#   local purename
+#
+#   # remove leading 20_ or 20-
+#   purename="${name#"${name%%[!0-9_-]*}"}"
 
    local a_out
    local a_out_ext
 
-   a_out="${DEPENDENCY_DIR}/bin/${MULLE_TEST_EXECUTABLE}"
-   case "${MULLE_UNAME}" in
-      'mingw'|'msys'|'windows')
-         a_out="${a_out}${EXE_EXTENSION}"
-      ;;
-
-      *)
-         a_out_ext="${a_out}"
-      ;;
-   esac
-
+   a_out_ext="`test::run::find_a_out_ext "${MULLE_TEST_EXECUTABLE}" `"
+   a_out="${a_out_ext%${EXE_EXTENSION}}"
    TEST_BUILDER=""
    FAIL_TEST=""
 
@@ -449,6 +457,36 @@ test::run::cxx()
    log_entry "test::run::cxx" "$@"
 
    test::run::cpp "$@"
+}
+
+
+test::run::run()
+{
+   log_entry "test::run::run" "$@"
+
+   local name="$1" ; shift
+   local ext="$1"
+
+   local a_out
+   local a_out_ext
+
+   case "${MULLE_UNAME}" in
+      mingw|msys|windows)
+         a_out_ext="./run.bat"
+      ;;
+
+      *)
+         a_out_ext="./run"
+      ;;
+   esac
+
+   a_out="${a_out_ext%${BAT_EXTENSION}}"
+
+   TEST_BUILDER=""
+   FAIL_TEST=""
+
+   export MULLE_TECHNICAL_FLAGS
+   test::run::common "" "${a_out}" "${a_out_ext}" "${name}" "" "$@"
 }
 
 
@@ -519,9 +557,11 @@ test::run::_run()
 {
    log_entry "test::run::_run" "$@"
 
-   local name="$1"; shift
-   local ext="$1"; shift
-   local root="$1"; shift
+   local name="$1"
+   local ext="$2"
+   local root="$3"
+
+   shift 3
 
    [ -z "${name}" ] && _internal_fail "name must not be empty"
    [ -z "${ext}" ]  && _internal_fail "ext must not be ? empty"
@@ -557,12 +597,12 @@ test::run::_run()
       . "${RVAL}" || fail "\"${RVAL}\" read failed"
    fi
 
-   case "${ext}" in
+   case "${ext#.}" in
       cmake)
          test::run::cmake "${name}" "" "${root}" "$@"
       ;;
 
-      .args)
+      args)
          test::run::exe "${name}" "${ext}" "${root}" "$@"
       ;;
 
@@ -731,10 +771,17 @@ test::run::_scan_directory()
    local root="$1"; shift
    local extensions="$1"; shift
 
-   if [ -f CMakeLists.txt ]
+   if [ -f CMakeLists.txt -a ! -e CMakeLists.txt.ignore ]
    then
       r_basename "${PWD}"
       test::run::run_in_directory "${PWD}" "${RVAL}" "cmake" "${root}" "$@"
+      return $?
+   fi
+
+   if [ -x run ]
+   then
+      r_basename "${PWD}"
+      test::run::run_in_directory "${PWD}" "${RVAL}" "run" "${root}" "$@"
       return $?
    fi
 
@@ -935,7 +982,7 @@ test::run::main()
    test::environment::include_required
 
    local DEFAULT_MAKEFLAGS
-   local OPTION_REQUIRE_LIBRARY="YES"
+   local OPTION_REQUIRE_LIBRARY='YES'
    local OPTION_LENIENT='NO'
    local OPTION_RERUN_FAILED='NO'
    local OPTION_DEBUG_DYLD='NO'
@@ -961,12 +1008,12 @@ test::run::main()
          ;;
 
          -l|--lenient)
-            OPTION_LENIENT="YES"
+            OPTION_LENIENT='YES'
          ;;
 
          -V)
             DEFAULT_MAKEFLAGS="VERBOSE=1"
-            MULLE_FLAG_LOG_EXEKUTOR="YES"
+            MULLE_FLAG_LOG_EXEKUTOR='YES'
          ;;
 
          -j|--jobs)
@@ -975,7 +1022,6 @@ test::run::main()
 
             OPTION_MAXJOBS="$1"
          ;;
-
 
          --project-language)
             [ $# -eq 1 ] && fail "Missing argument to \"$1\""
@@ -1095,7 +1141,7 @@ test::run::main()
    local RVAL_EXPECTED_FAILURE=4
    local RVAL_IGNORED_FAILURE=5
 
-   local HAVE_WARNED="NO"
+   local HAVE_WARNED='NO'
 
    #
    # if extension is args, we just run a dependency/bin/executable
@@ -1104,10 +1150,10 @@ test::run::main()
       *:[Cc]:*|*:[Cc]++:*|*:[Cc][XxPp][XxPp]:*|*:[Mm]:*|*:aam:*)
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
 
-         test::linkorder::r_get_link_command "YES"
+         test::linkorder::r_get_link_command 'YES'
          LINK_COMMAND="${RVAL}"
 
-         test::linkorder::r_get_link_command "NO"
+         test::linkorder::r_get_link_command 'NO'
          NO_STARTUP_LINK_COMMAND="${RVAL}"
       ;;
 
@@ -1123,7 +1169,7 @@ test::run::main()
 
    MULLE_TEST_SUCCESS_FILE="${MULLE_TEST_VAR_DIR}/passed.txt"
 
-   if [ "$RUN_ALL" = "YES" -o $# -eq 0 -o "${1:0:1}" = '-' ]
+   if [ "$RUN_ALL" = 'YES' -o $# -eq 0 -o "${1:0:1}" = '-' ]
    then
       if [ "${OPTION_RERUN_FAILED}" = 'NO' ]
       then

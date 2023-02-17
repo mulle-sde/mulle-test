@@ -1,0 +1,24 @@
+## Writing a test
+
+Here is a simple test, that checks that "Hello World" is properly output.
+It consists of a sourcefile `example.c` and the expected test output file
+`example.stdout`:
+
+``` bash
+mkdir test
+cd test
+mkdir example
+
+cat <<EOF > example/example.c
+#include <stdio.h>
+
+main()
+{
+   printf( "Hello World\n");
+   return( 0);   // important!
+}
+EOF
+
+echo "Hello World" > example/example.stdout
+```
+

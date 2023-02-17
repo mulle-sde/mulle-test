@@ -1,0 +1,12 @@
+{
+   project =
+   {
+      description="☑︎ Run tests and compare their results against expectations";
+      domain="github";
+      name="mulle-test";
+      username="mulle-sde";
+      reponame="mulle-test";
+      homepage="https://github.com/mulle-sde/mulle-test";
+      license="BSD-3-Clause"
+   };
+}

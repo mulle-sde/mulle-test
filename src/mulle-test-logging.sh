@@ -29,7 +29,7 @@
 #   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #   POSSIBILITY OF SUCH DAMAGE.
 #
-MULLE_TEST_LOGGING_SH="included"
+MULLE_TEST_LOGGING_SH='included'
 
 
 #
@@ -45,7 +45,7 @@ MULLE_TEST_LOGGING_SH="included"
 #   output="$1"
 #   shift
 #
-#   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = "YES" -o "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+#   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = 'YES' -o "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
 #   then
 #      if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
 #      then
@@ -55,14 +55,14 @@ MULLE_TEST_LOGGING_SH="included"
 #      fi
 #   fi
 #
-#   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != "YES" ]
+#   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != 'YES' ]
 #   then
 #      local rval
 #
 #      ( eval "$@" ) > "${output}" 2>&1
 #      rval=$?
 #
-#      if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+#      if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
 #      then
 #         cat "${output}" >&2 # get stderr mixed in :/
 #      fi
@@ -127,7 +127,7 @@ test::logging::err_redirect_grepping_eval_exekutor()
    output="$1"
    shift
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = "YES" -o "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = 'YES' -o "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
    then
       if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then
@@ -137,14 +137,14 @@ test::logging::err_redirect_grepping_eval_exekutor()
       fi
    fi
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != 'YES' ]
    then
       local rval
 
       ( eval "$@" )  2>&1 | tee "${output}" | test::logging::grep_warning_error
       rval=$?
 
-      if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+      if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
       then
          cat "${output}" >&2 # get stderr mixed in :/
       fi
@@ -161,7 +161,7 @@ test::logging::redirect_eval_exekutor()
    output="$1"
    shift
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = "YES" -o "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = 'YES' -o "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
    then
       if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then
@@ -171,7 +171,7 @@ test::logging::redirect_eval_exekutor()
       fi
    fi
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != 'YES' ]
    then
       ( eval "$@" ) > "${output}"
    fi
@@ -186,7 +186,7 @@ test::logging::full_redirekt_eval_exekutor()
 
    shift 3
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = "YES" -o "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = 'YES' -o "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
    then
       if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then
@@ -197,14 +197,14 @@ test::logging::full_redirekt_eval_exekutor()
    fi
 
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != "YES" ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != 'YES' ]
    then
       local rval
 
       ( eval "$@" ) < "${stdin}" > "${stdout}" 2> "${stderr}"
       rval=$?
 
-      if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = "YES" ]
+      if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
       then
          cat "${stderr}" >&2
       fi

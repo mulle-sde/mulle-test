@@ -170,6 +170,12 @@ test::do_craft()
             return
          fi
 
+         if [ "${MULLE_SDE_CRAFT_TARGET}" = 'NONE' ]
+         then
+            log_debug "MULLE_SDE_CRAFT_TARGET set to NONE, so nothing to do"
+            return
+         fi
+
          # shellcheck source=src/mulle-test-craft.sh
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-craft.sh"
 
@@ -438,7 +444,7 @@ test::main()
 
    options_setup_trace "${MULLE_TRACE}" && set -x
 
-   MULLE_TEST_VAR_DIR="${MULLE_TEST_DIR:-${PWD}}/.mulle/var/${MULLE_HOSTNAME}/test"
+   MULLE_TEST_VAR_DIR="${MULLE_TEST_DIR:-${PWD}}/.mulle/var/${MULLE_HOSTNAME}/${MULLE_USERNAME}/test"
 
    log_setting "MULLE_VIRTUAL_ROOT=${MULLE_VIRTUAL_ROOT}"
    log_setting "MULLE_USER_PWD=${MULLE_USER_PWD}"
@@ -515,7 +521,7 @@ test::main()
          fi
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                           clean "${PROJECT_NAME}" || return $?
+                           clean --lenient "${PROJECT_NAME}" || return $?
 
          test::do_craft "$@" || return $?
 

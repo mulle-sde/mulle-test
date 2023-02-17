@@ -1,0 +1,14 @@
+**mulle-test** can test your C or Objective C library. But it can also test
+shell scripts or binaries. Basically anything that creates text output.
+
+The loop **mulle-test** performs is *compile*, *execute*, *diff*. A test always
+fails, if the return code is not 0. A test also fails, if there is an expected
+output file present, and the test output differs from it.
+
+As you would manually:
+
+``` bash
+cc -o a.out a.c
+./a.out > a.result
+diff a.stdout a.result
+```
