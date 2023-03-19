@@ -218,6 +218,13 @@ test::execute::a_out()
       ;;
    esac
 
+   # add sanitizer flags
+   if test::compiler::r_env_sanitizer_flags "${SANITIZER}"
+   then
+      environment="${environment} ${RVAL}"
+   fi
+
+
    if [ "${OPTION_DEBUG_DYLD}" = 'YES' ]
    then
       r_concat "${environment}" "MULLE_ATINIT_DEBUG='YES'"
@@ -307,10 +314,17 @@ MALLOC_FILL_SPACE='YES' MALLOC_STRICT_SIZE='YES'"
       ;;
    esac
 
+
+   #
+   # When run on non mulle-atinit executables, or on mulle-atinit
+   # executables that exec a system function, we don't want to see
+   # any errors here.
+   #
    case ":${SANITIZER}:" in
       *:testallocator:*)
          r_concat "${environment}" "MULLE_TESTALLOCATOR='${OPTION_TESTALLOCATOR:-1}' \
-MULLE_TESTALLOCATOR_FIRST_LEAK='YES'"
+MULLE_TESTALLOCATOR_FIRST_LEAK='YES' \
+MULLE_ATINIT_FAILURE=0"
          environment="${RVAL}"
       ;;
    esac

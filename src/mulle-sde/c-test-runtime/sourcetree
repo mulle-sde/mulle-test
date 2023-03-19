@@ -1,5 +1,5 @@
---nodetype '${MULLE__TESTALLOCATOR_NODETYPE:-tar}' --marks 'no-import,no-singlephase' --tag '${MULLE__TESTALLOCATOR_TAG:-latest}' --url '${MULLE__TESTALLOCATOR_URL:-https://github.com/mulle-core/mulle-testallocator/archive/${MULLE_TAG}.tar.gz}' 'mulle-testallocator'
+--nodetype '${MULLE__TESTALLOCATOR_NODETYPE:-tar}' --marks 'no-import,no-singlephase' --tag '${MULLE__TESTALLOCATOR_TAG:-latest}' --branch '${MULLE__TESTALLOCATOR_BRANCH}'  --url '${MULLE__TESTALLOCATOR_URL:-https://github.com/mulle-core/mulle-testallocator/archive/${MULLE_TAG}.tar.gz}' 'mulle-testallocator'
 #
 # singlephase works for exe and library so use that
 #
---nodetype '${<|PROJECT_FILE_UPCASE_IDENTIFIER|>_NODETYPE:-tar}' --marks 'singlephase' --tag '${<|PROJECT_FILE_UPCASE_IDENTIFIER|>_TAG:-latest}' --url '${<|PROJECT_FILE_UPCASE_IDENTIFIER|>_URL:-https://github.com/<|GITHUB_USER|>/<|PROJECT_NAME|>/archive/${MULLE_TAG}.tar.gz}' '<|PROJECT_NAME|>'
+--nodetype '${<|PROJECT_UPCASE_IDENTIFIER|>_NODETYPE:-tar}' --marks 'singlephase' --tag '${<|PROJECT_UPCASE_IDENTIFIER|>_TAG:-latest}' --branch '${<|PROJECT_UPCASE_IDENTIFIER|>_BRANCH}' --url '${<|PROJECT_UPCASE_IDENTIFIER|>_URL:-https://github.com/<|GITHUB_USER|>/<|PROJECT_NAME|>/archive/${MULLE_TAG}.tar.gz}' '<|PROJECT_NAME|>'

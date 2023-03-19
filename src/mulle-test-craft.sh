@@ -79,6 +79,11 @@ test::craft::main()
             # ignore, don't complain
          ;;
 
+         -g|-a)
+            r_concat "${sdeargs}" "$1"
+            sdeargs="${RVAL}"
+         ;;
+
          --debug)
             OPTION_CONFIGURATION='Debug';
          ;;

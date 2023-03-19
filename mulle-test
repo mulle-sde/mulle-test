@@ -33,7 +33,7 @@
 [ "${TRACE:-}" = "YES" -o "${MULLE_TEST_TRACE:-}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="6.2.0"
+MULLE_EXECUTABLE_VERSION="6.3.0"
 
 #
 # Determine location of own libexec directory. Which is `src` in development
@@ -74,6 +74,7 @@ EOF
    --no-sanitizer          : no sanitizer
    --coverage              : produce clang coverage information
    --gdb                   : use gdb to run
+   --objc-coverage         : produce mulle-objc coverage information
    --sanitize-address      : use address sanitizer to craft and run
    --sanitize-thread       : use thread sanitizer to craft and run
    --sanitize-undefined    : use undefined sanitizer to craft and run
@@ -205,7 +206,7 @@ test::do_run()
 
    if [ -x "./run-test" ]
    then
-      cmd="exekutor ./run-test ${MULLE_TECHNICAL_FLAGS}"
+      cmd="./run-test ${MULLE_TECHNICAL_FLAGS}"
    else
       # shellcheck source=src/mulle-test-run.sh
       . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-run.sh"
@@ -218,7 +219,17 @@ test::do_run()
    [ -z "${DEPENDENCY_DIR}" ] && _internal_fail "DEPENDENCY_DIR not set"
    [ -z "${KITCHEN_DIR}" ]    && _internal_fail "KITCHEN_DIR not set"
 
-   ${cmd} "$@"
+   include "test::compiler"
+
+   local environment
+
+   if test::compiler::r_env_sanitizer_flags "${SANITIZER}"
+   then
+      environment="${RVAL}"
+   fi
+
+   set -- ${environment} ${cmd} "$@"
+   eval_exekutor "$@"
 }
 
 
@@ -369,7 +380,7 @@ test::main()
          ;;
 
          --gdb)
-            r_colon_concat "${RVAL}" "gdb"
+            r_colon_concat "${SANITIZER}" "gdb"
             SANITIZER="${RVAL}"
          ;;
 
@@ -384,7 +395,12 @@ test::main()
          ;;
 
          --coverage)
-            r_colon_concat "${RVAL}" "coverage"
+            r_colon_concat "${SANITIZER}" "coverage"
+            SANITIZER="${RVAL}"
+         ;;
+
+         --objc-coverage)
+            r_colon_concat "${SANITIZER}" "objc-coverage"
             SANITIZER="${RVAL}"
          ;;
 
@@ -405,14 +421,14 @@ test::main()
 
          --testallocator)
             r_colon_remove "${SANITIZER}" "testallocator"
-            r_colon_remove "${SANITIZER}" "zombie"
+            r_colon_remove "${RVAL}" "zombie"
             r_colon_concat "${RVAL}" "testallocator"
             SANITIZER="${RVAL}"
          ;;
 
          --zombie)
             r_colon_remove "${SANITIZER}" "testallocator"
-            r_colon_remove "${SANITIZER}" "zombie"
+            r_colon_remove "${RVAL}" "zombie"
             r_colon_concat "${RVAL}" "zombie"
             SANITIZER="${RVAL}"
          ;;

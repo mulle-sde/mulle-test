@@ -196,7 +196,6 @@ test::logging::full_redirekt_eval_exekutor()
       fi
    fi
 
-
    if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != 'YES' ]
    then
       local rval

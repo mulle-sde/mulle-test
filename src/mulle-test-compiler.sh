@@ -99,6 +99,26 @@ test::compiler::r_ld_sanitizer_flags()
 }
 
 
+
+test::compiler::r_env_sanitizer_flags()
+{
+   log_entry "test::compiler::r_env_sanitizer_flags" "$@"
+
+   local sanitizer="$1"
+
+   RVAL=""
+   #  a bit too clang specific here or ?
+   case ":${sanitizer}:" in
+      *:objc-coverage:*)
+         RVAL="MULLE_OBJC_COVERAGE=YES"
+         return 0
+      ;;
+   esac
+   
+   return 1
+}
+
+
 test::compiler::r_c_commandline()
 {
    log_entry "test::compiler::r_c_commandline" "$@"
