@@ -1,3 +1,12 @@
+## 6.3.0
+
+* add --objc-coverage support
+* finally use mulle-platform for most of the platform dependent code
+* you can now have a **run** file in your test directory, which is a script that will run in favor of whatever the mulle-test default action is
+* you can ignore an existing CMakeLists.txt with a CMakeLists.txt.ignore, which is a hack obviously
+* cross platform fixes
+
+
 ## 6.2.0
 
 * added --reuse-exe flag to speed up tests run in a loop
