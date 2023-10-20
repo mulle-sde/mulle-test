@@ -42,7 +42,7 @@ Usage:
 
    By default cleans everything including produced .exe files and inferior
    cmake build directories. If you want to remove the stash folder too,
-   specify "tidy" as the clean domain.
+   specify "tidy" or "gravetidy" as the clean domain.
 
    If you changed the sourcetree, you can clean the linkorder chaches
    with "linkorder".
@@ -104,7 +104,7 @@ test::clean::main()
    done
 
    case "${1:-all}" in
-      all|tidy)
+      all|tidy|gravetidy)
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                      clean \
                         ${cleanoptions} \

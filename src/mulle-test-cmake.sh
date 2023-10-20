@@ -142,9 +142,12 @@ test::cmake::eval_mulle_make()
    r_concat "${cmake_c_flags}" "${OTHER_CFLAGS}"
    cmake_c_flags="${RVAL}"
 
-   r_concat "${cmake_c_flags}" "-DMULLE_TEST=1"
-   cmake_c_flags="${RVAL}"
-
+   if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
+   then
+      r_concat "${cmake_c_flags}" "-DMULLE_TEST=1"
+      cmake_c_flags="${RVAL}"
+   fi
+   
    r_concat "${cmake_c_flags}" "-DMULLE_INCLUDE_DYNAMIC=1"
    cmake_c_flags="${RVAL}"
 
@@ -228,7 +231,8 @@ test::cmake::eval_mulle_make()
    cmake_libraries="${RVAL}"
 
    # already escaped
-   r_concat "${cmd}" "-DTEST_LIBRARIES=${cmake_libraries} ${RPATH_FLAGS}"
+   r_concat "${cmake_libraries}"  "${RPATH_FLAGS}"
+   r_concat "${cmd}" "-DTEST_LIBRARIES=${RVAL}"
    cmd="${RVAL}"
 
    local argv
@@ -329,6 +333,7 @@ test::cmake::run()
    local srcfile="$1"; shift
    local a_out_ext="$1"; shift
    local errput="$1"; shift # unused
+   local flags="$1"; shift # unused
 
    [ -z "${srcfile}" ] && _internal_fail "srcfile is empty"
    [ -z "${a_out_ext}" ] && _internal_fail "a_out_ext is empty"
@@ -355,6 +360,11 @@ test::cmake::run()
    directory="${RVAL}"
    (
       rexekutor cd "${directory}"
+
+      if [ ! -z "${flags}" ]
+      then
+         set -- "${flags}" "$@"
+      fi
 
       test::cmake::eval_mulle_make "Test" "$@" || exit 1
 

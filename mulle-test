@@ -33,7 +33,7 @@
 [ "${TRACE:-}" = "YES" -o "${MULLE_TEST_TRACE:-}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="6.3.0"
+MULLE_EXECUTABLE_VERSION="6.3.1"
 
 #
 # Determine location of own libexec directory. Which is `src` in development
@@ -310,6 +310,7 @@ test::main()
    local RUN_FLAGS
    local RUN_OPTIONS
    local OPTION_CONFIGURATION
+   local MULLE_TEST_DEFINE='YES'
 
    #
    # On MacOS with the default Foundation/objc we can't
@@ -439,6 +440,10 @@ test::main()
 
             r_colon_concat "${SANITIZER}" "$1"
             SANITIZER="${RVAL}"
+         ;;
+
+         --no-mulle-test-define)
+            MULLE_TEST_DEFINE='NO'
          ;;
 
          --no-sanitizer|--no-memory-checker)

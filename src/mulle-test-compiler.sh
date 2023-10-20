@@ -85,6 +85,7 @@ test::compiler::r_ld_sanitizer_flags()
                         mulle-objc)
                            RVAL="-Wl,-exported_symbol -Wl,__mulle_atinit"
                            RVAL="${RVAL} -Wl,-exported_symbol -Wl,_mulle_atexit"
+                           RVAL="${RVAL} -Wl,-exported_symbol -Wl,___register_mulle_objc_universe"
                            return 0
                         ;;
                      esac
@@ -161,17 +162,23 @@ test::compiler::r_c_commandline()
 
    case "${CC}" in
       *-cl.exe)
-         r_concat "${cflags}" "/DMULLE_TEST=1"
-         cflags="${RVAL}"
+         if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
+         then
+            r_concat "${cflags}" "/DMULLE_TEST=1"
+            cflags="${RVAL}"
+         fi
 
          r_concat "${cflags}" "/DMULLE_INCLUDE_DYNAMIC=1"
          cflags="${RVAL}"      
       ;;
 
       *)
-         r_concat "${cflags}" "-DMULLE_TEST=1"
-         cflags="${RVAL}"
-
+         if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
+         then
+            r_concat "${cflags}" "-DMULLE_TEST=1"
+            cflags="${RVAL}"
+         fi
+         
          r_concat "${cflags}" "-DMULLE_INCLUDE_DYNAMIC=1"
          cflags="${RVAL}"      
       ;;
@@ -227,7 +234,11 @@ test::compiler::r_c_commandline()
    r_concat "${cmdline}" "${linkcommand}"
    cmdline="${RVAL}"
 
-   cmdline="${cmdline} ${LDFLAGS} ${RPATH_FLAGS}"
+   r_concat "${cmdline}" "${LDFLAGS}"
+   cmdline="${RVAL}"
+
+   r_concat "${cmdline}" "${RPATH_FLAGS}"
+   cmdline="${RVAL}"
 
    RVAL="${cmdline}"
 }

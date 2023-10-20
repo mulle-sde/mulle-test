@@ -1000,7 +1000,6 @@ test::execute::main()
 
    local name
    local ext
-   local args_text
 
    r_basename "${sourcefile}"
    name="${RVAL}"

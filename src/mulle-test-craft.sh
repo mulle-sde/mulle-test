@@ -48,8 +48,11 @@ test::craft::main()
    local sdeargs
    local OPTION_STANDALONE
 
-   craftargs="--mulle-test"
-
+   if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
+   then
+      craftargs="--mulle-test"
+   fi
+   
    while [ $# -ne 0 ]
    do
       case "$1" in
@@ -178,7 +181,7 @@ test::craft::main()
    (
       #
       # Crafting might use their own mulle-sde commands in cmake. So don't
-      # appear as if we are in a test environment Unset MULLE_TEST_ENVIRONMENT
+      # appear as if we are in a test environment. Unset MULLE_TEST_ENVIRONMENT
       # and craft without test check.
       #
       unset MULLE_TEST_ENVIRONMENT

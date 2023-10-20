@@ -594,7 +594,7 @@ test::run::_run()
    then
       log_verbose "Read environment file \"${RVAL}\" (${PWD#"${MULLE_USER_PWD}/"}) "
       # as we are running in a subshell this is OK
-      . "${RVAL}" || fail "\"${RVAL}\" read failed"
+      . "${PWD}/${RVAL}" || fail "\"${RVAL}\" read failed"
    fi
 
    case "${ext#.}" in
@@ -688,7 +688,7 @@ test::run::_run_in_directory()
 
    (
       # this is OK since we are in a subshell here
-      cd "${directory}" || exit 1
+      exekutor cd "${directory}" || exit 0
 
       test::run::_run "$@"
    )
@@ -702,7 +702,7 @@ test::run::_run_in_directory_parallel()
    local directory="$1"; shift
 
    (
-      cd "${directory}" || exit 1
+      exekutor cd "${directory}" || exit 0
       test::run::_run "$@"
       test::run::handle_return_value $? "${directory}" "$@"
    )
@@ -838,7 +838,12 @@ test::run::scan_directory()
    # preserve shell context (no subshell here)
    old="$PWD"
 
-   rexekutor cd "${directory}" && test::run::_scan_directory "${root}" "${extensions}" "$@"
+   if ! rexekutor cd "${directory}"
+   then
+      return 0
+   fi
+
+   test::run::_scan_directory "${root}" "${extensions}" "$@"
    rval=$?
 
    cd "${old}"
@@ -863,8 +868,7 @@ test::run::all_tests()
 
    if [ "${MULLE_TEST_SERIAL}" = 'NO' ]
    then
-      [ -z "${MULLE_PARALLEL_SH}" ] && \
-         . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-parallel.sh"
+      include "parallel"
 
       log_verbose "Parallel testing"
       __parallel_begin "${OPTION_MAXJOBS}"
