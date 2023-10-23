@@ -567,25 +567,33 @@ test::run::_run()
    [ -z "${ext}" ]  && _internal_fail "ext must not be ? empty"
    [ -z "${root}" ] && _internal_fail "root must not be empty"
 
-   if [ ! -z "${SANITIZER}" ] && [ -e "${name}.no-sanitizers" ]
+   # we change the SANITIZER variable hre on deman d
+   if [ ! -z "${SANITIZER}" ] && [ -e "${name}.no-sanitizers" -o -e "${name}.no-sanitizers.${MULLE_UNAME}" ]
    then
-      log_info "Skipped ${C_MAGENTA}${C_BOLD}${name}${C_INFO} as it doesn't work with any sanitizer"
+      SANITIZER=
+      log_info "Disable all sanitizers ${C_MAGENTA}${C_BOLD}${name}${C_INFO} as doesn't work with any sanitizer"
       return
    fi
 
    local sanitizer
+   local filtered
+   local identifier
 
    .foreachpath sanitizer in ${SANITIZER}
    .do
       r_lowercase "${sanitizer%%-*}" # turn valgrind-no-leaks into valgrind
-      sanitizer="${RVAL}"
+      identifier="${RVAL}"
 
-      if [ -e "${name}.no-${sanitizer}" ]
+      if [ -e "${name}.no-${identifier}" -o -e "${name}.no-${identifier}.${MULLE_UNAME}" ]
       then
-         log_info "Skipped ${C_MAGENTA}${C_BOLD}${name}${C_INFO} as it doesn't work with ${C_RESET_BOLD}${sanitizer}"
-         return
+         log_info "Disable ${C_RESET_BOLD}${sanitizer}${C_INFO} as it doesn't work with ${C_MAGENTA}${C_BOLD}${name}${C_INFO}"
+      else
+         r_colon_concat "${filtered}" "${sanitizer}"
+         filtered="${RVAL}"
       fi
    .done
+
+   SANITIZER="${filtered}"
 
    local purename
 

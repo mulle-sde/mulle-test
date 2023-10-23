@@ -74,27 +74,32 @@ test::compiler::r_ld_sanitizer_flags()
    local sanitizer="$1"
 
    RVAL=""
-   #  a bit too clang specific here or ?
-   case ":${sanitizer}:" in
-      *:testallocator:*)
-         case "${PROJECT_DIALECT}" in
-            objc)
-               case "${MULLE_UNAME}" in
-                  darwin)
-                     case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
-                        mulle-objc)
-                           RVAL="-Wl,-exported_symbol -Wl,__mulle_atinit"
-                           RVAL="${RVAL} -Wl,-exported_symbol -Wl,_mulle_atexit"
-                           RVAL="${RVAL} -Wl,-exported_symbol -Wl,___register_mulle_objc_universe"
-                           return 0
-                        ;;
-                     esac
-                  ;;
-               esac
-            ;;
-         esac
-      ;;
-   esac
+
+#
+# now add these unconditionally, because it makes life easier and we always
+# link these anyway with executable startups
+#
+#   #  a bit too clang specific here or ?
+#   case ":${sanitizer}:" in
+#      *:testallocator:*)
+#         case "${PROJECT_DIALECT}" in
+#            objc)
+#               case "${MULLE_UNAME}" in
+#                  darwin)
+#                     case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
+#                        mulle-objc)
+#                           RVAL="-Wl,-exported_symbol -Wl,__mulle_atinit"
+#                           RVAL="${RVAL} -Wl,-exported_symbol -Wl,_mulle_atexit"
+#                           RVAL="${RVAL} -Wl,-exported_symbol -Wl,___register_mulle_objc_universe"
+#                           return 0
+#                        ;;
+#                     esac
+#                  ;;
+#               esac
+#            ;;
+#         esac
+#      ;;
+#   esac
 
    return 1
 }
@@ -203,11 +208,30 @@ test::compiler::r_c_commandline()
    fi
 
    case "${PROJECT_DIALECT}" in
+      c)
+         case "${MULLE_UNAME}" in
+            darwin)
+               case "${linkcommand},${LDFLAGS}" in
+                  *libmulle-atinit\.a*)
+                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
+                  ;;
+               esac
+               case "${linkcommand},${LDFLAGS}" in
+                  *libmulle-atexit\.a*)
+                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
+                  ;;
+               esac
+            ;;
+         esac
+      ;;
+
       objc)
          case "${MULLE_UNAME}" in
             darwin)
                case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
                   mulle-objc)
+                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
+                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
                      cmdline="${cmdline} -Wl,-exported_symbol \
 -Wl,___register_mulle_objc_universe"
                   ;;

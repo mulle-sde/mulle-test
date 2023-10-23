@@ -470,6 +470,7 @@ test::main()
    log_setting "MULLE_VIRTUAL_ROOT=${MULLE_VIRTUAL_ROOT}"
    log_setting "MULLE_USER_PWD=${MULLE_USER_PWD}"
    log_setting "MULLE_TEST_VAR_DIR=${MULLE_TEST_VAR_DIR}"
+   log_setting "SANITIZER=${SANITIZER}"
 
    #
    # this tells mulle-craft that everything is fine, though
