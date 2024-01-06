@@ -138,15 +138,12 @@ test::run::maybe_show_output()
 
    if file_is_binary "${output}"
    then
+      log_debug "output file is binary, lets not dump it"
       return
    fi
 
-   contents="`head -2 "${output}"`" 2> /dev/null
-   if [ "${contents}" != "" ]
-   then
-      log_info "OUTPUT:"
-      "${CAT:-cat}"  "${output}"
-   fi
+   log_info "OUTPUT:"
+   "${CAT:-cat}" "${output}"
 }
 
 
@@ -235,7 +232,7 @@ test::run::common()
    cmd="${cmd} '${a_out_ext}'"
    cmd="${cmd} '${srcfile}'"
 
-   eval "${cmd}"
+   eval_rexekutor "${cmd}"
    rval=$?
 
    if [ ${RVAL_EXPECTED_FAILURE} = $rval ]
@@ -529,7 +526,11 @@ test::run::r_get_environmentfile()
                         then
                            log_debug "\"${RVAL}\" not present"
                            RVAL="${fallback}"
-                           if [ ! -z "${RVAL}" ] || [ ! -f "${RVAL}" ]
+                           if [ -z "${RVAL}" ]
+                           then
+                              return 1
+                           fi
+                           if [ ! -f "${RVAL}" ]
                            then
                               log_debug "\"${RVAL}\" not present"
                               RVAL=
@@ -567,12 +568,21 @@ test::run::_run()
    [ -z "${ext}" ]  && _internal_fail "ext must not be ? empty"
    [ -z "${root}" ] && _internal_fail "root must not be empty"
 
-   # we change the SANITIZER variable hre on deman d
+   # we change the SANITIZER variable here on demand
    if [ ! -z "${SANITIZER}" ] && [ -e "${name}.no-sanitizers" -o -e "${name}.no-sanitizers.${MULLE_UNAME}" ]
    then
-      SANITIZER=
-      log_info "Disable all sanitizers ${C_MAGENTA}${C_BOLD}${name}${C_INFO} as doesn't work with any sanitizer"
-      return
+      case ":${SANITIZER}:" in
+         *:coverage:*)
+            log_info "Disable all sanitizers except ${C_MAGENTA}${C_BOLD}coverage${C_INFO} as ${C_MAGENTA}${C_BOLD}${name}${C_INFO} doesn't work with any sanitizer"
+            SANITIZER="coverage"
+         ;;
+
+         *)
+            SANITIZER=
+            log_info "Disable all sanitizers as ${C_MAGENTA}${C_BOLD}${name}${C_INFO} doesn't work with any sanitizer"
+            return
+         ;;
+      esac
    fi
 
    local sanitizer
@@ -618,12 +628,19 @@ test::run::_run()
          local functionname
 
          functionname="test::run::${ext#.}"
-         if ! shell_is_function "${functionname}"
+         if shell_is_function "${functionname}"
          then
-             fail "Don't know how to handle extension \"${ext}\""
+            # will call test::run:c for C
+            "${functionname}" "${name}" "${ext}" "${root}" "$@"
+            return $?
          fi
-         # will call test::run:c for C
-         "${functionname}" "${name}" "${ext}" "${root}" "$@"
+
+         if [ -z "${MULLE_TEST_EXECUTABLE}" ]
+         then
+            fail "Don't know how to handle extension \"${ext}\""
+         fi
+
+         test::run::args_exe "${name}${ext}" "${name}" "${ext}" "${root}" "$@"
       ;;
    esac
 }
@@ -772,6 +789,43 @@ test::run::run_matching_extensions_in_directory()
 }
 
 
+test::run::r_all_test_roots()
+{
+   log_entry "test::run::r_all_test_roots" "$@" "(${PWD#"${MULLE_USER_PWD}/"})"
+
+   local dir_only="${1:-NO}"
+   local delimiter="${2:-}"
+
+   if [ -z "${delimiter}" ]
+   then
+      delimiter=$'\n'
+   fi
+
+   local i
+   local roots
+
+   .foreachline i in `ls -1`
+   .do
+      if [ ${dir_only} = 'YES' ] && [ ! -d "${i}" ]
+      then
+         .continue
+      fi
+
+      case "${i}" in
+         _*|addiction|bin|build|kitchen|craftinfo|dependency|include|lib|libexec|old|stash|tmp)
+            log_debug "Ignoring \"${i}\" because it's surely not a test directory"
+            .continue
+         ;;
+      esac
+
+      r_concat "${roots}" "${i}" "${delimiter}"
+      roots="${RVAL}"
+   .done
+
+   RVAL="${roots}"
+}
+
+
 test::run::_scan_directory()
 {
    log_entry "test::run::_scan_directory" "$@" "(${PWD#"${MULLE_USER_PWD}/"})"
@@ -796,16 +850,13 @@ test::run::_scan_directory()
    log_fluff "Scanning \"${PWD}\" for files with extensions \"${extensions}\"..."
 
    local i
+   local roots
 
-   .foreachline i in `ls -1`
+   test::run::r_all_test_roots
+   roots="${RVAL}"
+
+   .foreachline i in ${roots}
    .do
-      case "${i}" in
-         _*|addiction|bin|build|kitchen|craftinfo|dependency|include|lib|libexec|old|stash|tmp)
-            log_debug "Ignoring \"${i}\" because it's surely not a test directory"
-            .continue
-         ;;
-      esac
-
       if [ -d "${i}" ]
       then
          if ! test::run::scan_directory "${i}" "${root}" "${extensions}" "$@"
@@ -1003,7 +1054,11 @@ test::run::main()
 
    DEFAULT_MAKEFLAGS="-s"
 
-   test::environment::setup_project "${MULLE_UNAME}"
+   test::environment::setup_execution_platform "${MULLE_UNAME}"
+   if [ -z "${MULLE_TEST_EXECUTABLE}" ]
+   then
+      test::environment::setup_development_environment "${MULLE_UNAME}"
+   fi
 
    # for windows its kinda important, that the flags are 
    # consistent with what we crafted

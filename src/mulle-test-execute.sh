@@ -207,6 +207,9 @@ test::execute::a_out()
             insertlibpath="${RVAL}"
          else
             log_verbose "\"${filepath#"${MULLE_USER_PWD}/"}\" not found, memory checks will be unavailable"
+            SANITIZER="${SANITIZER/testallocator/}"
+            r_remove_ugly "${SANITIZER}" ":"
+            SANITIZER="${RVAL}"
          fi
       ;;
    esac
@@ -223,7 +226,6 @@ test::execute::a_out()
    then
       environment="${environment} ${RVAL}"
    fi
-
 
    if [ "${OPTION_DEBUG_DYLD}" = 'YES' ]
    then
@@ -355,6 +357,11 @@ MULLE_ATINIT_FAILURE=0"
          runner="${RVAL}"
       ;;
    esac
+
+   if [ ! -z "${environment}" ]
+   then
+      log_verbose "Custom environment: ${environment}"
+   fi
 
    test::logging::full_redirekt_eval_exekutor "${input}" \
                                               "${output}" \
@@ -572,6 +579,8 @@ test::execute::_check_output()
    [ -z "${a_out}" ]  && _internal_fail "a_out must not be empty"
    [ "${rval}" = "" ] && _internal_fail "rval must not be empty"
 
+   [ -z "${CAT}" ]    && _internal_fail "CAT must be defined"
+
    local info_text
 
    info_text="\"${TEST_PATH_PREFIX}${pretty_source}\" (${TEST_PATH_PREFIX}${a_out}"
@@ -581,7 +590,7 @@ test::execute::_check_output()
       if [ ! -f "${errors}" ]
       then
          log_info "Stdout"
-         rexekutor cat "${output}" >&2
+         rexekutor "${CAT}" "${output}" >&2
          log_info "Stderr"
          rexekutor cat "${errput}" >&2
          if [ ${rval} -ne 1 ]
@@ -621,6 +630,8 @@ test::execute::_check_output()
    pretty_output="${output#"${MULLE_USER_PWD}/"}"
    pretty_errput="${errput#"${MULLE_USER_PWD}/"}"
 
+   # when MULLE_TEXT_EXECUTABLE is set, this not.-hmm
+
    if [ "${stdout}" != "-" ]
    then
       local result
@@ -640,7 +651,8 @@ test::execute::_check_output()
             log_info  "DIFF: (${pretty_output#{MULLE_USER_PWD}/} vs. ${pretty_stdout#{MULLE_USER_PWD}/})"
             redirect_exekutor "${output}.actual.hex" od -a "${output}"
             redirect_exekutor "${output}.expect.hex" od -a "${stdout}"
-            rexekutor cat "${output}.actual.hex" | mulle_diff -y -W ${DIFF_COLUMN_WIDTH:-160} - "${output}.expect.hex"  >&2
+            rexekutor "${CAT}" "${output}.actual.hex" | mulle_diff -y -W ${DIFF_COLUMN_WIDTH:-160} - "${output}.expect.hex"  >&2
+            return ${RVAL_OUTPUT_DIFFERENCES}
          fi
       else
          log_fluff "No differences in stdout found"
@@ -771,6 +783,8 @@ test::execute::run()
 
    log_debug "Check test \"${name}\" output (rval: $rval)"
 
+   [ -z "${CRLFCAT}" ] && _internal_fail "CRLFCAT must be defined"
+
    test::logging::redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = 'YES' ]
    then
@@ -811,6 +825,12 @@ test::execute::run()
    then
       remove_file_if_present "${output}"
       remove_file_if_present "${errput}"
+   fi
+
+   if [ "${OPTION_REMOVE_EXE}" = 'YES' ]
+   then
+      # usually always remove this, since we dont want this in coverage report
+      remove_file_if_present "${a_out##.exe}.gcno"
    fi
 
    if [ ! -z "${a_out}" -a $rc -eq 0 -a "${OPTION_REMOVE_EXE}" = 'YES' ]
@@ -1043,21 +1063,24 @@ test::execute::main()
    fi
 
    local args_text
+   local file_args
 
-   if [ -z "${args}" ]
+   test::execute::r_get_test_datafile "args" "${name}" ""
+   file_args="${RVAL}"
+
+   if [ ! -z "${file_args}" ]
    then
-      test::execute::r_get_test_datafile "args" "${name}" ""
-      args="${RVAL}"
-
-      if [ ! -z "${args}" ]
+      if [ -x "${file_args}" ]
       then
-         if [ -x "${args}" ]
-         then
-            args_text="`PATH="${PWD}:${PATH}" rexekutor "${args}"`" || fail "${args} errored out"
-         else
-            args_text="`cat "${args}"`"
-         fi
+         args_text="`PATH="${PWD}:${PATH}" rexekutor "${file_args}"`" || fail "${file_args} errored out"
+      else
+         args_text="`cat "${file_args}"`"
       fi
+
+      TESTSOURCE="${sourcefile}" TESTNAME="${name}" r_expanded_string "${args_text}"
+      args_text=${RVAL}
+   else
+      args_text="${args}"
    fi
 
    local root
@@ -1082,6 +1105,7 @@ test::execute::main()
       else
          cat="cat"
       fi
+
       CAT="`command -v ${cat}`"
       [ -z "${CAT}" ] && fail "There is no ${cat} installed on this system"
 

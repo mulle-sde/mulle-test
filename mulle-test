@@ -63,6 +63,8 @@ Usage:
    test environment with \`mulle-test craft\`. Now you can run the tests with
    \`mulle-test run\`.
 
+   mulle-test can generate coverage information and supports various sanitizers
+   such as valgrind (see Flags)
 
 Flags:
 EOF
@@ -81,8 +83,7 @@ EOF
    --testallocator         : use mulle-testallocator to run (default)
    --valgrind              : use valgrind to run
    --valgrind-no-leaks     : use valgrind without leak checker run
-   --zombie                : use zombie sanitizer ro run
-
+   --zombie                : use zombie sanitizer
 EOF
    ) | sort >&2
 
@@ -181,7 +182,6 @@ test::do_craft()
          . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-craft.sh"
 
          cmd="test::craft::main"
-
       fi
    fi
 
@@ -204,6 +204,7 @@ test::do_run()
 
    log_verbose "Run tests"
 
+   # legacy support :)
    if [ -x "./run-test" ]
    then
       cmd="./run-test ${MULLE_TECHNICAL_FLAGS}"
@@ -219,13 +220,16 @@ test::do_run()
    [ -z "${DEPENDENCY_DIR}" ] && _internal_fail "DEPENDENCY_DIR not set"
    [ -z "${KITCHEN_DIR}" ]    && _internal_fail "KITCHEN_DIR not set"
 
-   include "test::compiler"
-
    local environment
 
-   if test::compiler::r_env_sanitizer_flags "${SANITIZER}"
+   if [ -z "${MULLE_TEST_EXECUTABLE}" ]
    then
-      environment="${RVAL}"
+      include "test::compiler"
+
+      if test::compiler::r_env_sanitizer_flags "${SANITIZER}"
+      then
+         environment="${RVAL}"
+      fi
    fi
 
    set -- ${environment} ${cmd} "$@"
@@ -514,7 +518,7 @@ test::main()
 
       *)
          case "${cmd}" in
-            build|clean|cleanrun|craft|env|fetch|init|libexec-dir|linkorder|log\
+            build|clean|cleanrun|coverage|craft|env|fetch|init|libexec-dir|linkorder|log\
 |rebuild|recraft|rerun|run|test-dir|version)
                shift
             ;;
@@ -542,8 +546,12 @@ test::main()
             test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
+         local domains
+
+         domains="${MULLE_TEST_CLEAN_DOMAINS:-${PROJECT_NAME}}"
+
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                           clean --lenient "${PROJECT_NAME}" || return $?
+                           clean --lenient "${domains}" || return $?
 
          test::do_craft "$@" || return $?
 
@@ -581,6 +589,17 @@ test::main()
          test::clean::main "$@"
       ;;
 
+      coverage)
+         if test::cd_test_dir
+         then
+            test::exec_in_subshell_if_needed "${cmd}" "$@"
+         fi
+
+         include "test::coverage"
+
+         test::coverage::main "$@"
+      ;;
+
       craftorder)
          if test::cd_test_dir
          then
@@ -588,7 +607,7 @@ test::main()
          fi
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                           craftorder
+                           craftorder "$@"
       ;;
 
       env)
@@ -611,6 +630,7 @@ test::main()
 
          test::init::main "$@"
       ;;
+
 
       libexec-dir)
          printf "%s\n" "${MULLE_TEST_LIBEXEC_DIR}"

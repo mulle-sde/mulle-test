@@ -78,7 +78,12 @@ test::craft::main()
             done
          ;;
 
-         --coverage|--valgrind|--sanitize*)
+         --coverage)
+            r_colon_concat "${SANITIZER}" coverage
+            SANITIZER="${RVAL}"
+         ;;
+
+         --valgrind|--sanitize*)
             # ignore, don't complain
          ;;
 
@@ -103,8 +108,8 @@ test::craft::main()
          ;;
 
          --serial|--no-parallel|--parallel)
-            r_concat "${craftargs}" "'$1'"
-            craftargs="${RVAL}"
+            r_concat "${sdeargs}" "'$1'"
+            sdeargs="${RVAL}"
          ;;
 
 # TODO: Doesn't work for some reason
@@ -132,7 +137,7 @@ test::craft::main()
    done
 
    # we force no-clean since we don't have a project per se in test
-   # only craftorders
+   # only craftorders (also: the caller has clean beforehand...)
    sdeargs="${sdeargs} --no-clean"
 
    configuration="${OPTION_CONFIGURATION:-Debug}"
@@ -151,6 +156,7 @@ test::craft::main()
    fi
 
    local makeargs
+   local envflags
 
    case ":${SANITIZER}:" in
       *:undefined:*)
@@ -168,6 +174,10 @@ test::craft::main()
       *:coverage:*)
 #         makeargs="${makeargs} -DOTHER_CFLAGS+=--coverage"
          makeargs="${makeargs} -DOTHER_CFLAGS+=--coverage"
+         makeargs="${makeargs} -DOTHER_CFLAGS+=-fno-inline"
+         makeargs="${makeargs} -DOTHER_CFLAGS+=-DNDEBUG"
+         makeargs="${makeargs} -DOTHER_CFLAGS+=-DNS_BLOCK_ASSERTIONS"
+         # envflags="-DGCOV_PREFIX='${PWD}/gcovdata'"
       ;;
    esac
 
@@ -188,9 +198,11 @@ test::craft::main()
       if ! eval_exekutor mulle-sde \
                                "${MULLE_TECHNICAL_FLAGS}" \
                                "${MULLE_SDE_FLAGS}" \
+                               "${envflags}" \
                                --no-test-check \
                             craft \
                                "${sdeargs}" \
+                               -- \
                                "${craftargs}" \
                                -- \
                                "${makeargs}"

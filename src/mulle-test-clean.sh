@@ -117,12 +117,17 @@ test::clean::main()
          exekutor find . -type f -name "*.exe" -exec rm {} \;
 
          log_verbose "Cleaning test coverage"
-         exekutor find . -type f \( -name "*.gcda" -o -name "*.profdata" \) -exec rm {} \;
+         exekutor find . -type f \( -name "*.gcno" -o -name "*.gcda" -o -name "*.profdata" \) -exec rm {} \;
 
          if [ "${OPTION_CLEAN_VAR}" = 'YES' ]
          then
             log_verbose "Cleaning var"
             rmdir_safer "${MULLE_TEST_VAR_DIR}"
+         fi
+
+         if [ ! -z "${MULLE_SDE_CLEAN_DEFAULT}" ]
+         then
+            rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} clean
          fi
       ;;
 
@@ -130,9 +135,7 @@ test::clean::main()
       ;;
 
       *)
-         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                     clean \
-                        "$1"
+         rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} clean "$1"
          return $?
       ;;
    esac

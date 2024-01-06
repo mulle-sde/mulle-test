@@ -144,7 +144,7 @@ test::environment::setup_compiler()
       ;;
 
       *)
-         fail "unsupported language \"${language}\""
+         log_warning "unsupported language \"${language}\""
       ;;
    esac
 
@@ -201,9 +201,67 @@ test::environment::setup_compiler()
 }
 
 
-test::environment::setup_platform()
+test::environment::setup_execution_platform()
 {
-   log_entry "test::environment::setup_platform" "$@"
+   log_entry "test::environment::setup_execution_platform" "$@"
+
+   local platform="$1"
+
+   #
+   # for purposes of .gitignore and sublime it is easier to have a .exe
+   # extensions on all platforms:
+   #
+   EXE_EXTENSION=".exe"
+   DEBUG_EXE_EXTENSION=".debug.exe"
+
+   case "${platform}" in
+      'windows')
+         CRLFCAT="dos2unix"
+      ;;
+
+      'mingw'|'msys')
+         CRLFCAT="dos2unix"
+      ;;
+
+      'darwin')
+         CRLFCAT="cat"
+      ;;
+
+      'windows'|'linux')
+         CRLFCAT="cat"
+      ;;
+
+      "")
+         fail "platform not set"
+      ;;
+
+      *)
+         CRLFCAT="cat"
+      ;;
+   esac
+
+   log_setting "CRLFCAT             : ${CRLFCAT}"
+   log_setting "EXE_EXTENSION       : ${EXE_EXTENSION}"
+   log_setting "DEBUG_EXE_EXTENSION : ${DEBUG_EXE_EXTENSION}"
+}
+
+
+test::environment::setup_environment()
+{
+   log_entry "test::environment::setup_environment" "$@"
+
+   test::run::r_suppress_crashdumping
+   RESTORE_CRASHDUMP="${RVAL}"
+
+   MAKEFLAGS="${MAKEFLAGS:-${DEFAULT_MAKEFLAGS}}"
+
+   trap 'test::run::trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
+}
+
+
+test::environment::setup_development_platform()
+{
+   log_entry "test::environment::setup_development_platform" "$@"
 
    local platform="$1"
 
@@ -237,55 +295,6 @@ test::environment::setup_platform()
 
    STATICLIB_PREFIX="${_prefix_lib}"
    STATICLIB_EXTENSION="${_suffix_staticlib}"
-
-   case "${platform}" in
-      'windows')
-         CRLFCAT="dos2unix"
-      ;;
-
-      'mingw'|'msys')
-         CRLFCAT="dos2unix"
-      ;;
-
-      'darwin')
-         case "${CC}" in
-            mulle-cl*)
-               # do nuthing
-            ;;
-
-            *)
-               # LDFLAGS="${LDFLAGS} -framework Foundation"  ## harmless and sometimes useful
-            ;;
-         esac
-         CRLFCAT="cat"
-      ;;
-
-      'windows'|'linux')
-#         LDFLAGS="${LDFLAGS} -ldl -lpthread"  # weak and lame
-         CRLFCAT="cat"
-      ;;
-
-      "")
-         fail "platform not set"
-      ;;
-
-      *)
-         CRLFCAT="cat"
-      ;;
-   esac
-}
-
-
-test::environment::setup_environment()
-{
-   log_entry "test::environment::setup_environment" "$@"
-
-   test::run::r_suppress_crashdumping
-   RESTORE_CRASHDUMP="${RVAL}"
-
-   MAKEFLAGS="${MAKEFLAGS:-${DEFAULT_MAKEFLAGS}}"
-
-   trap 'test::run::trace_ignore "${RESTORE_CRASHDUMP}"' 0 5 6
 }
 
 
@@ -358,9 +367,9 @@ test::environment::include_required()
 }
 
 
-test::environment::setup_project()
+test::environment::setup_development_environment()
 {
-   log_entry "test::environment::setup_project" "$@"
+   log_entry "test::environment::setup_development_environment" "$@"
 
    local platform="$1"
 
@@ -370,8 +379,8 @@ test::environment::setup_project()
    eval `mulle-platform environment --platform "$1" --build-tools`
 
 #   test::environment::setup_tooling     "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+   test::environment::setup_development_platform "${platform}"
    test::environment::setup_compiler    "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" "${MULLE_TEST_OBJC_DIALECT}"
-   test::environment::setup_platform    "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
    test::environment::setup_debugger    "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
    test::environment::setup_environment "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
 

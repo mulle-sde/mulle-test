@@ -47,8 +47,8 @@ test::compiler::r_c_sanitizer_flags()
       ;;
 
       *:coverage:*)
-         RVAL="--coverage"
-         #RVAL="-fprofile-instr-generate -fcoverage-mapping"
+         RVAL="--coverage -fno-inline"
+         # RVAL="-fprofile-instr-generate -fcoverage-mapping"
          return 0
       ;;
 
@@ -75,6 +75,14 @@ test::compiler::r_ld_sanitizer_flags()
 
    RVAL=""
 
+   case ":${sanitizer}:" in
+      # MEMO: only produce coverage files for the shared library we
+      #       are testing, not for the tests themselves
+      *:coverage:*)
+         RVAL="-lgcov"
+         return 0
+      ;;
+   esac
 #
 # now add these unconditionally, because it makes life easier and we always
 # link these anyway with executable startups
@@ -202,11 +210,6 @@ test::compiler::r_c_commandline()
       cmdline="${cmdline} ${RVAL}"
    fi
 
-   if test::compiler::r_ld_sanitizer_flags "${SANITIZER}"
-   then
-      cmdline="${cmdline} ${RVAL}"
-   fi
-
    case "${PROJECT_DIALECT}" in
       c)
          case "${MULLE_UNAME}" in
@@ -240,6 +243,11 @@ test::compiler::r_c_commandline()
          esac
       ;;
    esac
+
+   if test::compiler::r_ld_sanitizer_flags "${SANITIZER}"
+   then
+      LDFLAGS="${LDFLAGS} ${RVAL}"
+   fi
 
    log_setting "LINK_COMMAND=${linkcommand}"
    log_setting "LDFLAGS=${LDFLAGS}"
