@@ -19,7 +19,7 @@ diff a.stdout a.result
 
 | Release Version                                       | Release Notes
 |-------------------------------------------------------|--------------
-| ![Mulle kybernetiK tag](https://img.shields.io/github/tag/mulle-sde/mulle-test.svg?branch=release) | [RELEASENOTES](RELEASENOTES.md) |
+| ![Mulle kybernetiK tag](https://img.shields.io/github/tag/mulle-sde/mulle-test.svg?branch=release)  | [RELEASENOTES](RELEASENOTES.md) |
 
 
 
@@ -69,7 +69,8 @@ matching operation is not performed.
 | `<name>.errors`      | Each line must grep for test diagnostics
 | `<name>.ccdiag`      | Each line must grep for compiler diagnostics
 | `<name>.environment` | Environment variables to set for test executable
-| `<name>.diff`        | An executable script to used instead of the default`diff`
+| `<name>.cat`         | An executable or script to use instead of the default `cat`
+| `<name>.diff`        | An executable or script to use instead of the default `diff`
 
 
 If for a test there is no support file `<name>.<ext>` found, a file with the
@@ -106,6 +107,13 @@ Example:
 export FOO="1848"
 ```
 
+### cat
+
+This is an executable or script, that is used to massage output of the
+test for diffing. Typical use is to sort the output to avoid differences due
+to multi-threading or removing values that look like addresses.
+
+
 ### diff
 
 This is an executable or script, that is used to compare the output of the
@@ -124,6 +132,7 @@ sed -e '/__DATE__/,/);/d'  | diff "$@"
 **mulle-test** is based on **mulle-sde**. mulle-test compiles your project and
 all dependencies as *shared* libraries. This is different from **mulle-sde**,
 which compiles *static* libraries by default.
+
 
 
 

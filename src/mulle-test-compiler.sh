@@ -133,6 +133,48 @@ test::compiler::r_env_sanitizer_flags()
 }
 
 
+test::compiler::r_common_c_flags()
+{
+   local srcfile="$1"
+
+   local cflags
+
+   test::flagbuilder::r_cflags "${cflags}" "${srcfile}"
+   cflags="${RVAL}"
+
+   case "${CC}" in
+      *-cl.exe)
+         if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
+         then
+            r_concat "${cflags}" "/DMULLE_TEST=1"
+            cflags="${RVAL}"
+         fi
+
+         r_concat "${cflags}" "/DMULLE_INCLUDE_DYNAMIC=1"
+         cflags="${RVAL}"
+      ;;
+
+      *)
+         if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
+         then
+            r_concat "${cflags}" "-DMULLE_TEST=1"
+            cflags="${RVAL}"
+         fi
+
+         r_concat "${cflags}" "-DMULLE_INCLUDE_DYNAMIC=1"
+         cflags="${RVAL}"
+      ;;
+   esac
+
+   local incflags
+
+   test::flagbuilder::r_include_cflags "'"
+   incflags="${RVAL}"
+
+   r_concat "${cflags}" "${incflags}"
+}
+
+
 test::compiler::r_c_commandline()
 {
    log_entry "test::compiler::r_c_commandline" "$@"
@@ -150,60 +192,12 @@ test::compiler::r_c_commandline()
       shift
    done
 
-   #hacque
-   local linkcommand
-
-   linkcommand="${LINK_COMMAND}"
-   if [ "${LINK_STARTUP_LIBRARY}" = 'NO' ] # true environment variable
-   then
-      linkcommand="${NO_STARTUP_LINK_COMMAND}"
-   fi
-
-   case "${MULLE_UNAME}" in 
-      'mingw'|'windows')
-         if [ "${MULLE_FLAG_LOG_DEBUG}" = 'YES' ]
-         then
-            linkcommand="-link -verbose ${linkcommand}"
-         else
-            linkcommand="-link ${linkcommand}"
-         fi
-      ;;
-   esac
-
-   test::flagbuilder::r_cflags "${cflags}" "${srcfile}"
+   test::compiler::r_common_c_flags "${srcfile}"
+   r_concat "${cflags}" "${RVAL}"
    cflags="${RVAL}"
 
-   case "${CC}" in
-      *-cl.exe)
-         if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
-         then
-            r_concat "${cflags}" "/DMULLE_TEST=1"
-            cflags="${RVAL}"
-         fi
-
-         r_concat "${cflags}" "/DMULLE_INCLUDE_DYNAMIC=1"
-         cflags="${RVAL}"      
-      ;;
-
-      *)
-         if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
-         then
-            r_concat "${cflags}" "-DMULLE_TEST=1"
-            cflags="${RVAL}"
-         fi
-         
-         r_concat "${cflags}" "-DMULLE_INCLUDE_DYNAMIC=1"
-         cflags="${RVAL}"      
-      ;;
-   esac
-
-   local incflags
-
-   test::flagbuilder::r_include_cflags "'"
-   incflags="${RVAL}"
-
    local cmdline
-   
+
    cmdline="'${CC}' ${cflags} ${incflags}"
    if test::compiler::r_c_sanitizer_flags "${SANITIZER}"
    then
@@ -249,6 +243,26 @@ test::compiler::r_c_commandline()
       LDFLAGS="${LDFLAGS} ${RVAL}"
    fi
 
+   #hacque
+   local linkcommand
+
+   linkcommand="${LINK_COMMAND}"
+   if [ "${LINK_STARTUP_LIBRARY}" = 'NO' ] # true environment variable
+   then
+      linkcommand="${NO_STARTUP_LINK_COMMAND}"
+   fi
+
+   case "${MULLE_UNAME}" in
+      'mingw'|'windows')
+         if [ "${MULLE_FLAG_LOG_DEBUG}" = 'YES' ]
+         then
+            linkcommand="-link -verbose ${linkcommand}"
+         else
+            linkcommand="-link ${linkcommand}"
+         fi
+      ;;
+   esac
+
    log_setting "LINK_COMMAND=${linkcommand}"
    log_setting "LDFLAGS=${LDFLAGS}"
    log_setting "RPATH_FLAGS=${RPATH_FLAGS}"
@@ -273,6 +287,43 @@ test::compiler::r_c_commandline()
    cmdline="${RVAL}"
 
    RVAL="${cmdline}"
+}
+
+
+test::compiler::r_c_asm_commandline()
+{
+   log_entry "test::compiler::r_c_asm_commandline" "$@"
+
+   local cflags="$1"; shift
+   local srcfile="$1"; shift
+   local extra="$1"; shift
+   local extension="$1"; shift
+
+   [ -z "${srcfile}" ] && _internal_fail "srcfile is empty"
+   [ -z "${extension}" ] && _internal_fail "extension is empty"
+
+   # skip -- passed on command line for now
+   while [ "$1" = "--" ]
+   do
+      shift
+   done
+
+   local outfile
+
+   outfile="${srcfile%.*}"
+   outfile="${outfile}.${extension}"
+
+   test::compiler::r_common_c_flags "${srcfile}"
+   r_concat "${cflags}" "${RVAL}"
+   cflags="${RVAL}"
+
+   local cmdline
+
+   cmdline="'${CC}' ${cflags} -S"
+   r_concat "${cmdline}" "${extra}"
+   r_concat "${RVAL}" '${srcfile}'
+   r_concat "${RVAL}" "-o '${outfile}'"
+   r_concat "${RVAL}" "$*"
 }
 
 
@@ -367,6 +418,24 @@ test::compiler::run_gcc()
 
    test::logging::err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
    rval=$?
+
+   if [ "${OPTION_OUTPUT_ASSEMBLER}" = 'YES'  ]
+   then
+      local extra
+      local extension
+
+      extension="s"
+      if [ "${OPTION_OUTPUT_ASSEMBLER_IR}" = 'YES' ]
+      then
+         extra="-emit-llvm"
+         extension="ir"
+      fi
+
+      test::compiler::r_c_asm_commandline "${cflags}" "${srcfile}" "${extra}" "${extension}" "$@"
+      cmdline="${RVAL}"
+
+      eval_exekutor "${cmdline}"
+   fi
 
    MULLE_FLAG_LOG_EXEKUTOR="${old_MULLE_FLAG_LOG_EXEKUTOR}"
 

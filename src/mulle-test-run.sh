@@ -50,6 +50,8 @@ Usage:
       --release   : build for release
       --keep-exe  : keep test executables around after a successful test
       --reuse-exe : if executable already exists, reuse it, don't rebuild
+      --assembler : produce assembler code on the side (C|ObjC/gcc|clang)
+      --ir        : produce LLVM IR code (clang/mulle-clang only)
 EOF
    exit 1
 }
@@ -1050,7 +1052,8 @@ test::run::main()
    local OPTION_RERUN_FAILED='NO'
    local OPTION_DEBUG_DYLD='NO'
    local OPTION_REUSE_EXE='NO'
-
+   local OPTION_OUTPUT_ASSEMBLER='NO'
+   local OPTION_OUTPUT_ASSEMBLER_IR='NO'
 
    DEFAULT_MAKEFLAGS="-s"
 
@@ -1088,6 +1091,16 @@ test::run::main()
             shift
 
             OPTION_MAXJOBS="$1"
+         ;;
+
+         --assembler)
+            OPTION_OUTPUT_ASSEMBLER='YES'
+            OPTION_OUTPUT_ASSEMBLER_IR='NO'
+         ;;
+
+         --ir|--llvm-ir)
+            OPTION_OUTPUT_ASSEMBLER='YES'
+            OPTION_OUTPUT_ASSEMBLER_IR='YES'
          ;;
 
          --project-language)

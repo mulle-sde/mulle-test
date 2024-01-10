@@ -91,6 +91,11 @@ test::clean::main()
             cleanoptions="$1"
          ;;
 
+         -g)
+            # hack for clean
+            break
+         ;;
+
          -*)
             test::clean::usage "Unknown option \"$1\""
          ;;
@@ -104,7 +109,7 @@ test::clean::main()
    done
 
    case "${1:-all}" in
-      all|tidy|gravetidy)
+      all|tidy|gravetidy|.g)
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                      clean \
                         ${cleanoptions} \
