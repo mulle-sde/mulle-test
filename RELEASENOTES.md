@@ -1,3 +1,7 @@
+### 6.3.2
+
+* Various small improvements
+
 ## 6.3.0
 
 * add --objc-coverage support

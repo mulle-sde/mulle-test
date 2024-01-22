@@ -297,10 +297,13 @@ test::init::main()
                        -m "'mulle-sde/${PROJECT_DIALECT}-test-${PROJECT_TYPE:-executable}'" \
                        none || return $?
 
-   # move below startup code if any
-   (
-      rexekutor cd "${OPTION_DIRECTORY}" &&
-      exekutor mulle-sourcetree -N -s move "${PROJECT_NAME}" bottom
-   )
+   # move below startup code if any (don't do this anymore because
+   # of mulle-testallocator which needs to get the amalgamated libraries from
+   # mulle-core)
+   #
+   # (
+   #    rexekutor cd "${OPTION_DIRECTORY}" &&
+   #    exekutor mulle-sourcetree -N -s move "${PROJECT_NAME}" bottom
+   # )
 }
 

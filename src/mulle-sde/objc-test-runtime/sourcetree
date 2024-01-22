@@ -6,3 +6,8 @@
 # executable project anyway
 #
 --nodetype '${<|PREFERRED_STARTUP_LIBRARY_UPCASE_IDENTIFIER|>_NODETYPE:-tar}' --marks 'no-dynamic-link,no-intermediate-link,no-header,singlephase' --branch '${<|PREFERRED_STARTUP_LIBRARY_UPCASE_IDENTIFIER|>_BRANCH}' --tag '${<|PREFERRED_STARTUP_LIBRARY_UPCASE_IDENTIFIER|>_TAG:-latest}' --url '${<|PREFERRED_STARTUP_LIBRARY_UPCASE_IDENTIFIER|>_URL:-https://github.com/MulleFoundation/<|PREFERRED_STARTUP_LIBRARY|>/archive/${MULLE_TAG}.tar.gz}' '<|PREFERRED_STARTUP_LIBRARY|>'
+
+#
+# this is now afterwards, since MulleFoundation will provide mulle-core
+#
+--nodetype '${MULLE__TESTALLOCATOR_NODETYPE:-tar}' --marks 'no-import,no-singlephase' --tag '${MULLE__TESTALLOCATOR_TAG:-latest}' --branch '${MULLE__TESTALLOCATOR_BRANCH}'  --url '${MULLE__TESTALLOCATOR_URL:-https://github.com/mulle-core/mulle-testallocator/archive/${MULLE_TAG}.tar.gz}' 'mulle-testallocator'
