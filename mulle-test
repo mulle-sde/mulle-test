@@ -33,7 +33,7 @@
 [ "${TRACE:-}" = "YES" -o "${MULLE_TEST_TRACE:-}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="6.3.2"
+MULLE_EXECUTABLE_VERSION="6.3.3"
 
 #
 # Determine location of own libexec directory. Which is `src` in development
@@ -210,7 +210,7 @@ test::do_run()
       cmd="./run-test ${MULLE_TECHNICAL_FLAGS}"
    else
       # shellcheck source=src/mulle-test-run.sh
-      . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-run.sh"
+      include "test::run"
 
       cmd="test::run::main"
    fi
@@ -237,9 +237,35 @@ test::do_run()
 }
 
 
+test::is_non_environment_commandline()
+{
+   while [ $# -ne 0 ]
+   do
+      case "$1" in
+         -h|--help|help)
+            return 0
+         ;;
+
+         --)
+            break
+         ;;
+
+      esac
+      shift
+   done
+
+   return 1
+}
+
+
 test::exec_in_subshell_if_needed()
 {
    log_entry "test::exec_in_subshell_if_needed" "$@"
+
+   if test::is_non_environment_commandline "$@"
+   then
+      return
+   fi
 
    if [ "${MULLE_VIRTUAL_ROOT}" != "${PWD}" ]
    then
@@ -250,7 +276,7 @@ test::exec_in_subshell_if_needed()
       if [ -d "${PWD}/.mulle/share/env" ]
       then
          exekutor exec mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                           run mulle-test ${MULLE_TECHNICAL_FLAGS} "$@"
+                           exec mulle-test ${MULLE_TECHNICAL_FLAGS} "$@"
       else
          fail "Not a proper initialized test directory (${PWD#"${MULLE_USER_PWD}/"})
 ${C_INFO}To initialize for mulle-test:
@@ -541,6 +567,13 @@ test::main()
 
    case "${cmd}" in
       craft|build|crun)
+         if test::is_non_environment_commandline "$@"
+         then
+            include "test::run"
+            test::run::main "$@"
+            return
+         fi
+
          if test::cd_test_dir
          then
             test::exec_in_subshell_if_needed "${cmd}" "$@"
@@ -562,6 +595,13 @@ test::main()
       ;;
 
       recraft|rebuild|recrun)
+         if test::is_non_environment_commandline "$@"
+         then
+            include "test::run"
+            test::run::main "$@"
+            return
+         fi
+
          if test::cd_test_dir
          then
             test::exec_in_subshell_if_needed "${cmd}" "$@"
@@ -659,6 +699,13 @@ test::main()
       ;;
 
       run|rerun)
+         if test::is_non_environment_commandline "$@"
+         then
+            include "test::run"
+            test::run::main "$@"
+            return
+         fi
+
          if test::cd_test_dir
          then
             test::exec_in_subshell_if_needed "${cmd}" "$@"

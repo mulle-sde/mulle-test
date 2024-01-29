@@ -41,17 +41,31 @@ Usage:
    ${MULLE_USAGE_NAME} run [options] [test]
 
    You may optionally specify a source test file, to only run that specific
-   test.
+   test. Each test is of the form <name>.<extension>, where extension is the
+   specific language extension (like "c" or "m"). Besided the test there
+   can be a number of auxiliary files, that determine the way the test is
+   processed. See the README for more details.
 
-   Options:
-      -l          : be lenient, keep going if tests fail
-      --serial    : run test one after the other
-      --debug     : build for debug
-      --release   : build for release
-      --keep-exe  : keep test executables around after a successful test
-      --reuse-exe : if executable already exists, reuse it, don't rebuild
-      --assembler : produce assembler code on the side (C|ObjC/gcc|clang)
-      --ir        : produce LLVM IR code (clang/mulle-clang only)
+   <name>.args        : Arguments to pass to the test
+   <name>.stdout      : Contents must match exactly standard output of the test
+   <name>.stdin       : File fed to standard input of the test
+   <name>.stderr      : Contents must match exactly standard error of the test
+   <name>.errors      : Each line must grep for test diagnostics
+   <name>.ccdiag      : Each line must grep for compiler diagnostics
+   <name>.environment : Environment variables to set for test
+   <name>.cat         : command to use instead of the default cat
+   <name>.diff        : command to use instead of the default diff
+
+Options:
+   --assembler        : produce assembler code on the side (C|ObjC/gcc|clang)
+   --debug            : build for debug
+   --ir               : produce LLVM IR code (clang/mulle-clang only)
+   --keep-exe         : keep test executables around after a successful test
+   --release          : build for release
+   --reuse-exe        : if executable already exists, reuse it, don't rebuild
+   --serial           : run test one after the other
+   -l                 : be lenient, keep going if tests fail
+
 EOF
    exit 1
 }
@@ -1039,10 +1053,7 @@ test::run::main()
 {
    log_entry "test::run::main" "$@"
 
-   if [ -z "${MULLE_TEST_ENVIRONMENT_SH}" ]
-   then
-      . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-environment.sh"
-   fi
+   include "test::environment"
 
    test::environment::include_required
 
