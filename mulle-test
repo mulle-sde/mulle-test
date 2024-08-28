@@ -63,6 +63,10 @@ Usage:
    test environment with \`mulle-test craft\`. Now you can run the tests with
    \`mulle-test run\`.
 
+   To iterate over a test "foo.c" and library code until you get it right,
+   use \`mulle-test --no-clean crun foo.c\`. This will build changes to
+   the library and then recompile and run the test.
+
    mulle-test can generate coverage information and supports various sanitizers
    such as valgrind (see Flags)
 
@@ -74,6 +78,7 @@ EOF
       cat <<EOF
    --dir-name <name>       : specify test directory name (default: test)
    --no-sanitizer          : no sanitizer
+   --no-clean              : do not clean before crafting
    --coverage              : produce clang coverage information
    --gdb                   : use gdb to run
    --objc-coverage         : produce mulle-objc coverage information
@@ -95,6 +100,7 @@ Commands:
    craft                   : force rebuild of project, then run tests
    init                    : setup a test project for the current project
    recraft                 : clean all, then craft
+   crun                    : craft library if needed, then run a single test
    run                     : run tests, crafts beforehand if needed
    rerun                   : run failing tests again
    test-dir                : locate test folder
@@ -329,18 +335,40 @@ test::run_or_rerun()
 }
 
 
+test::clean()
+{
+   log_entry "test::clean" "$@"
+
+   local clean="$1"
+
+   case "${clean}" in 
+      'YES')
+         local domains
+
+         domains="${MULLE_TEST_CLEAN_DOMAINS:-${PROJECT_NAME}}"
+
+         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                           clean --lenient "${domains}" || return $?
+      ;;
+
+      'ALL'|'TIDY'|'GRAVETIDY')
+         r_lowercase "${clean}"
+         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+                        clean "${RVAL}" || return $?
+      ;;
+   esac
+}
+
+
 test::main()
 {
-   local SANITIZER
+   local FLAG_OUTSIDE_ENV="NO"       # need comment
    local MULLE_FLAG_DEFER="DEFAULT"
-   local FLAG_OUTSIDE_ENV="NO"
-
-   local BUILD_FLAGS="-f"
-   local BUILD_OPTIONS="--clean"
-   local RUN_FLAGS
-   local RUN_OPTIONS
-   local OPTION_CONFIGURATION
    local MULLE_TEST_DEFINE='YES'
+   local OPTION_CLEAN='YES'
+   local OPTION_CRAFT='DEFAULT'
+   local OPTION_CONFIGURATION
+   local SANITIZER
 
    #
    # On MacOS with the default Foundation/objc we can't
@@ -413,6 +441,18 @@ test::main()
          --gdb)
             r_colon_concat "${SANITIZER}" "gdb"
             SANITIZER="${RVAL}"
+         ;;
+
+         --clean-all)
+            OPTION_CLEAN='ALL'
+         ;;
+
+         --no-clean)
+            OPTION_CLEAN='NO'
+         ;;
+
+         --no-craft)
+            OPTION_CRAFT='NO'
          ;;
 
          --valgrind)
@@ -545,18 +585,18 @@ test::main()
       *)
          case "${cmd}" in
             build|clean|cleanrun|coverage|craft|env|fetch|init|libexec-dir|linkorder|log\
-|rebuild|recraft|rerun|run|test-dir|version)
+|rebuild|recraft|rerun|run|retest|test-dir|version)
                shift
             ;;
 
             /*|.*)
-               cmd="run"
+               cmd='run'
             ;;
 
             *)
                if [ -e "${MULLE_USER_PWD}/${cmd}" ]
                then
-                  cmd="run"
+                  cmd='run'
                else
                   shift
                fi
@@ -565,36 +605,55 @@ test::main()
       ;;
    esac
 
-   case "${cmd}" in
-      craft|build|crun)
-         if test::is_non_environment_commandline "$@"
-         then
-            include "test::run"
-            test::run::main "$@"
-            return
-         fi
-
-         if test::cd_test_dir
-         then
-            test::exec_in_subshell_if_needed "${cmd}" "$@"
-         fi
-
-         local domains
-
-         domains="${MULLE_TEST_CLEAN_DOMAINS:-${PROJECT_NAME}}"
-
-         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                           clean --lenient "${domains}" || return $?
-
-         test::do_craft "$@" || return $?
-
-         if [ "${cmd}" = "crun" ]
-         then
-            test::run_or_rerun "run" "$@"
-         fi
+   case "${cmd}" in 
+      'build')
+         cmd="craft"
       ;;
 
-      recraft|rebuild|recrun)
+      'recraft'|'rebuild')
+         OPTION_CLEAN='ALL'
+         cmd="craft"
+      ;;
+
+      'retest')
+         OPTION_CLEAN='GRAVETIDY'
+         cmd="run"
+      ;;
+
+      'recrun')
+         OPTION_CLEAN='ALL'
+         cmd="run"
+      ;;
+
+      # kinda useless ?
+      'crun')
+         OPTION_CLEAN='YES'
+         cmd="run"
+      ;;
+   esac
+
+   case "${cmd}" in
+      craft)
+         # bypass for --help
+         if test::is_non_environment_commandline "$@"
+         then
+            include "test::craft"
+
+            test::craft::main "$@"
+            return
+         fi
+
+         if test::cd_test_dir
+         then
+            test::exec_in_subshell_if_needed "${cmd}" "$@"
+         fi
+
+         test::clean "${OPTION_CLEAN}"
+         test::do_craft "$@" || return $?
+      ;;
+
+      run|rerun)
+         # bypass for --help
          if test::is_non_environment_commandline "$@"
          then
             include "test::run"
@@ -607,15 +666,13 @@ test::main()
             test::exec_in_subshell_if_needed "${cmd}" "$@"
          fi
 
-         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                           clean all || return $?
+         test::clean "${OPTION_CLEAN}"
 
-         test::do_craft "$@" || return $?
-
-         if [ "${cmd}" = "recrun" ]
+         if [ "${OPTION_CRAFT}" != 'NO' ]
          then
-            test::run_or_rerun "run" "$@"
+            test::do_craft || return $?
          fi
+         test::run_or_rerun "${cmd}" "$@"
       ;;
 
       clean)
@@ -696,22 +753,6 @@ test::main()
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                            log "$@"
-      ;;
-
-      run|rerun)
-         if test::is_non_environment_commandline "$@"
-         then
-            include "test::run"
-            test::run::main "$@"
-            return
-         fi
-
-         if test::cd_test_dir
-         then
-            test::exec_in_subshell_if_needed "${cmd}" "$@"
-         fi
-
-         test::run_or_rerun "${cmd}" "$@"
       ;;
 
       test-dir)
