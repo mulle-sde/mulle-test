@@ -46,12 +46,12 @@ test::environment::setup_compiler()
 
    case "${language}" in
       c)
-         RELEASE_GCC_CFLAGS="-O2 -g -DNDEBUG -DNS_BLOCK_ASSERTIONS"
+         RELEASE_GCC_CFLAGS="-O3 -g -DNDEBUG -DNS_BLOCK_ASSERTIONS"
          DEBUG_GCC_CFLAGS="-O0 -g"
 
          case "${platform}" in
             'mingw')
-               RELEASE_CL_CFLAGS="-O2 -MD -wd4068 -DNDEBUG -DNS_BLOCK_ASSERTIONS" #-/W /O0"
+               RELEASE_CL_CFLAGS="-O3 -MD -wd4068 -DNDEBUG -DNS_BLOCK_ASSERTIONS" #-/W /O0"
                # http://stackoverflow.com/questions/3007312/resolving-lnk4098-defaultlib-msvcrt-conflicts-with
                # we link vs. cmake generated stuff, that is usually a DLL or will be wrapped into a DLL
                # so we compile with /MD
@@ -80,6 +80,7 @@ test::environment::setup_compiler()
                   ;;
 
                   mulle-objc)
+                     DEBUG_GCC_CFLAGS="${DEBUG_GCC_CFLAGS} -fobjc-tao"
                      PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-m:aam}"
                      STANDALONE_SUFFIX="-standalone"
 
@@ -90,6 +91,7 @@ test::environment::setup_compiler()
 
                            # nmake doesn't work ? /questionable!
                            MAKE="make"
+                           DEBUG_CL_CFLAGS="${DEBUG_CL_CFLAGS} -fobjc-tao"
                         ;;
 
                         windows)
@@ -98,6 +100,7 @@ test::environment::setup_compiler()
 
                            # nmake doesn't work ? /questionable!
                            MAKE="ninja.exe"
+                           DEBUG_CL_CFLAGS="${DEBUG_CL_CFLAGS} /FOBJC-TAO"
                         ;;
 
                         darwin)
@@ -127,7 +130,8 @@ test::environment::setup_compiler()
                   ;;
                esac
 
-               DEBUG_CL_CFLAGS="-DEBUG -MDd -Od -wd4068" #-/W /O0"
+               # ??
+               #DEBUG_CL_CFLAGS="-DEBUG -MDd -Od -wd4068" #-/W /O0"
             ;;
 
             *)
@@ -387,6 +391,7 @@ test::environment::setup_development_environment()
    log_setting "CC                  : ${CC}"
    log_setting "CXX                 : ${CXX}"
    log_setting "CFLAGS              : ${CFLAGS}" # environment only!
+   log_setting "CPPFLAGS            : ${CPPFLAGS}" # environment only!
    log_setting "DEBUGGER            : ${DEBUGGER}"
    log_setting "DEBUG_CFLAGS        : ${DEBUG_CFLAGS}"
    log_setting "DEBUG_EXE_EXTENSION : ${DEBUG_EXE_EXTENSION}"

@@ -1,4 +1,4 @@
-#<|INCLUDE_COMMAND|> <<|PROJECT_NAME|>/<|PROJECT_NAME|>.h>
+#<|INCLUDE_COMMAND|> <<|TEST_PROJECT_NAME|>/<|TEST_PROJECT_NAME|>.h>
 
 #include <stdio.h>
 

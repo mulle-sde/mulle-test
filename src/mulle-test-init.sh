@@ -137,6 +137,7 @@ test::init::main()
    local OPTION_DIRECTORY="test"
    local OPTION_STANDALONE='NO'
    local OPTION_EXECUTABLE='NO'
+   local APPEND_TEST_TO_NAME='YES'
 
    while :
    do
@@ -157,6 +158,7 @@ test::init::main()
             shift
 
             PROJECT_NAME="$1"
+            APPEND_TEST_TO_NAME='NO'
          ;;
 
          --project-language)
@@ -274,6 +276,12 @@ test::init::main()
                                               environment get PREFERRED_STARTUP_LIBRARY`"
    fi
 
+   TEST_PROJECT_NAME="${PROJECT_NAME}"
+   if [ "${APPEND_TEST_TO_NAME}" = 'YES' ]
+   then
+      PROJECT_NAME="${PROJECT_NAME}-test"
+   fi
+
    #
    # also set project language and dialect from main project
    # use wild, since we don't want to copy all the tools and optionaltools
@@ -290,6 +298,7 @@ test::init::main()
                        --style 'mulle/wild' \
                        --github-user "'${GITHUB_USER}'" \
                        --project-name "'${PROJECT_NAME}'" \
+                       --test-project-name "'${TEST_PROJECT_NAME}'" \
                        --project-language "'${PROJECT_LANGUAGE}'" \
                        --project-dialect "'${PROJECT_DIALECT}'" \
                        --project-extensions "'${PROJECT_EXTENSIONS}'" \

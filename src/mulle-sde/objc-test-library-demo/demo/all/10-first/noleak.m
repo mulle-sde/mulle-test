@@ -1,4 +1,4 @@
-#import <<|PROJECT_NAME|>/<|PROJECT_NAME|>.h>
+#import <<|TEST_PROJECT_NAME|>/<|TEST_PROJECT_NAME|>.h>
 
 
 int   main( int argc, char *argv[])
@@ -8,8 +8,8 @@ int   main( int argc, char *argv[])
       return( 1);
 #endif
 
-   // needs MulleFoundation, if this is just linked with MulleObjC this will
-   // crash
+   // needs MulleFoundation for the NSConstantString class. If this is just
+   // linked with MulleObjC this will crash because of the %@ conversion
    mulle_printf( "%@\n", @"VfL Bochum <missing number, please fix>");
    return( 0);
 }

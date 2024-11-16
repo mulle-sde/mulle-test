@@ -38,7 +38,7 @@ test::flagbuilder::r_include_cflags()
 
    local quote="$1"
 
-   local cflags
+   local c_flags
 
    if [ ! -z "${DEPENDENCY_DIR}" -a ! -z "${ADDICTION_DIR}" ]
    then
@@ -58,18 +58,18 @@ test::flagbuilder::r_include_cflags()
    .foreachpath directory in ${headerpath}
    .do
       platform::flags::r_cc_include_dir "${directory}" "${quote}"
-      r_concat "${cflags}" "${RVAL}"
-      cflags="${RVAL}"
+      r_concat "${c_flags}" "${RVAL}"
+      c_flags="${RVAL}"
    .done
 
    .foreachpath directory in ${frameworkpath}
    .do
       platform::flags::r_cc_framework_dir "${directory}" "${quote}"
-      r_concat "${cflags}" "${RVAL}"
-      cflags="${RVAL}"
+      r_concat "${c_flags}" "${RVAL}"
+      c_flags="${RVAL}"
    .done
 
-   RVAL="${cflags}"
+   RVAL="${c_flags}"
 }
 
 
@@ -77,13 +77,10 @@ test::flagbuilder::r_cflags()
 {
    log_entry "test::flagbuilder::r_cflags" "$@"
 
-   local cflags="$1"
+   local c_flags="$1"
    local srcfile="$2"
 
 #     log_setting "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
-   log_setting "CFLAGS              : ${cflags}"
-   log_setting "OTHER_CFLAGS        : ${OTHER_CFLAGS}"
-   log_setting "APPLE_SDKPATH       : ${APPLE_SDKPATH}"
 
    local cflagsname
 
@@ -92,24 +89,31 @@ test::flagbuilder::r_cflags()
 
    if [ -f "${cflagsname}.${MULLE_UNAME}" ]
    then
-      cflags="`cat "${cflagsname}.${MULLE_UNAME}"`"
-      log_fluff "Got CFLAGS=\"${cflags}\" from \"${cflagsname}.${MULLE_UNAME}\""
+      c_flags="`cat "${cflagsname}.${MULLE_UNAME}"`"
+      log_fluff "Got CFLAGS=\"${c_flags}\" from \"${cflagsname}.${MULLE_UNAME}\""
    else
       if [ -f "${cflagsname}" ]
       then
-         cflags="`cat "${cflagsname}"`"
-         log_fluff "Got CFLAGS=\"${cflags}\" from \"${cflagsname}\""
+         c_flags="`cat "${cflagsname}"`"
+         log_fluff "Got CFLAGS=\"${c_flags}\" from \"${cflagsname}\""
       fi
    fi
 
-   r_concat "${cflags}" "${OTHER_CFLAGS}"
-   cflags="${RVAL}"
+   r_concat "${c_flags}" "${CFLAGS}"
+   c_flags="${RVAL}"
+
+   r_concat "${c_flags}" "${OTHER_CFLAGS}"
+   c_flags="${RVAL}"
 
    if [ ! -z "${APPLE_SDKPATH}" ]
    then
-      r_concat "${cflags}" "-isysroot '${APPLE_SDKPATH}'"
-      cflags="${RVAL}"
+      r_concat "${c_flags}" "-isysroot '${APPLE_SDKPATH}'"
+      c_flags="${RVAL}"
    fi
 
-   RVAL="${cflags}"
+   log_setting "OTHER_CFLAGS        : ${OTHER_CFLAGS}"
+   log_setting "APPLE_SDKPATH       : ${APPLE_SDKPATH}"
+   log_setting "CFLAGS              : ${c_flags}"
+
+   RVAL="${c_flags}"
 }

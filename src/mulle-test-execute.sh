@@ -363,13 +363,24 @@ MULLE_ATINIT_FAILURE=0"
       log_verbose "Custom environment: ${environment}"
    fi
 
-   test::logging::full_redirekt_eval_exekutor "${input}" \
-                                              "${output}" \
-                                              "${errput}" \
-                                              "${environment}" \
-                                              "${runner}" \
-                                              "'${a_out_ext}'" \
-                                              ${args}
+   if [ "${MULLE_FLAG_LOG_VERBOSE}" = 'NO' ]
+   then
+      test::logging::full_redirekt_eval_exekutor "${input}" \
+                                                 "${output}" \
+                                                 "${errput}" \
+                                                 "${environment}" \
+                                                 "${runner}" \
+                                                 "'${a_out_ext}'" \
+                                                 ${args}
+   else
+      test::logging::full_redirekt_eval_tee_exekutor "${input}" \
+                                                     "${output}" \
+                                                     "${errput}" \
+                                                     "${environment}" \
+                                                     "${runner}" \
+                                                     "'${a_out_ext}'" \
+                                                     ${args}
+   fi
 }
 
 
@@ -642,7 +653,7 @@ test::execute::_check_output()
          white=`rexekutor "${CAT}" "${output}" | mulle_diff -q -w -B "${stdout}" -`
          if [ "$white" != "" ]
          then
-            log_error "FAILED: \"${pretty_source}\" produced unexpected output"
+            log_error "FAILED: \"${pretty_source}\" produced different output"
             log_info  "DIFF: (${pretty_output} vs. ${pretty_stdout})"
             rexekutor "${CAT}"  "${output}" | mulle_diff -y -W ${DIFF_COLUMN_WIDTH:-160} - "${stdout}" >&2
             return ${RVAL_OUTPUT_DIFFERENCES}
@@ -674,7 +685,7 @@ test::execute::_check_output()
       result=`mulle_diff -w "${stderr}" "${errput}"`
       if [ "${result}" != "" ]
       then
-         log_error "FAILED: \"${pretty_source}\" produced unexpected diagnostics (${pretty_errput})" >&2
+         log_error "FAILED: \"${pretty_source}\" produced different diagnostics (${pretty_errput})" >&2
          exekutor echo "" >&2
          exekutor mulle_diff "${pretty_stderr}" "${pretty_errput}" >&2
          return ${RVAL_OUTPUT_DIFFERENCES}
@@ -909,7 +920,7 @@ test::execute::main()
    local args
    local diff
    local cat
-   local cflags
+   local c_flags
    local pretty_source
 
    if [ -z "${OPTION_REMOVE_EXE}" ]

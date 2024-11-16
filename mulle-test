@@ -33,7 +33,7 @@
 [ "${TRACE:-}" = "YES" -o "${MULLE_TEST_TRACE:-}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="6.3.3"
+MULLE_EXECUTABLE_VERSION="6.4.0"
 
 #
 # Determine location of own libexec directory. Which is `src` in development
@@ -70,6 +70,11 @@ Usage:
    mulle-test can generate coverage information and supports various sanitizers
    such as valgrind (see Flags)
 
+   Test with different architecture:
+      mulle-sde test clean all
+      mulle-sde -DCFLAGS=-m32 test craft
+      mulle-sde -DMULLE_ARCH=i686 -DCFLAGS=-m32 test run sizeof.c
+
 Flags:
 EOF
 
@@ -96,6 +101,7 @@ EOF
    cat <<EOF >&2
 
 Commands:
+   arch                    : name of current architecture
    clean                   : remove dependency, kitchens and exe files
    craft                   : force rebuild of project, then run tests
    init                    : setup a test project for the current project
@@ -111,6 +117,7 @@ Environment:
    PROJECT_DIALECT         : dialect of the tests, can be objc
    PROJECT_EXTENSIONS      : file extensions of the test files
    PROJECT_LANGUAGE        : language of the tests (c)
+   TEST_PROJECT_NAME       : name of the "parent" project that gets tested
 
 EOF
 
@@ -239,7 +246,8 @@ test::do_run()
    fi
 
    set -- ${environment} ${cmd} "$@"
-   eval_exekutor "$@"
+   # TODO: used to be eval, but why ?
+   exekutor "$@"
 }
 
 
@@ -345,7 +353,11 @@ test::clean()
       'YES')
          local domains
 
-         domains="${MULLE_TEST_CLEAN_DOMAINS:-${PROJECT_NAME}}"
+         #
+         # PROJECT_NAME is for old project, who don't have
+         # TEST_PROJECT_NAME yet, of which there are many
+         #
+         domains="${MULLE_TEST_CLEAN_DOMAINS:-${TEST_PROJECT_NAME:-${PROJECT_NAME}}}"
 
          exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                            clean --lenient "${domains}" || return $?
@@ -623,6 +635,10 @@ test::main()
       'recrun')
          OPTION_CLEAN='ALL'
          cmd="run"
+      ;;
+
+      'run'|'rerun')
+         OPTION_CLEAN='NO'
       ;;
 
       # kinda useless ?

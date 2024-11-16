@@ -1,4 +1,4 @@
-# Arguments to call the executable `dependency/bin/<|PROJECT_NAME|>` with.
+# Arguments to call the executable `dependency/bin/<|TEST_PROJECT_NAME|>` with.
 # The output will then be compared with hello.stdout and the test passes
 # if it matches.
 These 13 arguments are likely to be ignored by the hello world program.

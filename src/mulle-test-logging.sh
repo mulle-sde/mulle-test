@@ -210,6 +210,34 @@ test::logging::full_redirekt_eval_exekutor()
 
       return $rval
    fi
+}
 
+test::logging::full_redirekt_eval_tee_exekutor()
+{
+   local stdin="$1"
+   local stdout="$2"
+   local stderr="$3"
+
+   shift 3
+
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = 'YES' ]
+   then
+      if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
+      then
+         echo "==>" "$@" "<" "${stdin}" ">" "${stdout}" "2>" "${stderr}" >&2
+      else
+         echo "==>" "$@" "<" "${stdin}" ">" "${stdout}" "2>" "${stderr}" > "${MULLE_EXEKUTOR_LOG_DEVICE}"
+      fi
+   fi
+
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != 'YES' ]
+   then
+      local rval
+
+      ( eval "$@" ) < "${stdin}" 2> >(tee "${stderr}" >&2) > >(tee "${stdout}")
+      rval=$?
+
+      return $rval
+   fi
 }
 

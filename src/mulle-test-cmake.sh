@@ -139,6 +139,22 @@ test::cmake::eval_mulle_make()
    test::flagbuilder::r_include_cflags ""
    cmake_c_flags="${RVAL}"
 
+#
+# didn't do what I wanted, so leave it out...
+#
+#   local kitchendir
+#
+#   kitchendir="${TEST_KITCHEN_DIR:-kitchen}"
+#   r_absolutepath "${kitchendir}"
+#
+#   # also add kitchen/include as its standard
+#   platform::flags::r_cc_include_dir "${RVAL}/include" "${quote}"
+#   r_concat "${cmake_c_flags}" "${RVAL}"
+#   cmake_c_flags="${RVAL}"
+
+   r_concat "${cmake_c_flags}" "${CFLAGS}"
+   cmake_c_flags="${RVAL}"
+
    r_concat "${cmake_c_flags}" "${OTHER_CFLAGS}"
    cmake_c_flags="${RVAL}"
 
@@ -206,7 +222,7 @@ test::cmake::eval_mulle_make()
 
    test::cmake::r_add_flag "${cmd}" "--configuration" "${build_type}"
    cmd="${RVAL}"
-   test::cmake::r_add_flag "${cmd}" "--build-dir" "${TEST_KITCHEN_DIR:-kitchen}"
+   test::cmake::r_add_flag "${cmd}" "--build-dir" "${kitchendir}"
    cmd="${RVAL}"
    test::cmake::r_add_flag "${cmd}" "--info-dir" "${MULLE_VIRTUAL_ROOT}/.mulle/etc/craft/definition"
    cmd="${RVAL}"
@@ -295,6 +311,7 @@ test::cmake::fail_test()
    local shlib
    local produced
    local final
+   local a_out_dir
 
    r_extensionless_basename "${a_out}"
    r_extensionless_basename "${RVAL}"
@@ -322,7 +339,10 @@ test::cmake::fail_test()
       exekutor cp -p "${TEST_KITCHEN_DIR:-kitchen}/${produced}" "./${final}"
    )
 
-   test::compiler::suggest_debugger_commandline "${final}" "${stdin}" "${is_exe}"
+   r_absolutepath "${directory}"
+   r_filepath_concat "${RVAL}" "${final}"
+
+   test::compiler::suggest_debugger_commandline "${RVAL}" "${stdin}" "${is_exe}"
 }
 
 

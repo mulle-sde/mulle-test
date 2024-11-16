@@ -52,9 +52,13 @@ Usage:
    <name>.stderr      : Contents must match exactly standard error of the test
    <name>.errors      : Each line must grep for test diagnostics
    <name>.ccdiag      : Each line must grep for compiler diagnostics
-   <name>.environment : Environment variables to set for test
+   <name>.environment : Environment variables sourced for test (export FOO=YES)
    <name>.cat         : command to use instead of the default cat
    <name>.diff        : command to use instead of the default diff
+
+   These files can be reused by other tests in the directory by changing <name>
+   to "default". You can add ".${MULLE_UNAME}.${MULLE_ARCH}" to specify your
+   current platform only (or just either one) e.g. "default.cat.linux.x86_64".
 
 Options:
    --assembler        : produce assembler code on the side (C|ObjC/gcc|clang)
@@ -199,7 +203,7 @@ test::run::common()
 
    if [ "${OPTION_REUSE_EXE}" = 'YES' -a -x "${a_out_ext}" ]
    then
-      log_verbose "Reusing exectuable ${a_out_ext#"${MULLE_USER_PWD}/"}"
+      log_verbose "Reusing executable ${a_out_ext#"${MULLE_USER_PWD}/"}"
       TEST_BUILDER=
    fi
 
@@ -228,7 +232,7 @@ test::run::common()
       exeflags="--keep-exe"
    fi
 
-   log_verbose "Run test ${pretty_source}"
+   log_verbose "Run test ${C_MAGENTA}${C_BOLD}${pretty_source}"
 
    local cmd
 
@@ -343,16 +347,36 @@ test::run::c()
       a_out="`grep -E -v '^#' "${RVAL}"`"
    fi
 
-   local cflags
+   local c_flags
 
-   if test::run::r_get_environmentfile "${purename}" "cflags" "cflags"
+   if test::run::r_get_environmentfile "${purename}" "c_flags" "c_flags"
    then
-      cflags="`grep -E -v '^#' "${RVAL}"`"
+      c_flags="`grep -E -v '^#' "${RVAL}"`"
+
+      local line
+
+      .foreachline line in ${c_flags}
+      .do
+         case "${line}" in
+            ${OPTION_CONFIGURATION}:*)
+               c_flags="${line#*:}"
+               .break
+            ;;
+
+            Release:*|Debug:*|RelWithDebInfo:*|MinSizeRel*)
+            ;;
+
+            *)
+               c_flags="${line}"
+               .break
+            ;;
+         esac
+      .done
    fi
 
    TEST_BUILDER="test::compiler::run"
    FAIL_TEST="test::compiler::fail_c"
-   test::run::common "" "${a_out}" "${a_out}${EXE_EXTENSION}" "${name}" "${cflags}" "$@"
+   test::run::common "" "${a_out}" "${a_out}${EXE_EXTENSION}" "${name}" "${c_flags}" "$@"
 }
 
 
@@ -495,6 +519,20 @@ test::run::run()
 
    a_out="${a_out_ext%${BAT_EXTENSION}}"
 
+   #
+   # remove all sanitizers, because they would get injected
+   # into bash, which may become unusably slow. The shell 
+   # script should setup the sanitizers if it wants to
+   local before
+
+   TEST_SANITIZER="${SANITIZER}"
+   SANITIZER=""
+   if [ ! -z "${TEST_SANITIZER}" ]
+   then
+      log_verbose "Implement TEST_SANITIZER in your run script, if you want to support them"
+   fi
+   export TEST_SANITIZER
+   
    TEST_BUILDER=""
    FAIL_TEST=""
 
@@ -638,6 +676,13 @@ test::run::_run()
 
       args)
          test::run::exe "${name}" "${ext}" "${root}" "$@"
+      ;;
+
+      run)
+         if [ "${OPTION_RUN_SCRIPT}" = 'YES' ]
+         then
+            test::run::run "${name}" "${ext}" "${root}" "$@"
+         fi
       ;;
 
       *)
@@ -849,17 +894,17 @@ test::run::_scan_directory()
    local root="$1"; shift
    local extensions="$1"; shift
 
-   if [ -f CMakeLists.txt -a ! -e CMakeLists.txt.ignore ]
-   then
-      r_basename "${PWD}"
-      test::run::run_in_directory "${PWD}" "${RVAL}" "cmake" "${root}" "$@"
-      return $?
-   fi
-
    if [ -x run ]
    then
       r_basename "${PWD}"
       test::run::run_in_directory "${PWD}" "${RVAL}" "run" "${root}" "$@"
+      return $?
+   fi
+
+   if [ -f CMakeLists.txt -a ! -e CMakeLists.txt.ignore ]
+   then
+      r_basename "${PWD}"
+      test::run::run_in_directory "${PWD}" "${RVAL}" "cmake" "${root}" "$@"
       return $?
    fi
 
@@ -1063,6 +1108,7 @@ test::run::main()
    local OPTION_RERUN_FAILED='NO'
    local OPTION_DEBUG_DYLD='NO'
    local OPTION_REUSE_EXE='NO'
+   local OPTION_RUN_SCRIPT='YES'
    local OPTION_OUTPUT_ASSEMBLER='NO'
    local OPTION_OUTPUT_ASSEMBLER_IR='NO'
 
@@ -1074,7 +1120,7 @@ test::run::main()
       test::environment::setup_development_environment "${MULLE_UNAME}"
    fi
 
-   # for windows its kinda important, that the flags are 
+   # for windows its kinda important, that the flags are
    # consistent with what we crafted
    # TODO: figure out what we have...
 
@@ -1102,6 +1148,10 @@ test::run::main()
             shift
 
             OPTION_MAXJOBS="$1"
+         ;;
+
+         --no-run-script)
+            OPTION_RUN_SCRIPT='NO'
          ;;
 
          --assembler)
@@ -1143,6 +1193,8 @@ test::run::main()
             PROJECT_EXTENSIONS="$1"
          ;;
 
+         # this is used so inconsistently its prolly useless
+         # the idea was apparenly to have prettier output ?
          --path-prefix)
             shift
             [ $# -eq 0 ] && test::run::usage
@@ -1213,6 +1265,11 @@ test::run::main()
             break
          ;;
 
+         --*)
+            log_verbose "Unknown flag \"$1\" will be passed on"
+            break
+         ;;
+
          *)
             break
          ;;
@@ -1253,7 +1310,7 @@ test::run::main()
       ;;
 
       *:args:*)
-         MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-${PROJECT_NAME}}"
+         MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-${TEST_PROJECT_NAME}}"
          MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-run-test.exe}"
       ;;
    esac
@@ -1284,9 +1341,15 @@ test::run::main()
 
    MULLE_TEST_SERIAL='YES'
    MULLE_TEST_SUCCESS_FILE=""
-   if ! test::run::named_test "${MULLE_USER_PWD}" "$@"
-   then
-      return 1
-   fi
+
+   local testname
+
+   for testname in "$@"
+   do
+      if ! test::run::named_test "${MULLE_USER_PWD}" "${testname}"
+      then
+         return 1
+      fi
+   done
 }
 

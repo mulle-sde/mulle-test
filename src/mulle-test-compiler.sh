@@ -135,34 +135,35 @@ test::compiler::r_env_sanitizer_flags()
 
 test::compiler::r_common_c_flags()
 {
+   log_entry "test::compiler::r_common_c_flags" "$@"
+
    local srcfile="$1"
+   local common_cflags
 
-   local cflags
-
-   test::flagbuilder::r_cflags "${cflags}" "${srcfile}"
-   cflags="${RVAL}"
+   test::flagbuilder::r_cflags "" "${srcfile}"
+   common_cflags="${RVAL}"
 
    case "${CC}" in
       *-cl.exe)
          if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
          then
-            r_concat "${cflags}" "/DMULLE_TEST=1"
-            cflags="${RVAL}"
+            r_concat "${common_cflags}" "/DMULLE_TEST=1"
+            common_cflags="${RVAL}"
          fi
 
-         r_concat "${cflags}" "/DMULLE_INCLUDE_DYNAMIC=1"
-         cflags="${RVAL}"
+         r_concat "${common_cflags}" "/DMULLE_INCLUDE_DYNAMIC=1"
+         common_cflags="${RVAL}"
       ;;
 
       *)
          if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
          then
-            r_concat "${cflags}" "-DMULLE_TEST=1"
-            cflags="${RVAL}"
+            r_concat "${common_cflags}" "-DMULLE_TEST=1"
+            common_cflags="${RVAL}"
          fi
 
-         r_concat "${cflags}" "-DMULLE_INCLUDE_DYNAMIC=1"
-         cflags="${RVAL}"
+         r_concat "${common_cflags}" "-DMULLE_INCLUDE_DYNAMIC=1"
+         common_cflags="${RVAL}"
       ;;
    esac
 
@@ -171,7 +172,10 @@ test::compiler::r_common_c_flags()
    test::flagbuilder::r_include_cflags "'"
    incflags="${RVAL}"
 
-   r_concat "${cflags}" "${incflags}"
+   log_debug "common_cflags : ${common_cflags}"
+   log_debug "incflags      : ${incflags}"
+
+   r_concat "${common_cflags}" "${incflags}"
 }
 
 
@@ -179,7 +183,7 @@ test::compiler::r_c_commandline()
 {
    log_entry "test::compiler::r_c_commandline" "$@"
 
-   local cflags="$1"; shift
+   local c_flags="$1"; shift
    local srcfile="$1"; shift
    local a_out="$1"; shift
 
@@ -193,12 +197,12 @@ test::compiler::r_c_commandline()
    done
 
    test::compiler::r_common_c_flags "${srcfile}"
-   r_concat "${cflags}" "${RVAL}"
-   cflags="${RVAL}"
+   r_concat "${c_flags}" "${RVAL}"
+   c_flags="${RVAL}"
 
    local cmdline
 
-   cmdline="'${CC}' ${cflags} ${incflags}"
+   cmdline="'${CC}' ${c_flags}"
    if test::compiler::r_c_sanitizer_flags "${SANITIZER}"
    then
       cmdline="${cmdline} ${RVAL}"
@@ -294,7 +298,7 @@ test::compiler::r_c_asm_commandline()
 {
    log_entry "test::compiler::r_c_asm_commandline" "$@"
 
-   local cflags="$1"; shift
+   local c_flags="$1"; shift
    local srcfile="$1"; shift
    local extra="$1"; shift
    local extension="$1"; shift
@@ -314,12 +318,12 @@ test::compiler::r_c_asm_commandline()
    outfile="${outfile}.${extension}"
 
    test::compiler::r_common_c_flags "${srcfile}"
-   r_concat "${cflags}" "${RVAL}"
-   cflags="${RVAL}"
+   r_concat "${c_flags}" "${RVAL}"
+   c_flags="${RVAL}"
 
    local cmdline
 
-   cmdline="'${CC}' ${cflags} -S"
+   cmdline="'${CC}' ${c_flags} -S"
    r_concat "${cmdline}" "${extra}"
    r_concat "${RVAL}" '${srcfile}'
    r_concat "${RVAL}" "-o '${outfile}'"
@@ -346,25 +350,25 @@ test::compiler::fail_c()
    fi
 
    local cmdline
-   local cflags
+   local c_flags
 
    if [ "${TEST_CFLAGS}" != "${DEBUG_CFLAGS}" ]
    then
       r_concat "${DEBUG_CFLAGS}" "${CPPFLAGS}"
       r_concat "${RVAL}" "${CFLAGS}"
-      cflags="${RVAL}"
+      c_flags="${RVAL}"
 
       a_out="${a_out%}${DEBUG_EXE_EXTENSION}"
 
-      test::compiler::r_c_commandline "${cflags}" "${srcfile}" "${a_out}" "$@"
+      test::compiler::r_c_commandline "${c_flags}" "${srcfile}" "${a_out}" "$@"
       cmdline="${RVAL}"
 
       log_info "DEBUG: "
-      log_info "Rebuilding as `basename -- ${a_out}` with ${cflags} ..."
+      log_info "Rebuilding as `basename -- ${a_out}` with ${c_flags} ..."
 
       eval_exekutor "${cmdline}"
    else
-      log_fluff "Don't recompile as DEBUG, because it's debuggable already"
+      log_fluff "Won't recompile as DEBUG, because it's debuggable already"
 
       a_out="${a_out%}${EXE_EXTENSION}"
    fi
@@ -392,18 +396,18 @@ test::compiler::run_gcc()
    local srcfile="$1"
    local a_out="$2"
    local errput="$3"
-   local cflags="$4"
+   local c_flags="$4"
 
    shift 4
 
    local cmdline
 
-   r_concat "${TEST_CFLAGS}" "${CPPFLAGS}"
-   r_concat "${RVAL}" "${CFLAGS}"
-   r_concat "${RVAL}" "${cflags}"
-   cflags="${RVAL}"
+   # TEST_CFLAGS are the default, but let them be overridden by .c_flags
+   r_concat "${CPPFLAGS}" "${CFLAGS}"
+   r_concat "${c_flags:-${TEST_CFLAGS}}" "${RVAL}"
+   c_flags="${RVAL}"
 
-   test::compiler::r_c_commandline "${cflags}" "${srcfile}" "${a_out}" "$@"
+   test::compiler::r_c_commandline "${c_flags}" "${srcfile}" "${a_out}" "$@"
    cmdline="${RVAL}"
 
    local old_MULLE_FLAG_LOG_EXEKUTOR
@@ -431,7 +435,7 @@ test::compiler::run_gcc()
          extension="ir"
       fi
 
-      test::compiler::r_c_asm_commandline "${cflags}" "${srcfile}" "${extra}" "${extension}" "$@"
+      test::compiler::r_c_asm_commandline "${c_flags}" "${srcfile}" "${extra}" "${extension}" "$@"
       cmdline="${RVAL}"
 
       eval_exekutor "${cmdline}"
@@ -498,8 +502,7 @@ test::compiler::suggest_debugger_commandline()
 
       case ":${SANITIZER}:" in
          *:testallocator:*)
-            printf "%s" "MULLE_TESTALLOCATOR=1 \
-MULLE_TESTALLOCATOR_TRACE=0 "
+            printf "%s " "MULLE_TESTALLOCATOR=1"
          ;;
       esac
 
@@ -507,16 +510,29 @@ MULLE_TESTALLOCATOR_TRACE=0 "
          objc)
             if [ "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" = "mulle-objc" ]
             then
+#
+# MEMO: these flags are more useful if you have a crash in your app during
+#       running. if you use some kind of pedantic exit, then you'd need
+#
+# MULLE_OBJC_ZOMBIE_ENABLED=NO \
+# MULLE_OBJC_PEDANTIC_EXIT=YES \
+# MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
+# MULLE_OBJC_TRACE_INSTANCE=YES \
+#
+
                printf "%s" "\
+MULLE_OBJC_ZOMBIE_ENABLED=YES \
+MULLE_OBJC_PEDANTIC_EXIT=NO \
+MULLE_OBJC_EPHEMERAL_SINGLETON=NO \
 MULLE_OBJC_TRACE_INSTANCE=NO \
+\
 MULLE_OBJC_TRACE_METHOD_CALL=NO \
-MULLE_OBJC_DEBUG_ENABLED=YES \
+\
 MULLE_OBJC_TRACE_ENABLED=NO \
-MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
-MULLE_OBJC_PEDANTIC_EXIT=YES \
+MULLE_OBJC_TRACE_UNIVERSE=NO \
 MULLE_OBJC_TRACE_LOAD=NO \
 MULLE_OBJC_TRACE_THREAD=YES \
-MULLE_OBJC_TRACE_UNIVERSE=YES \
+MULLE_OBJC_DEBUG_ENABLED=YES \
 MULLE_OBJC_WARN_ENABLED=YES "
             fi
          ;;

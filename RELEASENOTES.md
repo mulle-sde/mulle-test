@@ -1,3 +1,33 @@
+## 6.4.0
+
+feat: improve test environment and compiler integration
+
+* Enhance test environment configuration
+  - Add -fobjc-tao compiler flag for mulle-objc dialect
+  - Support architecture-specific testing with -m32 flag
+  - Improve test directory handling and project naming
+
+* Refactor compiler and flag handling
+  - Rename cflags to `c_flags` for consistency
+  - Add proper quoting for compiler flags and paths
+  - Improve debug flag handling and sanitizer support
+  - Fix CFLAGS/CPPFLAGS environment variable usage
+
+* Improve test execution and debugging
+  - Add verbose test output with tee support
+  - Enhance debugger environment variables for mulle-objc
+  - Improve error messages for test failures
+  - Support test project name separate from test directory name
+
+* Other improvements
+  - Add arch command to show current architecture
+  - Fix CMake paths to use `CMAKE_CURRENT_SOURCE_DIR`
+  - Update demo test files to use `TEST_PROJECT_NAME`
+  - Improve environment file pattern matching
+
+* new command 'retest' that cleans all tidily and then does a craft and run
+
+
 ### 6.3.3
 
 * improved run usage and also a fix to actually show this usage

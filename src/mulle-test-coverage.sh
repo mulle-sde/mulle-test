@@ -215,16 +215,16 @@ test::coverage::main()
    local SRCROOT
    local OBJFLATROOT
 
-   OBJROOT="`rexekutor mulle-craft ${MULLE_TECHNICAL_FLAGS} craftorder-kitchen-dir "${PROJECT_NAME}"`" \
-   || fatal "could not find object files for ${PROJECT_NAME}"
+   OBJROOT="`rexekutor mulle-craft ${MULLE_TECHNICAL_FLAGS} craftorder-kitchen-dir "${TEST_PROJECT_NAME:-${PROJECT_NAME}}"`" \
+   || fatal "could not find object files for ${TEST_PROJECT_NAME:-${PROJECT_NAME}}"
    # remove cruft that will give us warnings
    exekutor find "${OBJROOT}" -name "*CMakeCCompilerId.gcno" -exec rm {} \;
    SRCROOT="`( cd .. ; mulle-sde source-dir)`"
 
-   log_setting "exe     : ${exe} "
-   log_setting "exename : ${exename} "
-   log_setting "OBJROOT : ${OBJROOT} "
-   log_setting "SRCROOT : ${SRCROOT} "
+   log_setting "exe     : ${exe}"
+   log_setting "exename : ${exename}"
+   log_setting "OBJROOT : ${OBJROOT}"
+   log_setting "SRCROOT : ${SRCROOT}"
 
    #
    # the whole gcov coverage thing is in dire need of innovation

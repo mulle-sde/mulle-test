@@ -1,4 +1,4 @@
-#import <<|PROJECT_NAME|>/<|PROJECT_NAME|>.h>
+#import <<|TEST_PROJECT_NAME|>/<|TEST_PROJECT_NAME|>.h>
 
 
 int   main( int argc, char *argv[])
