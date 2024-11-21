@@ -139,13 +139,14 @@ test::cmake::eval_mulle_make()
    test::flagbuilder::r_include_cflags ""
    cmake_c_flags="${RVAL}"
 
+   local kitchendir
+
+   kitchendir="${TEST_KITCHEN_DIR:-kitchen}"
+   r_absolutepath "${kitchendir}"
+
 #
 # didn't do what I wanted, so leave it out...
 #
-#   local kitchendir
-#
-#   kitchendir="${TEST_KITCHEN_DIR:-kitchen}"
-#   r_absolutepath "${kitchendir}"
 #
 #   # also add kitchen/include as its standard
 #   platform::flags::r_cc_include_dir "${RVAL}/include" "${quote}"
