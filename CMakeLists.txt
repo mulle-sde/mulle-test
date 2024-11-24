@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.0)
 
-project( mulle-test VERSION 6.4.0 LANGUAGES NONE)
+project( mulle-test VERSION 6.4.1 LANGUAGES NONE)
 
 execute_process( COMMAND ./mulle-test-env version
                  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -51,4 +51,3 @@ install( DIRECTORY ${EXTENSIONS}
 # must be after CPACK_PACKAGE_VERSION
 include( CMakePackage.cmake)
 include( CPack)
-

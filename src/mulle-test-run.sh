@@ -166,18 +166,48 @@ test::run::maybe_show_output()
    "${CAT:-cat}" "${output}"
 }
 
+test::run::common_execute()
+{
+   local exeflags="$1"
+   local args="$2"
+   local pretty_source="$3"
+   local a_out_ext="$4"
+   local srcfile="$5"
+
+   shift 5
+
+   log_verbose "Run test ${C_MAGENTA}${C_BOLD}${pretty_source}"
+
+   if [ ! -z "${exeflags}" ]
+   then
+      set -- "$@" ${exeflags}
+   fi
+   if [ ! -z "${args}" ]
+   then
+      set -- "$@" --args "${args}"
+   fi
+   if [ ! -z "${pretty_source}" ]
+   then
+      set -- "$@" --pretty "${pretty_source}"
+   fi
+   set -- "$@" "${a_out_ext}" "${srcfile}"
+
+   test::execute::main "$@"
+}
 
 test::run::common()
 {
    log_entry "test::run::common" "$@"
 
-   local args="$1"; shift
-   local a_out="$1"; shift
-   local a_out_ext="$1"; shift
-   local name="$1"; shift
-   local flags="$1" ; shift
-   local ext="$1"; shift
-   local root="$1"; shift
+   local args="$1"
+   local a_out="$2"
+   local a_out_ext="$3"
+   local name="$4"
+   local flags="$5"
+   local ext="$6"
+   local root="$7"
+
+   shift 7
 
    [ -z "${a_out}" ] && _internal_fail "a_out must not be empty"
    [ -z "${name}" ] && _internal_fail "name must not be empty"
@@ -190,12 +220,13 @@ test::run::common()
    local cc_errput
 
    _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}" "f" || exit 1
-   cc_errput="${RVAL}.ccerr" || exit 1
+   cc_errput="${RVAL}.ccerr"
 
    local pretty_source
 
-   r_relative_path_between "${PWD}/${srcfile}" "${root}"
-   pretty_source="${RVAL}" || exit 1
+   r_filepath_concat "${PWD}" "${srcfile}"
+   r_relative_path_between "${RVAL}" "${root}"
+   pretty_source="${RVAL}"
 
    local rval
    local exeflags
@@ -234,25 +265,12 @@ test::run::common()
 
    log_verbose "Run test ${C_MAGENTA}${C_BOLD}${pretty_source}"
 
-   local cmd
-
-   cmd="test::execute::main"
-   if [ ! -z "${exeflags}" ]
-   then
-       cmd="${cmd} ${exeflags}"
-   fi
-   if [ ! -z "${args}" ]
-   then
-      cmd="${cmd} --args '${args}'"
-   fi
-   if [ ! -z "${pretty_source}" ]
-   then
-      cmd="${cmd} --pretty '${pretty_source}'"
-   fi
-   cmd="${cmd} '${a_out_ext}'"
-   cmd="${cmd} '${srcfile}'"
-
-   eval_rexekutor "${cmd}"
+   test::run::common_execute "${exeflags}" \
+                             "${args}" \
+                             "${pretty_source}" \
+                             "${a_out_ext}" \
+                             "${srcfile}" \
+                             "$@"
    rval=$?
 
    if [ ${RVAL_EXPECTED_FAILURE} = $rval ]
@@ -279,9 +297,14 @@ test::run::cmake()
 {
    log_entry "test::run::cmake" "$@"
 
-   local name="$1"; shift
+   local name="$1"
+   # local ext="$2"
+   # local root="$3"
+
+   shift
 
    local purename
+
 
    # remove leading 20_ or 20-
    purename="${name#"${name%%[!0-9_-]*}"}"
@@ -501,8 +524,10 @@ test::run::run()
 {
    log_entry "test::run::run" "$@"
 
-   local name="$1" ; shift
-   local ext="$1"
+   local name="$1"
+   local ext="$2"
+
+   shift 2
 
    local a_out
    local a_out_ext
@@ -537,7 +562,23 @@ test::run::run()
    FAIL_TEST=""
 
    export MULLE_TECHNICAL_FLAGS
-   test::run::common "" "${a_out}" "${a_out_ext}" "${name}" "" "$@"
+
+   #
+   # local args="$1"
+   # local a_out="$2"
+   # local a_out_ext="$3"
+   # local name="$4"
+   # local flags="$5"
+   # local ext="$6"
+   # local root="$7"
+   #
+   test::run::common "" \
+                     "${a_out}" \
+                     "${a_out_ext}" \
+                     "${name}" \
+                     "" \
+                     "" \
+                     "$@"
 }
 
 

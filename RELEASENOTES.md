@@ -1,3 +1,7 @@
+### 6.4.1
+
+* fix debug generation of cmake fails
+
 ## 6.4.0
 
 feat: improve test environment and compiler integration

@@ -288,10 +288,12 @@ test::cmake::fail_test()
 {
    log_entry "test::cmake::fail_test" "$@"
 
-   local srcfile="$1"; shift
-   local a_out="$1"; shift
-   local ext="$1"; shift
-   local name="$1"; shift
+   local srcfile="$1"
+   local a_out="$2"
+   local ext="$3"
+   local name="$4"
+
+   shift 4
 
    [ -z "${srcfile}" ] && _internal_fail "srcfile is empty"
    [ -z "${a_out}" ] && _internal_fail "a_out is empty"
@@ -351,10 +353,12 @@ test::cmake::run()
 {
    log_entry "test::cmake::run" "$@"
 
-   local srcfile="$1"; shift
-   local a_out_ext="$1"; shift
-   local errput="$1"; shift # unused
-   local flags="$1"; shift # unused
+   local srcfile="$1"
+   local a_out_ext="$2"
+   # local errput="$3"  # unused
+   # local flags="$4"   # unused
+
+   shift 4
 
    [ -z "${srcfile}" ] && _internal_fail "srcfile is empty"
    [ -z "${a_out_ext}" ] && _internal_fail "a_out_ext is empty"
