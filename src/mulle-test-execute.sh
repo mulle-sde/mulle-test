@@ -372,15 +372,17 @@ MULLE_ATINIT_FAILURE=0"
                                                  "${runner}" \
                                                  "'${a_out_ext}'" \
                                                  ${args}
-   else
-      test::logging::full_redirekt_eval_tee_exekutor "${input}" \
-                                                     "${output}" \
-                                                     "${errput}" \
-                                                     "${environment}" \
-                                                     "${runner}" \
-                                                     "'${a_out_ext}'" \
-                                                     ${args}
+      return $?
    fi
+
+   test::logging::full_redirekt_eval_tee_exekutor "${input}" \
+                                                  "${output}" \
+                                                  "${errput}" \
+                                                  "${environment}" \
+                                                  "${runner}" \
+                                                  "'${a_out_ext}'" \
+                                                  ${args}
+   return $?
 }
 
 
@@ -622,7 +624,7 @@ test::execute::_check_output()
 
    if [ -f "${errors}" ]
    then
-      log_error "TEST FAILED TO CRASH: "
+      log_error "TEST FAILED TO CRASH: ${rval}"
       return ${RVAL_FAILURE}
    fi
 
@@ -714,10 +716,12 @@ test::execute::check_output()
 
    [ -z "${RVAL_OUTPUT_DIFFERENCES}" ] && _internal_fail "RVAL_OUTPUT_DIFFERENCES undefined"
 
-   test::execute::_check_output "$@"
-   rval=$?
+   local rc
 
-   if [ $rval -ne 0 ]
+   test::execute::_check_output "$@"
+   rc=$?
+
+   if [ ${rc} -ne 0 ]
    then
       log_error "${TEST_PATH_PREFIX}${pretty_source}"
       test::run::maybe_show_diagnostics "${errput}"
@@ -725,12 +729,12 @@ test::execute::check_output()
       log_info "${TEST_PATH_PREFIX}${pretty_source}"
    fi
 
-   if [ ${rval} -eq ${RVAL_OUTPUT_DIFFERENCES} ]
+   if [ ${rc} -eq ${RVAL_OUTPUT_DIFFERENCES} ]
    then
       test::run::maybe_show_output "${output}"
    fi
 
-   return $rval
+   return ${rc}
 }
 
 

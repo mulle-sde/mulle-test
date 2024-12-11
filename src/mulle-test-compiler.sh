@@ -510,30 +510,9 @@ test::compiler::suggest_debugger_commandline()
          objc)
             if [ "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" = "mulle-objc" ]
             then
-#
-# MEMO: these flags are more useful if you have a crash in your app during
-#       running. if you use some kind of pedantic exit, then you'd need
-#
-# MULLE_OBJC_ZOMBIE_ENABLED=NO \
-# MULLE_OBJC_PEDANTIC_EXIT=YES \
-# MULLE_OBJC_EPHEMERAL_SINGLETON=YES \
-# MULLE_OBJC_TRACE_INSTANCE=YES \
-#
-
-               printf "%s" "\
-MULLE_OBJC_ZOMBIE_ENABLED=YES \
-MULLE_OBJC_PEDANTIC_EXIT=NO \
-MULLE_OBJC_EPHEMERAL_SINGLETON=NO \
-MULLE_OBJC_TRACE_INSTANCE=NO \
-\
-MULLE_OBJC_TRACE_METHOD_CALL=NO \
-\
-MULLE_OBJC_TRACE_ENABLED=NO \
-MULLE_OBJC_TRACE_UNIVERSE=NO \
-MULLE_OBJC_TRACE_LOAD=NO \
-MULLE_OBJC_TRACE_THREAD=YES \
-MULLE_OBJC_DEBUG_ENABLED=YES \
-MULLE_OBJC_WARN_ENABLED=YES "
+               printf "%s " "\
+MULLE_OBJC_TRACE_ZOMBIE=YES \
+MULLE_OBJC_TRACE_LEAK=NO"
             fi
          ;;
       esac

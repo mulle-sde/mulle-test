@@ -1,3 +1,9 @@
+### 6.4.2
+
+* adapt to new environment variables in the 0.24/25 mulle-objc-runtime
+
+* fix debug generation of cmake fails
+
 ### 6.4.1
 
 * fix debug generation of cmake fails
