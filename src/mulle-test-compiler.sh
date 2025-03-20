@@ -472,6 +472,8 @@ test::compiler::suggest_debugger_commandline()
 
    local a_out_ext="$1"
    local stdin="$2"
+   local is_exe="$3" # used by cmake ?
+   # local error_log="$4"
 
    #
    # don't show debugger commandline if a runner is being used
@@ -502,7 +504,7 @@ test::compiler::suggest_debugger_commandline()
 
       case ":${SANITIZER}:" in
          *:testallocator:*)
-            printf "%s " "MULLE_TESTALLOCATOR=1"
+            printf "%s " "MULLE_TESTALLOCATOR=3"
          ;;
       esac
 
@@ -510,9 +512,17 @@ test::compiler::suggest_debugger_commandline()
          objc)
             if [ "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" = "mulle-objc" ]
             then
-               printf "%s " "\
+# can't do this as we dont know where the log is
+#               if [ ! -z "${error_log}" ] && grep -q -F '### leak' "${error_log}" > /dev/null 2>&1
+#               then
+#                  printf "%s " "\
+#MULLE_OBJC_TRACE_ZOMBIE=NO \
+#MULLE_OBJC_TRACE_LEAK=YES"
+#               else
+                  printf "%s " "\
 MULLE_OBJC_TRACE_ZOMBIE=YES \
 MULLE_OBJC_TRACE_LEAK=NO"
+#               fi
             fi
          ;;
       esac

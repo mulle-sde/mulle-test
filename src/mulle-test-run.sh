@@ -64,6 +64,7 @@ Options:
    --assembler        : produce assembler code on the side (C|ObjC/gcc|clang)
    --debug            : build for debug
    --ir               : produce LLVM IR code (clang/mulle-clang only)
+   --no-run           : just build the exe, don't test (always passes)
    --keep-exe         : keep test executables around after a successful test
    --release          : build for release
    --reuse-exe        : if executable already exists, reuse it, don't rebuild
@@ -166,6 +167,7 @@ test::run::maybe_show_output()
    "${CAT:-cat}" "${output}"
 }
 
+
 test::run::common_execute()
 {
    local exeflags="$1"
@@ -194,6 +196,7 @@ test::run::common_execute()
 
    test::execute::main "$@"
 }
+
 
 test::run::common()
 {
@@ -262,6 +265,18 @@ test::run::common()
    else
       exeflags="--keep-exe"
    fi
+
+   if [ "${OPTION_RUN_TEST}" = 'NO' ]
+   then
+      log_verbose "Skip running test ${C_MAGENTA}${C_BOLD}${pretty_source} on demand"
+      return 0
+   fi
+
+   case "${MULLE_UNAME}" in
+      linux)
+         exekutor ulimit -c "${OPTION_ULIMIT}"
+      ;;
+   esac
 
    log_verbose "Run test ${C_MAGENTA}${C_BOLD}${pretty_source}"
 
@@ -403,9 +418,9 @@ test::run::c()
 }
 
 
-test::run::find_a_out_ext()
+test::run::r_find_a_out_ext()
 {
-   log_entry "test::run::find_a_out_ext" "$@"
+   log_entry "test::run::r_find_a_out_ext" "$@"
 
    local executable="$1"
 
@@ -425,10 +440,11 @@ test::run::find_a_out_ext()
       ;;
    esac
 
-   command -v "${exename_ext}"
+   RVAL=$( EXE_SEARCH_PATH="${EXE_SEARCH_PATH}" command -v "${exename_ext}" )
 }
 
 
+# this is what you run with test.args normally
 test::run::exe()
 {
    log_entry "test::run::exe" "$@"
@@ -444,7 +460,9 @@ test::run::exe()
    local a_out
    local a_out_ext
 
-   a_out_ext="`test::run::find_a_out_ext "${MULLE_TEST_EXECUTABLE}" `"
+   test::run::r_find_a_out_ext "${MULLE_TEST_EXECUTABLE}"
+   a_out_ext="${RVAL}"
+
    a_out="${a_out_ext%${EXE_EXTENSION}}"
 
    TEST_BUILDER=""
@@ -453,7 +471,8 @@ test::run::exe()
    test::run::common "" "${a_out}" "${a_out_ext}" "${name}" "" "$@"
 }
 
-
+# this is a very special case for running header only tests and where
+# we don't know the file extension ?
 test::run::args_exe()
 {
    log_entry "test::run::args_exe" "$@"
@@ -471,8 +490,10 @@ test::run::args_exe()
    local a_out
    local a_out_ext
 
-   a_out_ext="`test::run::find_a_out_ext "${MULLE_TEST_EXECUTABLE}" `"
+   test::run::r_find_a_out_ext "${MULLE_TEST_EXECUTABLE}"
+   a_out_ext="${RVAL}"
    a_out="${a_out_ext%${EXE_EXTENSION}}"
+
    TEST_BUILDER=""
    FAIL_TEST=""
 
@@ -1144,14 +1165,17 @@ test::run::main()
    test::environment::include_required
 
    local DEFAULT_MAKEFLAGS
-   local OPTION_REQUIRE_LIBRARY='YES'
-   local OPTION_LENIENT='NO'
-   local OPTION_RERUN_FAILED='NO'
    local OPTION_DEBUG_DYLD='NO'
-   local OPTION_REUSE_EXE='NO'
-   local OPTION_RUN_SCRIPT='YES'
+   local OPTION_LENIENT='NO'
    local OPTION_OUTPUT_ASSEMBLER='NO'
    local OPTION_OUTPUT_ASSEMBLER_IR='NO'
+   local OPTION_PRINT_EXE='NO'
+   local OPTION_REQUIRE_LIBRARY='YES'
+   local OPTION_RERUN_FAILED='NO'
+   local OPTION_REUSE_EXE='NO'
+   local OPTION_RUN_SCRIPT='YES'
+   local OPTION_RUN_TEST='YES'
+   local OPTION_ULIMIT="unlimited"
 
    DEFAULT_MAKEFLAGS="-s"
 
@@ -1189,6 +1213,14 @@ test::run::main()
             shift
 
             OPTION_MAXJOBS="$1"
+         ;;
+
+         --disable-coredumps)
+            OPTION_ULIMIT=0
+         ;;
+
+         --no-run-test)
+            OPTION_RUN_TEST='NO'
          ;;
 
          --no-run-script)
@@ -1301,6 +1333,10 @@ test::run::main()
             OPTION_REMOVE_EXE='NO'
          ;;
 
+         --print-exe)
+            OPTION_PRINT_EXE='YES'
+         ;;
+
          --)
             shift
             break
@@ -1355,6 +1391,24 @@ test::run::main()
          MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-run-test.exe}"
       ;;
    esac
+
+   if [ "${OPTION_PRINT_EXE}" = 'YES' ]
+   then
+      if [ -z "${MULLE_TEST_EXECUTABLE}" ]
+      then
+         fail "Unknown executable \"${MULLE_TEST_EXECUTABLE}\""
+      fi
+
+      test::run::r_find_a_out_ext "${MULLE_TEST_EXECUTABLE}"
+      if [ -z "${RVAL}" ]
+      then
+         fail "Could not find \"${MULLE_TEST_EXECUTABLE}\""
+      fi
+
+      printf "%s\n" "${RVAL}"
+      exit 0
+   fi
+
 
    MULLE_TEST_SUCCESS_FILE="${MULLE_TEST_VAR_DIR}/passed.txt"
 

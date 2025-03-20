@@ -139,7 +139,7 @@ test::init::main()
    local OPTION_EXECUTABLE='NO'
    local APPEND_TEST_TO_NAME='YES'
 
-   while :
+   while [ $# -ne 0 ]
    do
       case "$1" in
          -h*|--help|help)

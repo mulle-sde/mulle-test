@@ -431,11 +431,11 @@ mulle_diff()
    do
       case "$1" in
          -q)
-            OPTION_TERSE='YES'
+            OPTION_TERSE='YES'  # just return value
          ;;
 
          -w)
-            OPTION_IGNORE_WHITESPACE="$1"
+            OPTION_IGNORE_WHITESPACE='YES'
          ;;
 
          -W)
@@ -446,6 +446,7 @@ mulle_diff()
          -y)
             OPTION_TWO_COLUMNS='YES'
          ;;
+
 
          -B)
             OPTION_IGNORE_BLANK_LINES='YES'
@@ -550,10 +551,6 @@ mulle_diff()
    then
       rexekutor "$@" > /dev/null
       rval=$?
-      if [ $rval -ne 0 ]
-      then
-         echo "Files differ"
-      fi
    else
       rexekutor "$@"
       rval=$?
@@ -647,19 +644,13 @@ test::execute::_check_output()
 
    if [ "${stdout}" != "-" ]
    then
-      local result
-
-      result=`rexekutor "${CAT}" "${output}" | mulle_diff -q "${stdout}" -`
-      if [ "${result}" != "" ]
+      # so if we have diffs, we fail
+      if ! rexekutor "${CAT}" "${output}" | mulle_diff -q "${stdout}" -
       then
-         white=`rexekutor "${CAT}" "${output}" | mulle_diff -q -w -B "${stdout}" -`
-         if [ "$white" != "" ]
+         log_fluff "Check if we have only whitespace differences"
+         # if we have no diffs except whitespace
+         if rexekutor "${CAT}" "${output}" | mulle_diff -q -w -B "${stdout}" -
          then
-            log_error "FAILED: \"${pretty_source}\" produced different output"
-            log_info  "DIFF: (${pretty_output} vs. ${pretty_stdout})"
-            rexekutor "${CAT}"  "${output}" | mulle_diff -y -W ${DIFF_COLUMN_WIDTH:-160} - "${stdout}" >&2
-            return ${RVAL_OUTPUT_DIFFERENCES}
-         else
             log_warning "WARNING: \"${pretty_source}\" produced different whitespace output"
             log_info  "DIFF: (${pretty_output#{MULLE_USER_PWD}/} vs. ${pretty_stdout#{MULLE_USER_PWD}/})"
             redirect_exekutor "${output}.actual.hex" od -a "${output}"
@@ -667,9 +658,13 @@ test::execute::_check_output()
             rexekutor "${CAT}" "${output}.actual.hex" | mulle_diff -y -W ${DIFF_COLUMN_WIDTH:-160} - "${output}.expect.hex"  >&2
             return ${RVAL_OUTPUT_DIFFERENCES}
          fi
-      else
-         log_fluff "No differences in stdout found"
+
+         log_error "FAILED: \"${pretty_source}\" produced different output"
+         log_info  "DIFF: (${pretty_output} vs. ${pretty_stdout})"
+         rexekutor "${CAT}"  "${output}" | mulle_diff -y -W ${DIFF_COLUMN_WIDTH:-160} - "${stdout}" >&2
+         return ${RVAL_OUTPUT_DIFFERENCES}
       fi
+      log_fluff "No differences in stdout found"
    else
       local size
 
@@ -684,16 +679,14 @@ test::execute::_check_output()
 
    if [ "${stderr}" != "-" ]
    then
-      result=`mulle_diff -w "${stderr}" "${errput}"`
-      if [ "${result}" != "" ]
+      if ! mulle_diff -q -w "${stderr}" "${errput}"
       then
          log_error "FAILED: \"${pretty_source}\" produced different diagnostics (${pretty_errput})" >&2
          exekutor echo "" >&2
          exekutor mulle_diff "${pretty_stderr}" "${pretty_errput}" >&2
          return ${RVAL_OUTPUT_DIFFERENCES}
-      else
-         log_fluff "No differences in stderr found"
       fi
+      log_fluff "No differences in stderr found"
    fi
 
    return 0
@@ -932,7 +925,7 @@ test::execute::main()
       OPTION_REMOVE_EXE="${MULLE_TEST_REMOVE_EXE:-YES}"
    fi
 
-   while :
+   while [ $# -ne 0 ]
    do
       case "$1" in
          -h*|--help|help)

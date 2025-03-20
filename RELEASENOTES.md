@@ -1,3 +1,11 @@
+## 6.5.0
+
+* new --print-exe option for the run command
+* fix the diff printing for whitespace only diffs
+* new run option --disable-coredumps sets ulimit to 0
+* new run option --no-run-test, which you probably don't need
+
+
 ### 6.4.2
 
 * adapt to new environment variables in the 0.24/25 mulle-objc-runtime
