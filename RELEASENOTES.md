@@ -1,3 +1,7 @@
+### 6.5.1
+
+Various small improvements
+
 ## 6.5.0
 
 * new --print-exe option for the run command

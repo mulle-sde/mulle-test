@@ -274,7 +274,8 @@ test::run::common()
 
    case "${MULLE_UNAME}" in
       linux)
-         exekutor ulimit -c "${OPTION_ULIMIT}"
+         # if this fails, it fails. currently it fails
+         exekutor ulimit -c "${OPTION_ULIMIT}" 2> /dev/null
       ;;
    esac
 
