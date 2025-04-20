@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.0)
 
-project( mulle-test VERSION 6.5.1 LANGUAGES NONE)
+project( mulle-test VERSION 6.6.0 LANGUAGES NONE)
 
 execute_process( COMMAND ./mulle-test-env version
                  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"

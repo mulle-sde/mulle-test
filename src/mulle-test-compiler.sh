@@ -46,6 +46,12 @@ test::compiler::r_c_sanitizer_flags()
          return 0
       ;;
 
+      *:valgrind:*)
+         RVAL="-DMULLE_TEST_VALGRIND"
+         # RVAL="-fprofile-instr-generate -fcoverage-mapping"
+         return 0
+      ;;
+
       *:coverage:*)
          RVAL="--coverage -fno-inline"
          # RVAL="-fprofile-instr-generate -fcoverage-mapping"

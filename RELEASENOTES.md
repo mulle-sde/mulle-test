@@ -1,3 +1,8 @@
+## 6.6.0
+
+* you can now #ifdef `MULLE_TEST_VALGRIND` in your tests, so you can remove code, where f.e. glibc has problems, which are inconsequential to the code being tested
+
+
 ### 6.5.1
 
 Various small improvements
