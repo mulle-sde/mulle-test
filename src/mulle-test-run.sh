@@ -1184,7 +1184,12 @@ test::run::main()
    if [ -z "${MULLE_TEST_EXECUTABLE}" ]
    then
       test::environment::setup_development_environment "${MULLE_UNAME}"
+   else
+      # need this for shared library extension needed for
+      # DYLD_INSERT_LIBRARIES
+      test::environment::setup_development_platform "${MULLE_UNAME}"
    fi
+
 
    # for windows its kinda important, that the flags are
    # consistent with what we crafted

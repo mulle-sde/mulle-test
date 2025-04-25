@@ -155,22 +155,21 @@ test::execute::a_out()
       fail "Compiler unexpectedly did not produce ${a_out_ext}"
    fi
 
-   local environment
-
    if [ "${MULLE_FLAG_LOG_ENVIRONMENT}" = 'YES' ]
    then
       log_fluff "Environment:"
       env | sort >&2
    fi
 
-   local insertlibpath
+
    local libdir
-   local frameworksdir
 
    test::execute::r_add_name_to_custompath "lib" \
                                             "${DEPENDENCY_DIR}" \
                                             "${OPTION_CONFIGURATION:-Debug}"
    libdir="${RVAL}"
+
+   local frameworksdir
 
    test::execute::r_add_name_to_custompath "Frameworks" \
                                             "${DEPENDENCY_DIR}" \
@@ -179,8 +178,10 @@ test::execute::a_out()
 
    ###
    #
-   # Construct library insert and searcH path
+   # Construct library insert and search path
    #
+
+   local insertlibpath
 
    case ":${SANITIZER}:" in
       *:gmalloc:*)
@@ -214,6 +215,8 @@ test::execute::a_out()
       ;;
    esac
 
+   local environment
+
    case ":${SANITIZER}:" in
       *:coverage:*)
          r_concat "${environment}" "LLVM_PROFILE_FILE='${a_out_ext%.exe}.${MULLE_UNAME}.profraw'"
@@ -224,7 +227,8 @@ test::execute::a_out()
    # add sanitizer flags
    if test::compiler::r_env_sanitizer_flags "${SANITIZER}"
    then
-      environment="${environment} ${RVAL}"
+      r_concat "${environment}" "${RVAL}"
+      environment="${RVAL}"
    fi
 
    if [ "${OPTION_DEBUG_DYLD}" = 'YES' ]

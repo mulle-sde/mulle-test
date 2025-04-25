@@ -220,7 +220,7 @@ test::logging::full_redirekt_eval_tee_exekutor()
 
    shift 3
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = 'YES' ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = 'YES' -o "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
    then
       if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then

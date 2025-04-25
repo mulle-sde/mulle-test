@@ -133,6 +133,11 @@ test::compiler::r_env_sanitizer_flags()
          RVAL="MULLE_OBJC_COVERAGE=YES"
          return 0
       ;;
+
+      *:valgrind:*)
+         RVAL="MULLE_OBJC_PEDANTIC_EXIT=YES"
+         return 0
+      ;;
    esac
    
    return 1

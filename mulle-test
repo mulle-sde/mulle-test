@@ -33,7 +33,7 @@
 [ "${TRACE:-}" = "YES" -o "${MULLE_TEST_TRACE:-}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="6.6.0"
+MULLE_EXECUTABLE_VERSION="6.6.1"
 
 #
 # Determine location of own libexec directory. Which is `src` in development
@@ -209,6 +209,19 @@ test::do_craft()
 }
 
 
+test::r_escape_args()
+{
+  local arg
+
+  RVAL=""
+  for arg in "$@"
+  do
+     r_concat "${RVAL}" $(printf '%q' "${arg}")
+  done
+}
+
+
+
 test::do_run()
 {
    log_entry "test::do_run" "$@"
@@ -245,9 +258,12 @@ test::do_run()
       fi
    fi
 
-   set -- ${environment} ${cmd} "$@"
-   # TODO: used to be eval, but why ?
-   exekutor "$@"
+   test::r_escape_args "$@"
+
+   set -- ${environment} ${cmd} "${RVAL}"
+   # Need this to be eval for the environment
+
+   eval_exekutor "$@"
 }
 
 
