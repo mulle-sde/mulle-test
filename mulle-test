@@ -33,7 +33,7 @@
 [ "${TRACE:-}" = "YES" -o "${MULLE_TEST_TRACE:-}" = "YES" ] && set -x && : "$0" "$@"
 
 
-MULLE_EXECUTABLE_VERSION="6.6.1"
+MULLE_EXECUTABLE_VERSION="6.6.2"
 
 #
 # Determine location of own libexec directory. Which is `src` in development
@@ -410,6 +410,10 @@ test::main()
                SANITIZER="gmalloc:testallocator"
             ;;
 
+            linux)
+               SANITIZER="glibc:testallocator"
+            ;;
+
             # mulle_atinit does not work on wimdows so we
             # can't reliably inject the testallocator
             'mingw'|'msys'|'windows')
@@ -426,6 +430,10 @@ test::main()
          case "${MULLE_UNAME}" in
             darwin)
                SANITIZER="gmalloc"
+            ;;
+
+            darwin)
+               SANITIZER="glibc"
             ;;
          esac
       ;;

@@ -224,6 +224,14 @@ test::execute::a_out()
       ;;
    esac
 
+   case ":${SANITIZER}:" in
+      *:glibc:*)
+         r_concat "${environment}" "MALLOC_PERTURB_=185"
+         r_concat "${RVAL}" "MALLOC_CHECK_=3"
+         environment="${RVAL}"
+      ;;
+   esac
+
    # add sanitizer flags
    if test::compiler::r_env_sanitizer_flags "${SANITIZER}"
    then
