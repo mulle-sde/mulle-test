@@ -1,3 +1,7 @@
+### 6.6.2
+
+* need to update `cmake_minimum_required` because cmake has a weird concept of min required
+
 ### 6.6.1
 
 * fix libgmalloc not being found anymore on OS X
