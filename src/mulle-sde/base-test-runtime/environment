@@ -8,3 +8,6 @@ MULLE_MATCH_FIND_NAMES+="*.environment,*.args,*.stdout,*.stdin,*.stderr,*.errors
 # We assume we are in ${PROJECT_DIR}/test so modify search path to add ../..
 #
 MULLE_FETCH_SEARCH_PATH="${MULLE_FETCH_SEARCH_PATH}:${MULLE_VIRTUAL_ROOT}/../.."
+
+# tests don't need a graveyard
+MULLE_SOURCETREE_GRAVEYARD_ENABLED="NO"

@@ -69,6 +69,8 @@ Options:
    --release          : build for release
    --reuse-exe        : if executable already exists, reuse it, don't rebuild
    --serial           : run test one after the other
+   --timeout <s>      : run tests within in timeout to break endless loops
+   --golden-stdout    : use test output to create <name>.stdin (dangerous!)
    -l                 : be lenient, keep going if tests fail
 
 EOF
@@ -278,8 +280,6 @@ test::run::common()
          exekutor ulimit -c "${OPTION_ULIMIT}" 2> /dev/null
       ;;
    esac
-
-   log_verbose "Run test ${C_MAGENTA}${C_BOLD}${pretty_source}"
 
    test::run::common_execute "${exeflags}" \
                              "${args}" \
@@ -1177,6 +1177,7 @@ test::run::main()
    local OPTION_RUN_SCRIPT='YES'
    local OPTION_RUN_TEST='YES'
    local OPTION_ULIMIT="unlimited"
+   local OPTION_GOLDEN_STDOUT='NO'
 
    DEFAULT_MAKEFLAGS="-s"
 
@@ -1189,7 +1190,6 @@ test::run::main()
       # DYLD_INSERT_LIBRARIES
       test::environment::setup_development_platform "${MULLE_UNAME}"
    fi
-
 
    # for windows its kinda important, that the flags are
    # consistent with what we crafted
@@ -1334,6 +1334,10 @@ test::run::main()
             OPTION_REMOVE_EXE='NO'
          ;;
 
+         --golden-stdout)
+            OPTION_GOLDEN_STDOUT='YES'
+         ;;
+
          --keep-exe)
             # this passed "silently" to mulle-test-execute... ugly
             OPTION_REMOVE_EXE='NO'
@@ -1365,6 +1369,8 @@ test::run::main()
    [ -z "${MULLE_TEST_VAR_DIR}" ] && _internal_fail "MULLE_TEST_VAR_DIR undefined"
 
    MULLE_TEST_EXTENSIONS="${MULLE_TEST_EXTENSIONS:-${PROJECT_EXTENSIONS}}"
+
+   log_setting "MULLE_FLAG_LOG_EXEKUTOR=${MULLE_FLAG_LOG_EXEKUTOR:-NO}"
 
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2

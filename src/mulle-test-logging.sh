@@ -127,7 +127,7 @@ test::logging::err_redirect_grepping_eval_exekutor()
    output="$1"
    shift
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = 'YES' -o "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
+   if [ "${MULLE_FLAG_LOG_EXEKUTOR:-}" = 'YES' ]
    then
       if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then
@@ -137,7 +137,7 @@ test::logging::err_redirect_grepping_eval_exekutor()
       fi
    fi
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != 'YES' ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN:-}" != 'YES' ]
    then
       local rval
 
@@ -161,7 +161,7 @@ test::logging::redirect_eval_exekutor()
    output="$1"
    shift
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = 'YES' -o "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
+   if [ "${MULLE_FLAG_LOG_EXEKUTOR:-}" = 'YES' ]
    then
       if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then
@@ -171,7 +171,7 @@ test::logging::redirect_eval_exekutor()
       fi
    fi
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != 'YES' ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN:-}" != 'YES' ]
    then
       ( eval "$@" ) > "${output}"
    fi
@@ -186,7 +186,7 @@ test::logging::full_redirekt_eval_exekutor()
 
    shift 3
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = 'YES' -o "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
+   if [ "${MULLE_FLAG_LOG_EXEKUTOR:-}" = 'YES' ]
    then
       if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then
@@ -196,7 +196,7 @@ test::logging::full_redirekt_eval_exekutor()
       fi
    fi
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != 'YES' ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN:-}" != 'YES' ]
    then
       local rval
 
@@ -212,6 +212,7 @@ test::logging::full_redirekt_eval_exekutor()
    fi
 }
 
+
 test::logging::full_redirekt_eval_tee_exekutor()
 {
    local stdin="$1"
@@ -220,7 +221,7 @@ test::logging::full_redirekt_eval_tee_exekutor()
 
    shift 3
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" = 'YES' -o "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
+   if [ "${MULLE_FLAG_LOG_EXEKUTOR:-}" = 'YES' ]
    then
       if [ -z "${MULLE_EXEKUTOR_LOG_DEVICE}" ]
       then
@@ -230,7 +231,7 @@ test::logging::full_redirekt_eval_tee_exekutor()
       fi
    fi
 
-   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != 'YES' ]
+   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN:-}" != 'YES' ]
    then
       local rval
 

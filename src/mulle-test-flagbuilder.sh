@@ -53,6 +53,12 @@ test::flagbuilder::r_include_cflags()
 
    headerpath="`mulle-craft searchpath --if-exists --configuration "${OPTION_CONFIGURATION:-Debug}" header`"
 
+   # make top level include-able (for "include.h")
+   # make this first so test local "include.h" will be found first
+   platform::flags::r_cc_include_dir "${MULLE_VIRTUAL_ROOT}" "${quote}"
+   r_concat "${c_flags}" "${RVAL}"
+   c_flags="${RVAL}"
+
    local directory
 
    .foreachpath directory in ${headerpath}
@@ -61,6 +67,7 @@ test::flagbuilder::r_include_cflags()
       r_concat "${c_flags}" "${RVAL}"
       c_flags="${RVAL}"
    .done
+
 
    .foreachpath directory in ${frameworkpath}
    .do

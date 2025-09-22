@@ -39,6 +39,240 @@ test::craft::usage()
 }
 
 
+#test::craft::emit_include_private_h()
+#{
+#   log_entry "test::craft::emit_include_private_h" "$@"
+#
+#   local dialect="${1:-}"        # "", "c" or "objc"
+#   local configuration="${2:-Debug}"
+#   local guard_identifier="$3"
+#
+#   include "case"
+#
+#  # Prepare the output file with include guards
+#  r_smart_file_downcase_identifier "${PROJECT_NAME}"
+#  {
+#    printf "#ifndef ${guard_identifier}\n"
+#    printf "#define ${guard_identifier}\n\n"
+#    printf "// THIS FILE WILL BE CLOBBERED BY mulle-sde test craft\n\n"
+#    if [ "${dialect}" = "objc" ]; then
+#      printf "#import \"import.h\"\n"
+#    else
+#      printf "#include \"include.h\"\n"
+#    fi
+#    printf "\n#endif /* ${guard_identifier} */\n"
+#  }
+#}
+#
+
+test::craft::emit_include_h()
+{
+   log_entry "test::craft::emit_include_h" "$@"
+
+   local dialect="${1:-}"        # "", "c" or "objc"
+   local configuration="${2:-Debug}"
+   local meta_dialect="$3"
+   local guard_identifier="$4"
+
+   local DEP_DIR
+   local INC_ROOT
+
+   # 1) Resolve dependency directory
+   DEP_DIR="$(mulle-sde dependency-dir)" || {
+      fail "Error: failed to get dependency-dir"
+   }
+
+   # 2) Locate include root
+   INC_ROOT="$DEP_DIR/$configuration/include"
+   if [ ! -d "$INC_ROOT" ]
+   then
+      INC_ROOT="$DEP_DIR/include"
+      if [ ! -d "$INC_ROOT" ]
+      then
+         log_warning "Warning: include directory '$INC_ROOT' does not exist"
+         return 0
+      fi
+   fi
+
+   {
+      if [ "${dialect}" != "objc" ]
+      then
+         printf "#ifndef %s\n" "${guard_identifier}"
+         printf "#define %s\n\n" "${guard_identifier}"
+      fi
+
+      printf "// THIS FILE WILL BE CLOBBERED BY mulle-sde test craft\n\n"
+
+      if [ "${dialect}" = "objc" ]
+      then
+         printf "#include \"include.h\"\n\n"
+      fi
+
+      # Helper to decide emission based on dialect and language
+      emit_line()
+      {
+         local path="$1"
+         local is_objc="$2"   # "yes" or "no"
+
+         # Skip if dialect excludes this language
+         if [ "${dialect}" = "c" ]   && [ "${is_objc}" = "yes" ];  then return 0; fi
+         if [ "${dialect}" = "objc" ] && [ "${is_objc}" = "no" ];   then return 0; fi
+
+         # Emit directive
+         if [ "${dialect}" = "objc" ] && [ "${is_objc}" = "yes" ]; then
+            printf "#import <%s>\n" "${path}"
+         else
+            printf "#include <%s>\n" "${path}"
+         fi
+      }
+
+      # 4) Top-level headers (always C)
+      for hdr in $(find "$INC_ROOT" -maxdepth 1 -type f -name '*.h' | sort); do
+         rel="${hdr#$INC_ROOT/}"
+         emit_line "${rel}" "no"
+      done
+
+      # blank line if any top-level headers
+      if [ -n "$(find "$INC_ROOT" -maxdepth 1 -type f -name '*.h')" ]; then
+         printf "\n"
+      fi
+
+      # 5) Per-dependency headers
+      for depdir in $(find "$INC_ROOT" -maxdepth 1 -mindepth 1 -type d | sort); do
+         depname="$(basename "$depdir")"
+         local root_hdr="$depdir/${depname}.h"
+
+         # HACK:
+         # do not emit #include <mulle-objc-runtime/mulle-objc-runtime.h>
+         # as it conflicts with MulleObjC.
+         #
+         if [ "${meta_dialect}" = "objc" ]
+         then
+            case "${depname}" in
+               'mulle-objc-'*)
+                  continue
+               ;;
+            esac
+         fi
+
+         # Check if root header exists
+         if [ -f "$root_hdr" ]; then
+            # ObjC heuristic
+            if [[ "${depname:0:1}" =~ [A-Z] ]]; then
+               emit_line "${depname}/${depname}.h" "yes"
+            else
+               emit_line "${depname}/${depname}.h" "no"
+            fi
+            continue
+         fi
+
+         # no root header: include all headers under this directory
+         while IFS= read -r hdr; do
+            rel="${hdr#$INC_ROOT/}"
+            emit_line "${rel}" "no"
+         done < <(find "$depdir" -type f -name '*.h' ! -path "*/cmake/*" | sort)
+      done
+
+      if [ "${dialect}" != "objc" ]
+      then
+         printf "\n#endif /* %s */\n" "${GUARD}"
+      else
+         printf "\n"
+      fi
+   }
+}
+
+
+test::craft::emit_import_h()
+{
+   log_entry "test::craft::emit_import_h" "$@"
+
+   local configuration="$1"
+   shift
+
+   test::craft::emit_include_h 'objc' "${configuration}" 'objc' "$@"
+}
+
+
+
+test::craft::generate_generic_c_headers()
+{
+   log_entry "test::craft::generate_generic_headers" "$@"
+
+   local text
+
+   if ! text=`test::craft::emit_include_h 'c' "$@"`
+   then
+      return 1
+   fi
+   redirect_exekutor "include.h" printf "%s\n" "${text}"
+
+#   if ! text=`test::craft::emit_include_private_h 'c' "$@"`
+#   then
+#      return 1
+#   fi
+#   redirect_exekutor "include-private.h" printf "%s\n" "${text}"
+}
+
+
+test::craft::generate_generic_objc_headers()
+{
+   log_entry "test::craft::generate_generic_objc_headers" "$@"
+
+   local text
+
+   if ! text=`test::craft::emit_import_h "$@"`
+   then
+      return 1
+   fi
+   redirect_exekutor "import.h" printf "%s\n" "${text}"
+
+#   if ! text=`test::craft::emit_import_private_h "$@"`
+#   then
+#      return 1
+#   fi
+#   redirect_exekutor "import-private.h" printf "%s\n" "${text}"
+}
+
+
+test::craft::postprocess()
+{
+   log_entry "test::craft::postprocess" "$@"
+
+   local configuration="$1"
+
+   if [ -z "${PROJECT_NAME}" ]
+   then
+      fail "PROJECT_NAME not set, but is required for post-processing"
+   fi
+
+   local guard_name
+
+   guard_name="${PROJECT_NAME}"
+   if [ -z "${TEST_PROJECT_NAME}" ]
+   then
+      guard_name="${PROJECT_NAME}-test"
+   fi
+
+   include "case"
+
+   # 3) Prepare include guard
+   r_smart_file_downcase_identifier "${guard_name}"
+   guard_name="${RVAL}"
+
+   case "${PROJECT_LANGUAGE}" in
+      'c')
+         test::craft::generate_generic_c_headers "${configuration}" "${PROJECT_DIALECT:-c}" "${guard_name}_include_h__"
+
+         case "${PROJECT_DIALECT}" in
+            'objc')
+               test::craft::generate_generic_objc_headers "${configuration}"
+            ;;
+         esac
+      ;;
+   esac
+}
+
 test::craft::main()
 {
    log_entry "test::craft::main" "$@"
@@ -47,6 +281,7 @@ test::craft::main()
    local craftargs
    local sdeargs
    local OPTION_STANDALONE
+   local OPTION_POSTPROCESS='DEFAULT'
 
    if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
    then
@@ -94,6 +329,18 @@ test::craft::main()
 
          --debug)
             OPTION_CONFIGURATION='Debug';
+         ;;
+
+         --postprocess)
+            OPTION_POSTPROCESS='YES';
+         ;;
+
+         --postprocess-only|--only-postprocess)
+            OPTION_POSTPROCESS='ONLY';
+         ;;
+
+         --no-postprocess)
+            OPTION_POSTPROCESS='NO';
          ;;
 
          --release)
@@ -188,6 +435,8 @@ test::craft::main()
       shift
    done
 
+   if [ "${OPTION_POSTPROCESS}" != 'ONLY' ]
+   then
    (
       #
       # Crafting might use their own mulle-sde commands in cmake. So don't
@@ -209,6 +458,15 @@ test::craft::main()
       then
          exit 1
       fi
-   )
+   ) || return $?
+   fi
+
+   #
+   # post processing depending on language, currently hardcode argh
+   #
+   if [ "${OPTION_POSTPROCESS}" != 'NO' ]
+   then
+      test::craft::postprocess "${OPTION_CONFIGURATION}"
+   fi
 }
 

@@ -370,6 +370,22 @@ MULLE_ATINIT_FAILURE=0"
       ;;
    esac
 
+   local timeout_s
+
+   timeout_s="${MULLE_TEST_RUN_TIMEOUT:-360}"
+
+   if [ "${timeout_s}" -gt 0 ]
+   then
+      local timeout_exe
+
+      if ! timeout_exe="`command -v 'timeout'`"
+      then
+         log_warning "timeout command not available"
+      else
+         timeout="timeout ${timeout_s}"
+      fi
+   fi
+
    if [ ! -z "${environment}" ]
    then
       log_verbose "Custom environment: ${environment}"
@@ -381,6 +397,7 @@ MULLE_ATINIT_FAILURE=0"
                                                  "${output}" \
                                                  "${errput}" \
                                                  "${environment}" \
+                                                 "${timeout}" \
                                                  "${runner}" \
                                                  "'${a_out_ext}'" \
                                                  ${args}
@@ -391,6 +408,7 @@ MULLE_ATINIT_FAILURE=0"
                                                   "${output}" \
                                                   "${errput}" \
                                                   "${environment}" \
+                                                  "${timeout}" \
                                                   "${runner}" \
                                                   "'${a_out_ext}'" \
                                                   ${args}
@@ -654,6 +672,32 @@ test::execute::_check_output()
 
    # when MULLE_TEXT_EXECUTABLE is set, this not.-hmm
 
+   #
+   # MULLE_TEST_WHITESPACE_DIFFERENCES=
+   #  ignore or empty : ignore whitespace differences
+   #  warn            : warn on whitespace differences
+   #  error           : fail on whitespaces differences
+   local diff_flags
+   local diff_strict
+
+   case "${MULLE_TEST_WHITESPACE_DIFFERENCES}" in
+      'ignore')
+         diff_flags="-w -B"
+      ;;
+
+      'error')
+         diff_strict='YES'
+      ;;
+
+      ''|'warn')
+         # as is, the default
+      ;;
+
+      *)
+         fail "Unknown MULLE_TEST_WHITESPACE_DIFFERENCES value \"${MULLE_TEST_WHITESPACE_DIFFERENCES}\"(ignore|warn|error)"
+      ;;
+   esac
+
    if [ "${stdout}" != "-" ]
    then
       # so if we have diffs, we fail
@@ -663,12 +707,22 @@ test::execute::_check_output()
          # if we have no diffs except whitespace
          if rexekutor "${CAT}" "${output}" | mulle_diff -q -w -B "${stdout}" -
          then
-            log_warning "WARNING: \"${pretty_source}\" produced different whitespace output"
+            if [ "${diff_strict}" = 'YES' ]
+            then
+               log_error "ERROR: \"${pretty_source}\" produced different whitespace output"
+            else
+               log_warning "WARNING: \"${pretty_source}\" produced different whitespace output"
+            fi
             log_info  "DIFF: (${pretty_output#{MULLE_USER_PWD}/} vs. ${pretty_stdout#{MULLE_USER_PWD}/})"
             redirect_exekutor "${output}.actual.hex" od -a "${output}"
             redirect_exekutor "${output}.expect.hex" od -a "${stdout}"
             rexekutor "${CAT}" "${output}.actual.hex" | mulle_diff -y -W ${DIFF_COLUMN_WIDTH:-160} - "${output}.expect.hex"  >&2
-            return ${RVAL_OUTPUT_DIFFERENCES}
+            if [ "${diff_strict}" = 'YES' ]
+            then
+               return ${RVAL_OUTPUT_DIFFERENCES}
+            else
+               return 0
+            fi
          fi
 
          log_error "FAILED: \"${pretty_source}\" produced different output"
@@ -806,6 +860,17 @@ test::execute::run()
    [ -z "${CRLFCAT}" ] && _internal_fail "CRLFCAT must be defined"
 
    test::logging::redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
+   remove_file_if_present "${output}.tmp"
+
+   # if we know the new test is now correct and the stdout file is wrong
+   # we can save time by copying this
+   if [ "${OPTION_GOLDEN_STDOUT}" = 'YES' ]
+   then
+      r_concat "${name}" 'stdout' '.'
+      log_info "Creating ${C_RESET_BOLD}${RVAL}${C_INFO} from output"
+      exekutor cp "${output}" "${RVAL}"
+   fi
+
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = 'YES' ]
    then
       log_setting "-----------------------"
@@ -816,8 +881,14 @@ test::execute::run()
    fi
 
    test::logging::redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${errput}.tmp"
-   remove_file_if_present "${output}.tmp"
    remove_file_if_present "${errput}.tmp"
+
+   if [ "${OPTION_GOLDEN_STDERR}" = 'YES' ]
+   then
+      r_concat "${name}" 'stderr' '.'
+      log_info "Creating ${C_RESET_BOLD}${RVAL}${C_INFO} from errput"
+      exekutor cp "${errput}" "${RVAL}"
+   fi
 
    if [ "${MULLE_FLAG_LOG_SETTINGS}" = 'YES' ]
    then
@@ -1002,6 +1073,13 @@ test::execute::main()
 
          --keep-exe)
             OPTION_REMOVE_EXE='NO'
+         ;;
+
+         --timeout)
+            [ $# -eq 1 ] && test::execute::usage "missing argument to \"$1\""
+            shift
+
+            MULLE_TEST_RUN_TIMEOUT="$1"
          ;;
 
          *)

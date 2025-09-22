@@ -3,3 +3,9 @@
 # in the NSAutoreleasePool. These ephemerals aren't thread safe singletons.
 #
 MULLE_OBJC_EPHEMERAL_SINGLETON="YES"
+
+#
+# For new projects its better to keep this on "ignore" first, and then change
+# it to "warn" or "error" later
+#
+MULLE_TEST_WHITESPACE_DIFFERENCES="ignore"

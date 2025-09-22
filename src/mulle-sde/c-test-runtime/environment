@@ -1,0 +1,5 @@
+#
+# For new projects its better to keep this on "ignore" first, and then change
+# it to "warn" or "error" later
+#
+MULLE_TEST_WHITESPACE_DIFFERENCES="ignore"
