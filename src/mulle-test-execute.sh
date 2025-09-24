@@ -378,11 +378,11 @@ MULLE_ATINIT_FAILURE=0"
    then
       local timeout_exe
 
-      if ! timeout_exe="`command -v 'timeout'`"
+      if ! timeout_exe="`command -v 'mulle-timeout'`"
       then
-         log_warning "timeout command not available"
+         log_warning "mulle-timeout command not available"
       else
-         timeout="timeout ${timeout_s}"
+         timeout="mulle-timeout ${timeout_s}"
       fi
    fi
 
@@ -396,8 +396,8 @@ MULLE_ATINIT_FAILURE=0"
       test::logging::full_redirekt_eval_exekutor "${input}" \
                                                  "${output}" \
                                                  "${errput}" \
-                                                 "${environment}" \
                                                  "${timeout}" \
+                                                 "${environment}" \
                                                  "${runner}" \
                                                  "'${a_out_ext}'" \
                                                  ${args}
@@ -407,8 +407,8 @@ MULLE_ATINIT_FAILURE=0"
    test::logging::full_redirekt_eval_tee_exekutor "${input}" \
                                                   "${output}" \
                                                   "${errput}" \
-                                                  "${environment}" \
                                                   "${timeout}" \
+                                                  "${environment}" \
                                                   "${runner}" \
                                                   "'${a_out_ext}'" \
                                                   ${args}

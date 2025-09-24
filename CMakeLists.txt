@@ -14,6 +14,7 @@ set( PROJECT_VERSION "${MULLE_TEST_VERSION}")
 
 set( SCRIPTS
 mulle-test
+mulle-timeout
 )
 
 
