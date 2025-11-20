@@ -74,19 +74,27 @@ test::craft::emit_include_h()
    local meta_dialect="$3"
    local guard_identifier="$4"
 
-   local DEP_DIR
+   local DEPENDENCY_DIR
    local INC_ROOT
 
    # 1) Resolve dependency directory
-   DEP_DIR="$(mulle-sde dependency-dir)" || {
+   if ! DEPENDENCY_DIR="$(mulle-sde dependency-dir)" 
+   then
       fail "Error: failed to get dependency-dir"
-   }
+   fi
 
    # 2) Locate include root
-   INC_ROOT="$DEP_DIR/$configuration/include"
+   # MEMO: need to ask craft where stuff is placed
+   local style 
+
+   style="$(mulle-craft style --configuration "${configuration}")"
+
+   r_filepath_concat "${DEPENDENCY_DIR}" "$style" "include"
+   INC_ROOT="${RVAL}"
+
    if [ ! -d "$INC_ROOT" ]
    then
-      INC_ROOT="$DEP_DIR/include"
+      INC_ROOT="$DEPENDENCY_DIR/include"
       if [ ! -d "$INC_ROOT" ]
       then
          log_warning "Warning: include directory '$INC_ROOT' does not exist"
@@ -150,7 +158,13 @@ test::craft::emit_include_h()
          then
             case "${depname}" in
                'mulle-objc-'*)
-                  continue
+                  # except if we are actually in mulle-objc-runtime
+                  if [ "${PROJECT_NAME}" != 'mulle-objc-runtime' -a \
+                       "${PROJECT_NAME}" != 'mulle-objc-debug' ]
+                  then
+                     log_debug "Skip \"${depname}\""
+                     continue
+                  fi
                ;;
             esac
          fi

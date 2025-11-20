@@ -108,9 +108,13 @@ test::clean::main()
       shift
    done
 
+   # MEMO: turn of MULLE_VIBECODING to avoid endless pingpong
+   #
    case "${1:-all}" in
       all|tidy|gravetidy|.g)
-         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
+         exekutor mulle-sde \
+                        -DMULLE_VIBECODING=NO \
+                        ${MULLE_TECHNICAL_FLAGS} \
                      clean \
                         ${cleanoptions} \
                         "${1:-all}" &&
@@ -120,6 +124,9 @@ test::clean::main()
 
          log_verbose "Cleaning test executables"
          exekutor find . -type f -name "*.exe" -exec rm {} \;
+
+         log_verbose "Cleaning test vibecode output"
+         exekutor find . -type f \( -name "*.test.stderr" -o -name "*.test.stdout" -o -name "*.test.ccerr" \) -exec rm {} \;
 
          log_verbose "Cleaning test coverage"
          exekutor find . -type f \( -name "*.gcno" -o -name "*.gcda" -o -name "*.profdata" \) -exec rm {} \;
@@ -132,7 +139,7 @@ test::clean::main()
 
          if [ ! -z "${MULLE_SDE_CLEAN_DEFAULT}" ]
          then
-            rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} clean
+            rexekutor mulle-sde -DMULLE_VIBECODING=NO ${MULLE_TECHNICAL_FLAGS} clean
          fi
       ;;
 

@@ -72,7 +72,7 @@ test::linkorder::do_get_link_command()
                --output-format ld \
                --output-no-final-lf \
                --preferred-library-style dynamic \
-               --whole-archive-format "DEFAULT" \
+               --whole-archive-format 'DEFAULT' \
                "$@"  # shared libs only ATM
 }
 

@@ -80,7 +80,7 @@ test::environment::setup_compiler()
                   ;;
 
                   mulle-objc)
-                     DEBUG_GCC_CFLAGS="${DEBUG_GCC_CFLAGS} -fobjc-tao"
+                     DEBUG_GCC_OTHER_CFLAGS="${DEBUG_GCC_OTHER_CFLAGS} -fobjc-tao"
                      PROJECT_EXTENSIONS="${PROJECT_EXTENSIONS:-m:aam}"
                      STANDALONE_SUFFIX="-standalone"
 
@@ -91,7 +91,7 @@ test::environment::setup_compiler()
 
                            # nmake doesn't work ? /questionable!
                            MAKE="make"
-                           DEBUG_CL_CFLAGS="${DEBUG_CL_CFLAGS} -fobjc-tao"
+                           DEBUG_CL_OTHER_CFLAGS="${DEBUG_CL_OTHER_CFLAGS} -fobjc-tao"
                         ;;
 
                         windows)
@@ -100,7 +100,7 @@ test::environment::setup_compiler()
 
                            # nmake doesn't work ? /questionable!
                            MAKE="ninja.exe"
-                           DEBUG_CL_CFLAGS="${DEBUG_CL_CFLAGS} /FOBJC-TAO"
+                           DEBUG_CL_OTHER_CFLAGS="${DEBUG_CL_OTHER_CFLAGS} /FOBJC-TAO"
                         ;;
 
                         darwin)
@@ -194,12 +194,26 @@ test::environment::setup_compiler()
    case "${CC}" in
       *-cl|*-cl.exe|cl.exe|cl)
          DEBUG_CFLAGS="${DEBUG_CL_CFLAGS}"
+         TEST_CFLAGS="${DEBUG_CL_CFLAGS}"
+         RELDEBUG_CFLAGS="${RELEASE_CL_CFLAGS}"
          RELEASE_CFLAGS="${RELEASE_CL_CFLAGS}"
+
+         DEBUG_OTHER_CFLAGS="${DEBUG_CL_OTHER_CFLAGS}"
+         TEST_OTHER_CFLAGS="${DEBUG_CL_OTHER_CFLAGS}"
+         RELDEBUG_OTHER_CFLAGS="${RELEASE_CL_OTHER_CFLAGS}"
+         RELEASE_OTHER_CFLAGS="${RELEASE_CL_OTHER_CFLAGS}"
       ;;
 
       *)
          DEBUG_CFLAGS="${DEBUG_GCC_CFLAGS}"
+         TEST_CFLAGS="${DEBUG_GCC_CFLAGS}"
+         RELDEBUG_CFLAGS="${RELEASE_GCC_CFLAGS}"
          RELEASE_CFLAGS="${RELEASE_GCC_CFLAGS}"
+
+         DEBUG_OTHER_CFLAGS="${DEBUG_GCC_OTHER_CFLAGS}"
+         TEST_OTHER_CFLAGS="${DEBUG_GCC_OTHER_CFLAGS}"
+         RELDEBUG_OTHER_CFLAGS="${RELEASE_GCC_OTHER_CFLAGS}"
+         RELEASE_OTHER_CFLAGS="${RELEASE_GCC_OTHER_CFLAGS}"
       ;;
    esac
 }
@@ -292,7 +306,12 @@ test::environment::setup_development_platform()
    local _suffix_executable
    local _r_path_mangler
 
-   platform::environment::__get_fix_definitions
+   local platform 
+
+   platform="${MULLE_CRAFT_PLATFORMS%%:*}"
+   platform="${platform:-${MULLE_UNAME}}"
+
+   platform::environment::__get_fix_definitions "${platform}"
 
    SHAREDLIB_PREFIX="${_prefix_lib}"
    SHAREDLIB_EXTENSION="${_suffix_dynamiclib}"
@@ -346,6 +365,121 @@ test::environment::setup_debugger()
       ;;
    esac
 }
+
+
+
+test::environment::r_get_environmentfile()
+{
+   local name="$1"
+   local varname="$2"
+   local fallback="$3"
+
+   RVAL="${name}.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
+   if [ ! -f "${RVAL}" ]
+   then
+      log_debug "\"${RVAL}\" not present"
+      RVAL="${name}.${varname}.${MULLE_UNAME}"
+      if [ ! -f "${RVAL}" ]
+      then
+         log_debug "\"${RVAL}\" not present"
+         RVAL="${name}.${varname}.${MULLE_ARCH}"
+         if [ ! -f "${RVAL}" ]
+         then
+            log_debug "\"${RVAL}\" not present"
+            RVAL="${name}.${varname}"
+            if [ ! -f "${RVAL}" ]
+            then
+               log_debug "\"${RVAL}\" not present"
+               RVAL="default.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
+               if [ ! -f "${RVAL}" ]
+               then
+                  log_debug "\"${RVAL}\" not present"
+                  RVAL="default.${varname}.${MULLE_UNAME}"
+                  if [ ! -f "${RVAL}" ]
+                  then
+                     log_debug "\"${RVAL}\" not present"
+                     RVAL="default.${varname}.${MULLE_ARCH}"
+                     if [ ! -f "${RVAL}" ]
+                     then
+                        log_debug "\"${RVAL}\" not present"
+                        RVAL="default.${varname}"
+                        if [ ! -f "${RVAL}" ]
+                        then
+                           log_debug "\"${RVAL}\" not present"
+                           RVAL="${fallback}"
+                           if [ -z "${RVAL}" ]
+                           then
+                              return 1
+                           fi
+                           if [ ! -f "${RVAL}" ]
+                           then
+                              log_debug "\"${RVAL}\" not present"
+                              RVAL=
+                              return 1
+                           fi
+                        fi
+                     fi
+                  fi
+               fi
+            fi
+         fi
+      fi
+   fi
+
+   log_debug "\"${RVAL}\" found!"
+   return 0
+}
+
+
+test::environment::r_get_test_datafile()
+{
+   local varname="$1"
+   local name="$2"
+   local fallback="$3"
+
+   RVAL="${name}.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
+   if [ ! -f "${RVAL}" ]
+   then
+      log_debug "\"${RVAL}\" not present"
+      RVAL="${name}.${varname}.${MULLE_UNAME}"
+      if [ ! -f "${RVAL}" ]
+      then
+         log_debug "\"${RVAL}\" not present"
+         RVAL="${name}.${varname}.${MULLE_ARCH}"
+         if [ ! -f "${RVAL}" ]
+         then
+            log_debug "\"${RVAL}\" not present"
+            RVAL="${name}.${varname}"
+            if [ ! -f "${RVAL}" ]
+            then
+               log_debug "\"${RVAL}\" not present"
+               RVAL="default.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
+               if [ ! -f "${RVAL}" ]
+               then
+                  log_debug "\"${RVAL}\" not present"
+                  RVAL="default.${varname}.${MULLE_UNAME}"
+                  if [ ! -f "${RVAL}" ]
+                  then
+                     log_debug "\"${RVAL}\" not present"
+                     RVAL="default.${varname}.${MULLE_ARCH}"
+                     if [ ! -f "${RVAL}" ]
+                     then
+                        log_debug "\"${RVAL}\" not present"
+                        RVAL="default.${varname}"
+                        if [ ! -f "${RVAL}" ]
+                        then
+                           log_debug "\"${RVAL}\" not present, returning \"${fallback}\""
+                           RVAL="${fallback}"
+                        fi
+                     fi
+                  fi
+               fi
+            fi
+         fi
+      fi
+   fi
+}
+
 
 
 test::environment::include_required()

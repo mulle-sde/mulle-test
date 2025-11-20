@@ -149,9 +149,11 @@ test::compiler::r_common_c_flags()
    log_entry "test::compiler::r_common_c_flags" "$@"
 
    local srcfile="$1"
+   local configuration="$2"
+
    local common_cflags
 
-   test::flagbuilder::r_cflags "" "${srcfile}"
+   test::flagbuilder::r_cflags "" "${srcfile}" "${configuration}"
    common_cflags="${RVAL}"
 
    case "${CC}" in
@@ -194,9 +196,12 @@ test::compiler::r_c_commandline()
 {
    log_entry "test::compiler::r_c_commandline" "$@"
 
-   local c_flags="$1"; shift
-   local srcfile="$1"; shift
-   local a_out="$1"; shift
+   local c_flags="$1"
+   local srcfile="$2"
+   local a_out="$3"
+   local configuration="$4"
+
+   shift 4
 
    [ -z "${srcfile}" ] && _internal_fail "srcfile is empty"
    [ -z "${a_out}" ]   && _internal_fail "a_out is empty"
@@ -207,7 +212,7 @@ test::compiler::r_c_commandline()
       shift
    done
 
-   test::compiler::r_common_c_flags "${srcfile}"
+   test::compiler::r_common_c_flags "${srcfile}" "${configuration}"
    r_concat "${c_flags}" "${RVAL}"
    c_flags="${RVAL}"
 
@@ -309,10 +314,13 @@ test::compiler::r_c_asm_commandline()
 {
    log_entry "test::compiler::r_c_asm_commandline" "$@"
 
-   local c_flags="$1"; shift
-   local srcfile="$1"; shift
-   local extra="$1"; shift
-   local extension="$1"; shift
+   local c_flags="$1"
+   local srcfile="$2"
+   local extra="$3"
+   local extension="$4"
+   local configuration="$5"
+
+   shift 5
 
    [ -z "${srcfile}" ] && _internal_fail "srcfile is empty"
    [ -z "${extension}" ] && _internal_fail "extension is empty"
@@ -328,7 +336,7 @@ test::compiler::r_c_asm_commandline()
    outfile="${srcfile%.*}"
    outfile="${outfile}.${extension}"
 
-   test::compiler::r_common_c_flags "${srcfile}"
+   test::compiler::r_common_c_flags "${srcfile}" "${configuration}"
    r_concat "${c_flags}" "${RVAL}"
    c_flags="${RVAL}"
 
@@ -365,13 +373,14 @@ test::compiler::fail_c()
 
    if [ "${TEST_CFLAGS}" != "${DEBUG_CFLAGS}" ]
    then
-      r_concat "${DEBUG_CFLAGS}" "${CPPFLAGS}"
-      r_concat "${RVAL}" "${CFLAGS}"
-      c_flags="${RVAL}"
+      # r_concat "${DEBUG_CFLAGS}" "${CPPFLAGS}"
+      # r_concat "${RVAL}" "${CFLAGS}"
+      # c_flags="${RVAL}"
+      c_flags=${DEBUG_CFLAGS}
 
       a_out="${a_out%}${DEBUG_EXE_EXTENSION}"
 
-      test::compiler::r_c_commandline "${c_flags}" "${srcfile}" "${a_out}" "$@"
+      test::compiler::r_c_commandline "${c_flags}" "${srcfile}" "${a_out}" 'Debug' "$@"
       cmdline="${RVAL}"
 
       log_info "DEBUG: "
@@ -413,12 +422,17 @@ test::compiler::run_gcc()
 
    local cmdline
 
+   # MEMO: this is all done in `test::compiler::r_c_commandline` already
    # TEST_CFLAGS are the default, but let them be overridden by .c_flags
-   r_concat "${CPPFLAGS}" "${CFLAGS}"
-   r_concat "${c_flags:-${TEST_CFLAGS}}" "${RVAL}"
-   c_flags="${RVAL}"
+   # r_concat "${CPPFLAGS}" "${CFLAGS}"
+   # r_concat "${c_flags:-${TEST_CFLAGS}}" "${RVAL}"
+   # c_flags="${RVAL}"
 
-   test::compiler::r_c_commandline "${c_flags}" "${srcfile}" "${a_out}" "$@"
+   test::compiler::r_c_commandline "${c_flags}" \
+                                   "${srcfile}" \
+                                   "${a_out}" \
+                                   "${OPTION_CONFIGURATION}" \
+                                   "$@"
    cmdline="${RVAL}"
 
    local old_MULLE_FLAG_LOG_EXEKUTOR
@@ -446,7 +460,12 @@ test::compiler::run_gcc()
          extension="ir"
       fi
 
-      test::compiler::r_c_asm_commandline "${c_flags}" "${srcfile}" "${extra}" "${extension}" "$@"
+      test::compiler::r_c_asm_commandline "${c_flags}" \
+                                          "${srcfile}" \
+                                          "${extra}" \
+                                          "${extension}" \
+                                          "${configuration}" \
+                                          "$@"
       cmdline="${RVAL}"
 
       eval_exekutor "${cmdline}"
@@ -566,7 +585,7 @@ test::compiler::check_output()
       log_setting "-----------------------"
    fi
 
-   test::execute::r_get_test_datafile "ccdiag" "${name}" "-"
+   test::environment::r_get_test_datafile "ccdiag" "${name}" "-"
    ccdiag="${RVAL}"
 
    if [ "${ccdiag}" != "-" ]

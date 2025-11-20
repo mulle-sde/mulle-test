@@ -224,9 +224,14 @@ test::run::common()
 
    local cc_errput
 
-   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}" "f" || exit 1
-   cc_errput="${RVAL}.ccerr"
-
+   if [ "${MULLE_VIBECODING}" = 'YES' ]
+   then
+      cc_errput="${name}.test.ccerr"
+      log_vibe "compiler diagnostics will be redirected \"${cc_errput}\""
+   else
+      _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}" "f" || exit 1
+      cc_errput="${RVAL}.ccerr"
+   fi
    local pretty_source
 
    r_filepath_concat "${PWD}" "${srcfile}"
@@ -247,7 +252,11 @@ test::run::common()
    then
       log_fluff "Build test ${pretty_source}"
 
-      "${TEST_BUILDER}" "${srcfile}" "${a_out_ext}" "${cc_errput}" "${flags}" "$@"
+      "${TEST_BUILDER}" "${srcfile}" \
+                        "${a_out_ext}" \
+                        "${cc_errput}" \
+                        "${flags}" \
+                        "$@"
       rval="$?"
 
       test::compiler::check_output "${srcfile}" "${cc_errput}" "${rval}" "${pretty_source}"
@@ -314,13 +323,12 @@ test::run::cmake()
    log_entry "test::run::cmake" "$@"
 
    local name="$1"
-   # local ext="$2"
-   # local root="$3"
+   local ext="$2"
+   local root="$3"
 
-   shift
+   shift 3
 
    local purename
-
 
    # remove leading 20_ or 20-
    purename="${name#"${name%%[!0-9_-]*}"}"
@@ -331,14 +339,23 @@ test::run::cmake()
 
    local cmakeflags
 
-   if test::run::r_get_environmentfile "${purename}" "cmakeflags" "cmakeflags"
+   if test::environment::r_get_environmentfile "${purename}" "cmakeflags" "cmakeflags"
    then
       cmakeflags="`grep -E -v '^#' "${RVAL}"`"
    fi
 
+   log_debug "junk ? $*"
+
    TEST_BUILDER="test::cmake::run"
    FAIL_TEST="test::cmake::fail_test"
-   test::run::common "" "${a_out}" "${a_out}${EXE_EXTENSION}" "${name}" "${cmakeflags}" "$@"
+   test::run::common "" \
+                     "${a_out}" \
+                     "${a_out}${EXE_EXTENSION}" \
+                     "${name}" \
+                     "${cmakeflags}" \
+                     "${ext}" \
+                     "${root}" \
+                     "$@"
 }
 
 
@@ -346,8 +363,10 @@ test::run::sh()
 {
    log_entry "test::run::sh" "$@"
 
-   local name="$1"; shift
-   local ext="$1"
+   local name="$1"
+   local ext="$2"
+
+   shift 2
 
    local a_out
 
@@ -359,7 +378,13 @@ test::run::sh()
    # purename="${name#"${name%%[!0-9_-]*}"}"
 
    TEST_BUILDER=""
-   test::run::common "" "${a_out}" "" "${name}" "" "$@"
+   test::run::common "" \
+                     "${a_out}" \
+                     "" \
+                     "${name}" \
+                     "" \
+                     "${ext}" \
+                     "$@"
 }
 
 
@@ -368,8 +393,10 @@ test::run::c()
 {
    log_entry "test::run::c" "$@"
 
-   local name="$1"; shift
-   local ext="$1"
+   local name="$1"
+   local ext="$2"
+
+   shift 2
 
    local purename
 
@@ -381,16 +408,16 @@ test::run::c()
    a_out="${PWD}/${name}"
 
    # cmake-output: hein ?
-   if test::run::r_get_environmentfile "${purename}" "cmake-output" "cmake-output"
+   if test::environment::r_get_environmentfile "${purename}" "cmake-output" "cmake-output"
    then
       a_out="`grep -E -v '^#' "${RVAL}"`"
    fi
 
    local c_flags
 
-   if test::run::r_get_environmentfile "${purename}" "c_flags" "c_flags"
+   if test::environment::r_get_environmentfile "${purename}" "c_flags" "c_flags"
    then
-      c_flags="`grep -E -v '^#' "${RVAL}"`"
+      c_flags="`rexekutor grep -E -v '^#' "${RVAL}"`"
 
       local line
 
@@ -415,7 +442,13 @@ test::run::c()
 
    TEST_BUILDER="test::compiler::run"
    FAIL_TEST="test::compiler::fail_c"
-   test::run::common "" "${a_out}" "${a_out}${EXE_EXTENSION}" "${name}" "${c_flags}" "$@"
+   test::run::common "" \
+                     "${a_out}" \
+                     "${a_out}${EXE_EXTENSION}" \
+                     "${name}" \
+                     "${c_flags}" \
+                     "${ext}" \
+                     "$@"
 }
 
 
@@ -450,9 +483,10 @@ test::run::exe()
 {
    log_entry "test::run::exe" "$@"
 
-   local name="$1" ; shift
-   local ext="$1"
+   local name="$1"
+   local ext="$2"
 
+   shift 2
 #   local purename
 #
 #   # remove leading 20_ or 20-
@@ -469,7 +503,13 @@ test::run::exe()
    TEST_BUILDER=""
    FAIL_TEST=""
 
-   test::run::common "" "${a_out}" "${a_out_ext}" "${name}" "" "$@"
+   test::run::common "" \
+                     "${a_out}" \
+                     "${a_out_ext}" \
+                     "${name}" \
+                     "" \
+                     "${ext}" \
+                     "$@"
 }
 
 # this is a very special case for running header only tests and where
@@ -478,11 +518,14 @@ test::run::args_exe()
 {
    log_entry "test::run::args_exe" "$@"
 
-   local args="$1"; shift
+   local args="$1"
 
-   local name="$1" ; shift
-   local ext="$1"
+   shift
 
+   local name="$1"
+   local ext="$2"
+
+   shift 2
 #   local purename
 #
 #   # remove leading 20_ or 20-
@@ -498,7 +541,13 @@ test::run::args_exe()
    TEST_BUILDER=""
    FAIL_TEST=""
 
-   test::run::common "${args}" "${a_out}" "${a_out_ext}" "${name}" "" "$@"
+   test::run::common "${args}" \
+                     "${a_out}" \
+                     "${a_out_ext}" \
+                     "${name}" \
+                     "" \
+                     "${ext}" \
+                     "$@"
 }
 
 
@@ -583,7 +632,8 @@ test::run::run()
    TEST_BUILDER=""
    FAIL_TEST=""
 
-   export MULLE_TECHNICAL_FLAGS
+   # export MULLE_TECHNICAL_FLAGS is not the best idea, so...
+   export MULLE_TEST_TECHNICAL_FLAGS="${MULLE_TECHNICAL_FLAGS}"
 
    #
    # local args="$1"
@@ -594,6 +644,7 @@ test::run::run()
    # local ext="$6"
    # local root="$7"
    #
+   # throw away ext content (for self documenting purposes)
    test::run::common "" \
                      "${a_out}" \
                      "${a_out_ext}" \
@@ -604,65 +655,6 @@ test::run::run()
 }
 
 
-test::run::r_get_environmentfile()
-{
-   local name="$1"
-   local varname="$2"
-   local fallback="$3"
-
-   RVAL="${name}.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
-   if [ ! -f "${RVAL}" ]
-   then
-      log_debug "\"${RVAL}\" not present"
-      RVAL="${name}.${varname}.${MULLE_UNAME}"
-      if [ ! -f "${RVAL}" ]
-      then
-         log_debug "\"${RVAL}\" not present"
-         RVAL="${name}.${varname}.${MULLE_ARCH}"
-         if [ ! -f "${RVAL}" ]
-         then
-            log_debug "\"${RVAL}\" not present"
-            RVAL="${name}.${varname}"
-            if [ ! -f "${RVAL}" ]
-            then
-               log_debug "\"${RVAL}\" not present"
-               RVAL="default.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
-               if [ ! -f "${RVAL}" ]
-               then
-                  log_debug "\"${RVAL}\" not present"
-                  RVAL="default.${varname}.${MULLE_UNAME}"
-                  if [ ! -f "${RVAL}" ]
-                  then
-                     log_debug "\"${RVAL}\" not present"
-                     RVAL="default.${varname}.${MULLE_ARCH}"
-                     if [ ! -f "${RVAL}" ]
-                     then
-                        log_debug "\"${RVAL}\" not present"
-                        RVAL="default.${varname}"
-                        if [ ! -f "${RVAL}" ]
-                        then
-                           log_debug "\"${RVAL}\" not present"
-                           RVAL="${fallback}"
-                           if [ -z "${RVAL}" ]
-                           then
-                              return 1
-                           fi
-                           if [ ! -f "${RVAL}" ]
-                           then
-                              log_debug "\"${RVAL}\" not present"
-                              RVAL=
-                              return 1
-                           fi
-                        fi
-                     fi
-                  fi
-               fi
-            fi
-         fi
-      fi
-   fi
-   return 0
-}
 
 
 # we are in the test directory and we are running in a subshell
@@ -684,6 +676,7 @@ test::run::_run()
    [ -z "${name}" ] && _internal_fail "name must not be empty"
    [ -z "${ext}" ]  && _internal_fail "ext must not be ? empty"
    [ -z "${root}" ] && _internal_fail "root must not be empty"
+
 
    # we change the SANITIZER variable here on demand
    if [ ! -z "${SANITIZER}" ] && [ -e "${name}.no-sanitizers" -o -e "${name}.no-sanitizers.${MULLE_UNAME}" ]
@@ -725,7 +718,7 @@ test::run::_run()
    local purename
 
    purename="${name#"${name%%[!0-9_-]*}"}"
-   if test::run::r_get_environmentfile "${purename}" "environment" "environment"
+   if test::environment::r_get_environmentfile "${purename}" "environment" "environment"
    then
       log_verbose "Read environment file \"${RVAL}\" (${PWD#"${MULLE_USER_PWD}/"}) "
       # as we are running in a subshell this is OK
@@ -833,12 +826,12 @@ test::run::_run_in_directory()
    log_entry "test::run::_run_in_directory" "$@"
 
    local directory="$1"; shift
+
    local name="$1"
 
    (
       # this is OK since we are in a subshell here
       exekutor cd "${directory}" || exit 0
-
       test::run::_run "$@"
    )
 }
@@ -956,6 +949,12 @@ test::run::_scan_directory()
 
    local root="$1"; shift
    local extensions="$1"; shift
+
+   if [ -e no-mulle-test ]
+   then
+      log_verbose "${PWD#${MULLE_USER_PWD}/} skipped because file \"no-mulle-test\" is present"
+      return
+   fi
 
    if [ -x run ]
    then
@@ -1198,6 +1197,7 @@ test::run::main()
    TEST_CFLAGS="${DEBUG_CFLAGS}"
    OPTION_CONFIGURATION="${OPTION_CONFIGURATION:-Debug}"
 
+
    while [ $# -ne 0 ]
    do
       case "$1" in
@@ -1370,7 +1370,8 @@ test::run::main()
 
    MULLE_TEST_EXTENSIONS="${MULLE_TEST_EXTENSIONS:-${PROJECT_EXTENSIONS}}"
 
-   log_setting "MULLE_FLAG_LOG_EXEKUTOR=${MULLE_FLAG_LOG_EXEKUTOR:-NO}"
+   log_setting "MULLE_FLAG_LOG_EXEKUTOR: ${MULLE_FLAG_LOG_EXEKUTOR:-NO}"
+   log_setting "OPTION_CONFIGURATION: ${OPTION_CONFIGURATION}"
 
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2
@@ -1420,7 +1421,6 @@ test::run::main()
       printf "%s\n" "${RVAL}"
       exit 0
    fi
-
 
    MULLE_TEST_SUCCESS_FILE="${MULLE_TEST_VAR_DIR}/passed.txt"
 

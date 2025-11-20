@@ -126,7 +126,9 @@ test::cmake::eval_mulle_make()
 {
    log_entry "test::cmake::eval_mulle_make" "$@"
 
-   local build_type="$1"; shift
+   local build_type="$1"
+
+   shift
 
    # fix for mingw, which demangles the first -I path
    # but not subsequent ones
@@ -391,7 +393,7 @@ test::cmake::run()
          set -- "${flags}" "$@"
       fi
 
-      test::cmake::eval_mulle_make "Test" "$@" || exit 1
+      test::cmake::eval_mulle_make "${OPTION_CONFIGURATION:-Test}" "$@" || exit 1
 
       #
       # check if it produces a shlib or an exe

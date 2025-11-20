@@ -55,9 +55,14 @@ test::flagbuilder::r_include_cflags()
 
    # make top level include-able (for "include.h")
    # make this first so test local "include.h" will be found first
-   platform::flags::r_cc_include_dir "${MULLE_VIRTUAL_ROOT}" "${quote}"
-   r_concat "${c_flags}" "${RVAL}"
-   c_flags="${RVAL}"
+   if [ ! -z "${MULLE_VIRTUAL_ROOT}" ]
+   then
+      platform::flags::r_cc_include_dir "${MULLE_VIRTUAL_ROOT}" "${quote}"
+      r_concat "${c_flags}" "${RVAL}"
+      c_flags="${RVAL}"
+   else
+      log_warning "Environment variable ${C_RESET_BOLD}MULLE_VIRTUAL_ROOT${C_WARNING} undefined, you may experience not working or wrong included 'include.h' and 'import.h' files"
+   fi
 
    local directory
 
@@ -86,28 +91,64 @@ test::flagbuilder::r_cflags()
 
    local c_flags="$1"
    local srcfile="$2"
+   local configuration="$3"
 
 #     log_setting "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
 
-   local cflagsname
+   local name
 
    r_extensionless_basename "${srcfile}"
-   cflagsname="${RVAL}.CFLAGS"
+   name="${RVAL}"
 
-   if [ -f "${cflagsname}.${MULLE_UNAME}" ]
+   local filename
+
+   #
+   # CFLAGS must be completely overrideable by file
+   #
+   test::environment::r_get_test_datafile 'CFLAGS' "${name}"
+   filename="${RVAL}"
+
+   local key
+   local value
+
+   if [ -z "${filename}"  ]
    then
-      c_flags="`cat "${cflagsname}.${MULLE_UNAME}"`"
-      log_fluff "Got CFLAGS=\"${c_flags}\" from \"${cflagsname}.${MULLE_UNAME}\""
+      r_uppercase "${configuration}"
+      key="${RVAL}_CFLAGS"
+      r_shell_indirect_expand "${key}"
+      value="${RVAL}"
+      log_debug "Using default ${key}"
    else
-      if [ -f "${cflagsname}" ]
+      value="$(grep -E "^${configuration}:" "${filename}" )"
+      if [ ! -z "${value}" ]
       then
-         c_flags="`cat "${cflagsname}"`"
-         log_fluff "Got CFLAGS=\"${c_flags}\" from \"${cflagsname}\""
+         value="${value#:*}"
+      else
+         value="$(grep -v -E "^[A-Za-z_][A-Za-z0-9_]*:" "${filename}" )"
       fi
+      log_debug "Using override CFLAGS from \"${filename}\""
    fi
 
-   r_concat "${c_flags}" "${CFLAGS}"
+   log_setting "CFLAGS             : ${value}"
+
+   r_concat "${c_flags}" "${value}"
    c_flags="${RVAL}"
+
+   #
+   # this is used to glom -fobjc-tao unto the flags, but we can replace
+   # -O0 -g
+   #
+   r_uppercase "${configuration}"
+   key="${RVAL}_OTHER_CFLAGS"
+   r_shell_indirect_expand "${key}"
+   value="${RVAL}"
+
+   log_setting "${key}  : ${value}"
+
+   r_concat "${c_flags}" "${value}"
+   c_flags="${RVAL}"
+
+   log_setting "OTHER_CFLAGS        : ${OTHER_CFLAGS}"
 
    r_concat "${c_flags}" "${OTHER_CFLAGS}"
    c_flags="${RVAL}"
@@ -117,10 +158,6 @@ test::flagbuilder::r_cflags()
       r_concat "${c_flags}" "-isysroot '${APPLE_SDKPATH}'"
       c_flags="${RVAL}"
    fi
-
-   log_setting "OTHER_CFLAGS        : ${OTHER_CFLAGS}"
-   log_setting "APPLE_SDKPATH       : ${APPLE_SDKPATH}"
-   log_setting "CFLAGS              : ${c_flags}"
 
    RVAL="${c_flags}"
 }

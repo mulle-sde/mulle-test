@@ -396,8 +396,8 @@ MULLE_ATINIT_FAILURE=0"
       test::logging::full_redirekt_eval_exekutor "${input}" \
                                                  "${output}" \
                                                  "${errput}" \
-                                                 "${timeout}" \
                                                  "${environment}" \
+                                                 "${timeout}" \
                                                  "${runner}" \
                                                  "'${a_out_ext}'" \
                                                  ${args}
@@ -407,8 +407,8 @@ MULLE_ATINIT_FAILURE=0"
    test::logging::full_redirekt_eval_tee_exekutor "${input}" \
                                                   "${output}" \
                                                   "${errput}" \
-                                                  "${timeout}" \
                                                   "${environment}" \
+                                                  "${timeout}" \
                                                   "${runner}" \
                                                   "'${a_out_ext}'" \
                                                   ${args}
@@ -829,11 +829,18 @@ test::execute::run()
    local output
    local errput
 
-   [ -z "${MULLE_TEST_VAR_DIR}" ] && _internal_fail "MULLE_TEST_VAR_DIR undefined"
+   if [ "${MULLE_VIBECODING}" = 'YES' ]
+   then
+      output="${name}.test.stdout"
+      errput="${name}.test.stderr"
+      log_vibe "stdout will be redirected \"${output}\" and stderr will be redirected to \"${errput}\""
+   else
+      [ -z "${MULLE_TEST_VAR_DIR}" ] && _internal_fail "MULLE_TEST_VAR_DIR undefined"
 
-   _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}" "f" || exit 1
-   output="${RVAL}.stdout"
-   errput="${RVAL}.stderr"
+      _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}" "f" || exit 1
+      output="${RVAL}.stdout"
+      errput="${RVAL}.stderr"
+   fi
 
    #
    # run test executable "${a_out}" feeding it "${stdin}" as input
@@ -912,78 +919,33 @@ test::execute::run()
                                 "${ext}"
    rc=$?
 
-   if [ $rc -eq 0 ]
+   if [ "${MULLE_VIBECODING}" = 'YES' ]
    then
-      remove_file_if_present "${output}"
-      remove_file_if_present "${errput}"
-   fi
+      log_vibe "Not cleaning up because of MULLE_VIBECODING='YES'"
+   else
+      if [ $rc -eq 0 ]
+      then
+         remove_file_if_present "${output}"
+         remove_file_if_present "${errput}"
+      fi
 
-   if [ "${OPTION_REMOVE_EXE}" = 'YES' ]
-   then
-      # usually always remove this, since we dont want this in coverage report
-      remove_file_if_present "${a_out##.exe}.gcno"
-   fi
+      if [ "${OPTION_REMOVE_EXE}" = 'YES' ]
+      then
+         # usually always remove this, since we dont want this in coverage report
+         remove_file_if_present "${a_out##.exe}.gcno"
+      fi
 
-   if [ ! -z "${a_out}" -a $rc -eq 0 -a "${OPTION_REMOVE_EXE}" = 'YES' ]
-   then
-      # also remove debug file if present
-      remove_file_if_present "${a_out##.exe}.debug.exe"
-      remove_file_if_present "${a_out}"
-      rmdir_safer "${a_out}.dSYM"
+      if [ ! -z "${a_out}" -a $rc -eq 0 -a "${OPTION_REMOVE_EXE}" = 'YES' ]
+      then
+         # also remove debug file if present
+         remove_file_if_present "${a_out##.exe}.debug.exe"
+         remove_file_if_present "${a_out}"
+         rmdir_safer "${a_out}.dSYM"
+      fi
    fi
-
    return $rc
 }
 
-
-test::execute::r_get_test_datafile()
-{
-   local varname="$1"
-   local name="$2"
-   local fallback="$3"
-
-   RVAL="${name}.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
-   if [ ! -f "${RVAL}" ]
-   then
-      log_debug "\"${RVAL}\" not present"
-      RVAL="${name}.${varname}.${MULLE_UNAME}"
-      if [ ! -f "${RVAL}" ]
-      then
-         log_debug "\"${RVAL}\" not present"
-         RVAL="${name}.${varname}.${MULLE_ARCH}"
-         if [ ! -f "${RVAL}" ]
-         then
-            log_debug "\"${RVAL}\" not present"
-            RVAL="${name}.${varname}"
-            if [ ! -f "${RVAL}" ]
-            then
-               log_debug "\"${RVAL}\" not present"
-               RVAL="default.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
-               if [ ! -f "${RVAL}" ]
-               then
-                  log_debug "\"${RVAL}\" not present"
-                  RVAL="default.${varname}.${MULLE_UNAME}"
-                  if [ ! -f "${RVAL}" ]
-                  then
-                     log_debug "\"${RVAL}\" not present"
-                     RVAL="default.${varname}.${MULLE_ARCH}"
-                     if [ ! -f "${RVAL}" ]
-                     then
-                        log_debug "\"${RVAL}\" not present"
-                        RVAL="default.${varname}"
-                        if [ ! -f "${RVAL}" ]
-                        then
-                           log_debug "\"${RVAL}\" not present, returning \"${fallback}\""
-                           RVAL="${fallback}"
-                        fi
-                     fi
-                  fi
-               fi
-            fi
-         fi
-      fi
-   fi
-}
 
 
 ###
@@ -1126,44 +1088,44 @@ test::execute::main()
 
    if [ -z "${stdin}" ]
    then
-      test::execute::r_get_test_datafile "stdin" "${name}" "/dev/null"
+      test::environment::r_get_test_datafile "stdin" "${name}" "/dev/null"
       stdin="${RVAL}"
    fi
 
    if [ -z "${stdout}" ]
    then
-      test::execute::r_get_test_datafile "stdout" "${name}" "-"
+      test::environment::r_get_test_datafile "stdout" "${name}" "-"
       stdout="${RVAL}"
    fi
 
    if [ -z "${stderr}" ]
    then
-      test::execute::r_get_test_datafile "stderr" "${name}" "-"
+      test::environment::r_get_test_datafile "stderr" "${name}" "-"
       stderr="${RVAL}"
    fi
 
    if [ -z "${errors}" ]
    then
-      test::execute::r_get_test_datafile "errors" "${name}" "-"
+      test::environment::r_get_test_datafile "errors" "${name}" "-"
       errors="${RVAL}"
    fi
 
    if [ -z "${diff}" ]
    then
-      test::execute::r_get_test_datafile "diff" "${name}" ""
+      test::environment::r_get_test_datafile "diff" "${name}" ""
       diff="${RVAL}"
    fi
 
    if [ -z "${cat}" ]
    then
-      test::execute::r_get_test_datafile "cat" "${name}" ""
+      test::environment::r_get_test_datafile "cat" "${name}" ""
       cat="${RVAL}"
    fi
 
    local args_text
    local file_args
 
-   test::execute::r_get_test_datafile "args" "${name}" ""
+   test::environment::r_get_test_datafile "args" "${name}" ""
    file_args="${RVAL}"
 
    if [ ! -z "${file_args}" ]

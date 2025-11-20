@@ -63,60 +63,22 @@ mulle_show_version()
 }
 
 # Default values
-signal="ABRT"
+signal="TERM"
 verbose=0
 timeout_seconds=""
 cmd=""
-args=()
 
-# Parse arguments
-mulle_parse_args()
-{
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -h|--help)
-                mulle_show_help
-                exit 0
-                ;;
-            --version)
-                mulle_show_version
-                exit 0
-                ;;
-            -s|--signal)
-                signal=$2
-                shift 2
-                ;;
-            -v|--verbose)
-                verbose=1
-                shift
-                ;;
-            *)
-                if [[ -z "$timeout_seconds" ]]; then
-                    timeout_seconds=$1
-                else
-                    args+=("$1")
-                fi
-                shift
-                ;;
-        esac
-    done
-}
 
 # Ensure timeout seconds and command are provided
 mulle_check_args()
 {
-    if [ -z "$timeout_seconds" ] || [ ${#args[@]} -eq 0 ]; then
+    if [ -z "$timeout_seconds" ] || [ -z "$*" ]
+    then
         echo "Usage: $0 <timeout_seconds> <command...>" >&2
         exit 2
     fi
 }
 
-# Build the command
-mulle_build_cmd()
-{
-    cmd=$(printf "%q " "${args[@]}")
-    cmd="${cmd% }"  # Trim the trailing space
-}
 
 # Convert signal name to number if needed
 mulle_resolve_signal()
@@ -139,6 +101,7 @@ mulle_start_timeout_process()
 {
     (
         sleep "$timeout_seconds"
+        # check if running
         if kill -0 "$1" 2>/dev/null
         then
             kill -$signal_num "$1" 2>/dev/null
@@ -146,21 +109,34 @@ mulle_start_timeout_process()
             then
                 echo "Timeout: sent $signal_num to process $1"  >&2
             fi
+        else
+           if [ $verbose -eq 1 ]
+           then
+              echo "Process $1 already finished"  >&2
+           fi
         fi
     ) &
     timeout_pid=$!
+    if [ $verbose -eq 1 ]
+    then
+       echo "Timeout process $timeout_pid started" >&2
+    fi
 }
 
-# Run the command in a subshell, suppress core dumps and Aborted messages
+# Run the command in a subshell
 mulle_run_command_in_subshell()
 {
-   (
-       # Limit core dumps (ulimit -c 0 disables core dumps)
-       ulimit -c 0
+   if [ $verbose -eq 1 ]
+   then
+       echo "Start process: $*" >&2
+   fi
 
-       eval "$cmd" 
-   ) &
+   "$@" &
    cmd_pid=$!
+   if [ $verbose -eq 1 ]
+   then
+       echo "Process $cmd_pid started" >&2
+   fi
 }
 
 # Capture exit code of the command and clean up timeout
@@ -192,13 +168,41 @@ mulle_cleanup_timeout()
 # Main function to orchestrate the timeout behavior
 mulle_main()
 {
-    mulle_parse_args "$@"
-    mulle_check_args
-    mulle_build_cmd
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                mulle_show_help
+                exit 0
+                ;;
+            --version)
+                mulle_show_version
+                exit 0
+                ;;
+            -s|--signal)
+                signal=$2
+                shift 2
+                ;;
+            -v|--verbose)
+                verbose=1
+                shift
+                ;;
+            *)
+               break
+                ;;
+        esac
+    done
+
+    if [ $# -gt 1 ]
+    then
+       timeout_seconds=$1
+       shift
+    fi
+
+    mulle_check_args "$@"
     mulle_resolve_signal
 
     # Run the command in a subshell and get its PID
-    mulle_run_command_in_subshell
+    mulle_run_command_in_subshell "$@"
 
     exit_code=124
 
