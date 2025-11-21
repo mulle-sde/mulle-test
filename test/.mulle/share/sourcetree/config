@@ -1,0 +1,1 @@
+test;${TEST_NODETYPE:-tar};;77B34161-C2C6-475B-BBBD-8D5B81A962D5;${TEST_URL:-https://github.com/nat/test/archive/${MULLE_TAG}.tar.gz};${TEST_BRANCH};${TEST_TAG:-latest};;

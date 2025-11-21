@@ -1,0 +1,4 @@
+# Arguments to call the executable `dependency/bin/test` with.
+# The output will then be compared with hello.stdout and the test passes
+# if it matches.
+These 11 arguments are not ignored by the hello world program.
