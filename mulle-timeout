@@ -46,13 +46,16 @@ version="1.0.0"
 mulle_show_help()
 {
     cat << EOF
-Usage: $0 [OPTIONS] <timeout_seconds> <command...>
+Usage: $0 [OPTIONS] <timeout_seconds> [var=value]* <command...>
+
+You can also define environment variables before the command.
+
 
 Options:
-  -h, --help                  Show this help message and exit
-  --version                   Show version info and exit
-  -s, --signal=SIGNAL         Specify the signal to be sent on timeout (default: ABRT)
-  -v, --verbose               Output verbose information about signals
+  -h, --help            Show this help message and exit
+  --version             Show version info and exit
+  -s, --signal=SIGNAL   Specify the signal to be sent on timeout (default: ABRT)
+  -v, --verbose         Output verbose information about signals
 EOF
 }
 
@@ -131,8 +134,49 @@ mulle_run_command_in_subshell()
        echo "Start process: $*" >&2
    fi
 
-   "$@" &
+   # this is useful when you use LD_PRELOAD and you dont want to affect
+   # other
+   local cmdline
+   local sep
+
+   while [ $# -ne 0  ]
+   do
+      case "$1" in
+         [A-Za-z_]*=*)
+           cmdline="${cmdline}${sep}$1"
+           sep=" "
+           shift
+           continue
+         ;;
+      esac
+      break
+   done
+
+   if [ $# -eq 0  ]
+   then
+      echo "Missing command" >&2
+      exit 1
+   fi
+
+   local quote
+   local escaped
+
+   quote="'"
+
+   while [ $# -ne 0  ]
+   do
+     escaped="${1//${quote}/${quote}\"${quote}\"${quote}}"
+     cmdline="${cmdline}${sep}'${escaped}'"
+     sep=" "
+     shift
+   done
+
+   # not exporting LD_PRELOAD protects our own shell
+   eval "${cmdline}"  0<&0 &
    cmd_pid=$!
+
+   set +x
+
    if [ $verbose -eq 1 ]
    then
        echo "Process $cmd_pid started" >&2
