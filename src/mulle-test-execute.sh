@@ -396,8 +396,8 @@ MULLE_ATINIT_FAILURE=0"
       test::logging::full_redirekt_eval_exekutor "${input}" \
                                                  "${output}" \
                                                  "${errput}" \
-                                                 "${environment}" \
                                                  "${timeout}" \
+                                                 "${environment}" \
                                                  "${runner}" \
                                                  "'${a_out_ext}'" \
                                                  ${args}
@@ -407,8 +407,8 @@ MULLE_ATINIT_FAILURE=0"
    test::logging::full_redirekt_eval_tee_exekutor "${input}" \
                                                   "${output}" \
                                                   "${errput}" \
-                                                  "${environment}" \
                                                   "${timeout}" \
+                                                  "${environment}" \
                                                   "${runner}" \
                                                   "'${a_out_ext}'" \
                                                   ${args}
