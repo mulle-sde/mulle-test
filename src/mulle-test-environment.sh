@@ -87,7 +87,7 @@ test::environment::setup_compiler()
 
    # Note: We no longer query mulle-platform for compiler selection or flags.
    # mulle-test only needs to know file extensions (PROJECT_EXTENSIONS) to find test files.
-   # All compilation is delegated to mulle-platform compile command which handles:
+   # All compilation is delegated to mulle-platform compiler run command which handles:
    # - Compiler selection (CC, CXX)
    # - Compiler flags (optimization, debug symbols, sanitizers, SDK paths, etc.)
    # - Platform-specific quirks

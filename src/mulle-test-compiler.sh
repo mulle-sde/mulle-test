@@ -140,7 +140,7 @@ test::compiler::r_c_commandline()
    fi
 
 
-   # Build mulle-platform compile command
+   # Build mulle-platform compiler run command
    local cmdline
 
    cmdline="${mulle_platform} ${MULLE_TECHNICAL_FLAGS} compile"
@@ -296,7 +296,7 @@ test::compiler::r_c_commandline()
 }
 
 
-# This function is now obsolete - assembler output is handled by mulle-platform compile
+# This function is now obsolete - assembler output is handled by mulle-platform compiler run
 # via --output-asm and --emit-llvm flags
 
 
@@ -398,7 +398,7 @@ test::compiler::run_gcc()
    test::logging::err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
    rval=$?
 
-   # Assembler output is now handled by mulle-platform compile via --output-asm and --emit-llvm flags
+   # Assembler output is now handled by mulle-platform compiler run via --output-asm and --emit-llvm flags
    # The flags are added during command line construction in test::compiler::r_c_commandline
 
    MULLE_FLAG_LOG_EXEKUTOR="${old_MULLE_FLAG_LOG_EXEKUTOR}"
@@ -411,7 +411,7 @@ test::compiler::run()
 {
    log_entry "test::compiler::run" "$@"
 
-   # All compilation is now handled by mulle-platform compile
+   # All compilation is now handled by mulle-platform compiler run
    # which handles compiler-specific quirks internally
    test::compiler::run_gcc "$@"
 }

@@ -34,7 +34,7 @@ MULLE_TEST_COMPILER_PLATFORM_SH='included'
 
 
 #
-# Build compiler command line using mulle-platform compile
+# Build compiler command line using mulle-platform compiler run
 # This replaces the old manual command line construction with a call to
 # mulle-platform which handles all platform-specific compiler flags
 #
@@ -57,11 +57,11 @@ test::compiler::platform::r_c_commandline()
       fail "mulle-platform not found in PATH. Please install mulle-platform."
    fi
 
-   # Build mulle-platform compile command
+   # Build mulle-platform compiler run command
    local cmdline
    local extra_flags
 
-   cmdline="${mulle_platform} compile"
+   cmdline="${mulle_platform} compiler run"
 
    # Add platform
    if [ ! -z "${MULLE_UNAME}" ]
