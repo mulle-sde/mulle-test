@@ -153,11 +153,5 @@ test::flagbuilder::r_cflags()
    r_concat "${c_flags}" "${OTHER_CFLAGS}"
    c_flags="${RVAL}"
 
-   if [ ! -z "${APPLE_SDKPATH}" ]
-   then
-      r_concat "${c_flags}" "-isysroot '${APPLE_SDKPATH}'"
-      c_flags="${RVAL}"
-   fi
-
    RVAL="${c_flags}"
 }

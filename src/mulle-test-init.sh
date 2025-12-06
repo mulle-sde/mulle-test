@@ -272,7 +272,8 @@ test::init::main()
 
    if [ -z "${PREFERRED_STARTUP_LIBRARY}" -a -d .mulle ]
    then
-      PREFERRED_STARTUP_LIBRARY="`rexekutor mulle-env -s ${MULLE_TECHNICAL_FLAGS} \
+      # --search-here does not error
+      PREFERRED_STARTUP_LIBRARY="`rexekutor mulle-env --search-here -s ${MULLE_TECHNICAL_FLAGS} \
                                               environment get PREFERRED_STARTUP_LIBRARY`"
    fi
 

@@ -200,6 +200,8 @@ test::logging::full_redirekt_eval_exekutor()
    then
       local rval
 
+      # Use env command to set environment variables only for the final executable
+      # This prevents the environment from affecting intermediate commands like /usr/bin/env
       ( eval "$@" ) < "${stdin}" > "${stdout}" 2> "${stderr}"
       rval=$?
 
@@ -235,6 +237,8 @@ test::logging::full_redirekt_eval_tee_exekutor()
    then
       local rval
 
+      # Use env command to set environment variables only for the final executable
+      # This prevents the environment from affecting intermediate commands like /usr/bin/env
       ( eval "$@" ) < "${stdin}" 2> >(tee "${stderr}" >&2) > >(tee "${stdout}")
       rval=$?
 

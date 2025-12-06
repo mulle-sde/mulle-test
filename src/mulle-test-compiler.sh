@@ -32,93 +32,6 @@
 MULLE_TEST_COMPILER_SH='included'
 
 
-test::compiler::r_c_sanitizer_flags()
-{
-   log_entry "test::compiler::r_c_sanitizer_flags" "$@"
-
-   local sanitizer="$1"
-
-   RVAL=""
-   #  a bit too clang specific here or ?
-   case ":${sanitizer}:" in
-      *:undefined:*)
-         RVAL="-fsanitize=undefined"
-         return 0
-      ;;
-
-      *:valgrind:*)
-         RVAL="-DMULLE_TEST_VALGRIND"
-         # RVAL="-fprofile-instr-generate -fcoverage-mapping"
-         return 0
-      ;;
-
-      *:coverage:*)
-         RVAL="--coverage -fno-inline"
-         # RVAL="-fprofile-instr-generate -fcoverage-mapping"
-         return 0
-      ;;
-
-      *:thread:*)
-         RVAL="-fsanitize=thread"
-         return 0
-      ;;
-
-      *:address:*)
-         RVAL="-fsanitize=address"
-         return 0
-      ;;
-   esac
-
-   return 1
-}
-
-
-test::compiler::r_ld_sanitizer_flags()
-{
-   log_entry "test::compiler::r_ld_sanitizer_flags" "$@"
-
-   local sanitizer="$1"
-
-   RVAL=""
-
-   case ":${sanitizer}:" in
-      # MEMO: only produce coverage files for the shared library we
-      #       are testing, not for the tests themselves
-      *:coverage:*)
-         RVAL="-lgcov"
-         return 0
-      ;;
-   esac
-#
-# now add these unconditionally, because it makes life easier and we always
-# link these anyway with executable startups
-#
-#   #  a bit too clang specific here or ?
-#   case ":${sanitizer}:" in
-#      *:testallocator:*)
-#         case "${PROJECT_DIALECT}" in
-#            objc)
-#               case "${MULLE_UNAME}" in
-#                  darwin)
-#                     case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
-#                        mulle-objc)
-#                           RVAL="-Wl,-exported_symbol -Wl,__mulle_atinit"
-#                           RVAL="${RVAL} -Wl,-exported_symbol -Wl,_mulle_atexit"
-#                           RVAL="${RVAL} -Wl,-exported_symbol -Wl,___register_mulle_objc_universe"
-#                           return 0
-#                        ;;
-#                     esac
-#                  ;;
-#               esac
-#            ;;
-#         esac
-#      ;;
-#   esac
-
-   return 1
-}
-
-
 
 test::compiler::r_env_sanitizer_flags()
 {
@@ -153,32 +66,37 @@ test::compiler::r_common_c_flags()
 
    local common_cflags
 
-   test::flagbuilder::r_cflags "" "${srcfile}" "${configuration}"
-   common_cflags="${RVAL}"
+   # Get OTHER_CFLAGS (special flags like -fobjc-tao, --coverage, etc)
+   # but NOT the basic CFLAGS which contain -O* and -g
+   # (mulle-platform handles optimization via --configuration)
+   local key
+   local value
 
-   case "${CC}" in
-      *-cl.exe)
-         if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
-         then
-            r_concat "${common_cflags}" "/DMULLE_TEST=1"
-            common_cflags="${RVAL}"
-         fi
+   r_uppercase "${configuration}"
+   key="${RVAL}_OTHER_CFLAGS"
+   r_shell_indirect_expand "${key}"
+   value="${RVAL}"
 
-         r_concat "${common_cflags}" "/DMULLE_INCLUDE_DYNAMIC=1"
-         common_cflags="${RVAL}"
-      ;;
+   if [ ! -z "${value}" ]
+   then
+      r_concat "${common_cflags}" "${value}"
+      common_cflags="${RVAL}"
+   fi
 
-      *)
-         if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
-         then
-            r_concat "${common_cflags}" "-DMULLE_TEST=1"
-            common_cflags="${RVAL}"
-         fi
+   if [ ! -z "${OTHER_CFLAGS}" ]
+   then
+      r_concat "${common_cflags}" "${OTHER_CFLAGS}"
+      common_cflags="${RVAL}"
+   fi
 
-         r_concat "${common_cflags}" "-DMULLE_INCLUDE_DYNAMIC=1"
-         common_cflags="${RVAL}"
-      ;;
-   esac
+   # Always use -D format for defines; mulle-platform will convert to /D for MSVC
+   if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
+   then
+      r_concat "${common_cflags}" "-DMULLE_TEST=1"
+      common_cflags="${RVAL}"
+   fi
+
+   # Note: MULLE_INCLUDE_DYNAMIC is now automatically defined by mulle-platform when --shared is used
 
    local incflags
 
@@ -212,142 +130,174 @@ test::compiler::r_c_commandline()
       shift
    done
 
-   test::compiler::r_common_c_flags "${srcfile}" "${configuration}"
-   r_concat "${c_flags}" "${RVAL}"
-   c_flags="${RVAL}"
+   # Find mulle-platform
+   local mulle_platform
 
+   mulle_platform="`command -v 'mulle-platform'`"
+   if [ -z "${mulle_platform}" ]
+   then
+      fail "mulle-platform not found in PATH. Please install mulle-platform."
+   fi
+
+
+   # Build mulle-platform compile command
    local cmdline
 
-   cmdline="'${CC}' ${c_flags}"
-   if test::compiler::r_c_sanitizer_flags "${SANITIZER}"
+   cmdline="${mulle_platform} ${MULLE_TECHNICAL_FLAGS} compile"
+
+#   # Add platform
+#   if [ ! -z "${MULLE_UNAME}" ]
+#   then
+#      cmdline="${cmdline} --platform ${MULLE_UNAME}"
+#   fi
+
+   # Add language/dialect
+   if [ ! -z "${PROJECT_DIALECT}" ]
    then
-      cmdline="${cmdline} ${RVAL}"
+      cmdline="${cmdline} --dialect ${PROJECT_DIALECT}"
+
+      # Add objc-dialect if applicable
+      if [ "${PROJECT_DIALECT}" = "objc" -a ! -z "${MULLE_TEST_OBJC_DIALECT}" ]
+      then
+         cmdline="${cmdline} --objc-dialect ${MULLE_TEST_OBJC_DIALECT}"
+      fi
    fi
 
-   case "${PROJECT_DIALECT}" in
-      c)
-         case "${MULLE_UNAME}" in
-            darwin)
-               case "${linkcommand},${LDFLAGS}" in
-                  *libmulle-atinit\.a*)
-                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
-                  ;;
-               esac
-               case "${linkcommand},${LDFLAGS}" in
-                  *libmulle-atexit\.a*)
-                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
-                  ;;
-               esac
-            ;;
-         esac
-      ;;
+   # Add configuration
+   if [ ! -z "${configuration}" ]
+   then
+      cmdline="${cmdline} --configuration ${configuration}"
+   fi   # Add sanitizer flags to mulle-platform
+   # Parse SANITIZER variable and add appropriate --sanitizer flags
+   if [ ! -z "${SANITIZER}" ]
+   then
+      local sanitizer
 
-      objc)
-         case "${MULLE_UNAME}" in
-            darwin)
-               case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
-                  mulle-objc)
-                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,__mulle_atinit"
-                     cmdline="${cmdline} -Wl,-exported_symbol -Wl,_mulle_atexit"
-                     cmdline="${cmdline} -Wl,-exported_symbol \
--Wl,___register_mulle_objc_universe"
-                  ;;
-               esac
-            ;;
-         esac
+      case ":${SANITIZER}:" in
+         *:address:*)
+            cmdline="${cmdline} --sanitizer address"
+         ;;
+      esac
+
+      case ":${SANITIZER}:" in
+         *:thread:*)
+            cmdline="${cmdline} --sanitizer thread"
+         ;;
+      esac
+
+      case ":${SANITIZER}:" in
+         *:undefined:*)
+            cmdline="${cmdline} --sanitizer undefined"
+         ;;
+      esac
+
+      case ":${SANITIZER}:" in
+         *:coverage:*)
+            cmdline="${cmdline} --coverage"
+         ;;
+      esac
+   fi
+
+   # Add assembler output flags if requested
+   if [ "${OPTION_OUTPUT_ASSEMBLER}" = 'YES' ]
+   then
+      cmdline="${cmdline} --output-asm"
+
+      if [ "${OPTION_OUTPUT_ASSEMBLER_IR}" = 'YES' ]
+      then
+         cmdline="${cmdline} --emit-llvm"
+      fi
+   fi
+
+   # Get common c flags (includes -D defines and -I includes)
+   # These should be passed to mulle-platform BEFORE the source file
+   # mulle-platform handles optimization flags via --configuration, so we don't pass -O* or -g
+   test::compiler::r_common_c_flags "${srcfile}" "${configuration}"
+   local common_flags="${RVAL}"
+
+   # Add valgrind define if needed (not a compiler sanitizer, just a define)
+   case ":${SANITIZER}:" in
+      *:valgrind:*)
+         r_concat "${common_flags}" "-DMULLE_TEST_VALGRIND"
+         common_flags="${RVAL}"
       ;;
    esac
 
-   if test::compiler::r_ld_sanitizer_flags "${SANITIZER}"
+   # Add common flags (defines, includes) before source
+   if [ ! -z "${common_flags}" ]
    then
-      LDFLAGS="${LDFLAGS} ${RVAL}"
-   fi
+      cmdline="${cmdline} ${common_flags}"
+   fi   # Parse platform-specific linker flags and convert to abstract flags
 
-   #hacque
+
+   # Add source and output
+   cmdline="${cmdline} '${srcfile}' -o '${a_out}'"
+
+   include "test::link_parser"
+
    local linkcommand
 
-   linkcommand="${LINK_COMMAND}"
-   if [ "${LINK_STARTUP_LIBRARY}" = 'NO' ] # true environment variable
+   if [ "${LINK_STARTUP_LIBRARY}" = 'NO' ]
    then
       linkcommand="${NO_STARTUP_LINK_COMMAND}"
+   else
+      linkcommand="${LINK_COMMAND}"
    fi
 
-   case "${MULLE_UNAME}" in
-      'mingw'|'windows')
-         if [ "${MULLE_FLAG_LOG_DEBUG}" = 'YES' ]
-         then
-            linkcommand="-link -verbose ${linkcommand}"
-         else
-            linkcommand="-link ${linkcommand}"
-         fi
-      ;;
-   esac
+   # Add export symbols to mulle-platform (for Darwin mainly)
+   # mulle-platform will handle the platform-specific flag formatting
+   if [ ! -z "${linkcommand}" -o ! -z "${LDFLAGS}" ]
+   then
+      eval $(mulle-platform env)
+
+      case "${PROJECT_DIALECT}" in
+         c)
+            case "${linkcommand},${LDFLAGS}" in
+               *${MULLE_PLATFORM_LIBRARY_PREFIX}mulle-atinit${MULLE_PLATFORM_LIBRARY_SUFFIX_STATIC}*)
+                  cmdline="${cmdline} --export-symbol __mulle_atinit"
+               ;;
+            esac
+            case "${linkcommand},${LDFLAGS}" in
+               *${MULLE_PLATFORM_LIBRARY_PREFIX}mulle-atexit${MULLE_PLATFORM_LIBRARY_SUFFIX_STATIC}*)
+                  cmdline="${cmdline} --export-symbol _mulle_atexit"
+               ;;
+            esac
+         ;;
+
+         objc)
+            case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
+               mulle-objc)
+                  cmdline="${cmdline} --export-symbol __mulle_atinit"
+                  cmdline="${cmdline} --export-symbol _mulle_atexit"
+                  cmdline="${cmdline} --export-symbol ___register_mulle_objc_universe"
+               ;;
+            esac
+         ;;
+      esac
+   fi
+
 
    log_setting "LINK_COMMAND=${linkcommand}"
    log_setting "LDFLAGS=${LDFLAGS}"
    log_setting "RPATH_FLAGS=${RPATH_FLAGS}"
 
-   r_concat "${cmdline}" "$*"
+   local link_flags
+
+   # Convert platform-specific linker flags to abstract mulle-platform flags
+   r_concat "${linkcommand}" "${LDFLAGS}" "${RPATH_FLAGS}"
+   link_flags="${RVAL}"
+
+   r_concat "${cmdline}" "${RVAL}" ' -- '
    cmdline="${RVAL}"
 
-   include "platform::flags"
-
-   platform::flags::r_cc_output_exe_filename "${a_out}" "'"
-   cmdline="${cmdline} ${RVAL}"
-
-   cmdline="${cmdline} '${srcfile}'"
-
-   r_concat "${cmdline}" "${linkcommand}"
-   cmdline="${RVAL}"
-
-   r_concat "${cmdline}" "${LDFLAGS}"
-   cmdline="${RVAL}"
-
-   r_concat "${cmdline}" "${RPATH_FLAGS}"
-   cmdline="${RVAL}"
+   # No more flags after -- ! Everything is now handled by mulle-platform
 
    RVAL="${cmdline}"
 }
 
 
-test::compiler::r_c_asm_commandline()
-{
-   log_entry "test::compiler::r_c_asm_commandline" "$@"
-
-   local c_flags="$1"
-   local srcfile="$2"
-   local extra="$3"
-   local extension="$4"
-   local configuration="$5"
-
-   shift 5
-
-   [ -z "${srcfile}" ] && _internal_fail "srcfile is empty"
-   [ -z "${extension}" ] && _internal_fail "extension is empty"
-
-   # skip -- passed on command line for now
-   while [ "$1" = "--" ]
-   do
-      shift
-   done
-
-   local outfile
-
-   outfile="${srcfile%.*}"
-   outfile="${outfile}.${extension}"
-
-   test::compiler::r_common_c_flags "${srcfile}" "${configuration}"
-   r_concat "${c_flags}" "${RVAL}"
-   c_flags="${RVAL}"
-
-   local cmdline
-
-   cmdline="'${CC}' ${c_flags} -S"
-   r_concat "${cmdline}" "${extra}"
-   r_concat "${RVAL}" '${srcfile}'
-   r_concat "${RVAL}" "-o '${outfile}'"
-   r_concat "${RVAL}" "$*"
-}
+# This function is now obsolete - assembler output is handled by mulle-platform compile
+# via --output-asm and --emit-llvm flags
 
 
 # do not exit
@@ -448,28 +398,8 @@ test::compiler::run_gcc()
    test::logging::err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
    rval=$?
 
-   if [ "${OPTION_OUTPUT_ASSEMBLER}" = 'YES'  ]
-   then
-      local extra
-      local extension
-
-      extension="s"
-      if [ "${OPTION_OUTPUT_ASSEMBLER_IR}" = 'YES' ]
-      then
-         extra="-emit-llvm"
-         extension="ir"
-      fi
-
-      test::compiler::r_c_asm_commandline "${c_flags}" \
-                                          "${srcfile}" \
-                                          "${extra}" \
-                                          "${extension}" \
-                                          "${configuration}" \
-                                          "$@"
-      cmdline="${RVAL}"
-
-      eval_exekutor "${cmdline}"
-   fi
+   # Assembler output is now handled by mulle-platform compile via --output-asm and --emit-llvm flags
+   # The flags are added during command line construction in test::compiler::r_c_commandline
 
    MULLE_FLAG_LOG_EXEKUTOR="${old_MULLE_FLAG_LOG_EXEKUTOR}"
 
@@ -481,15 +411,9 @@ test::compiler::run()
 {
    log_entry "test::compiler::run" "$@"
 
-   case "${CC}" in
-      cl|cl.exe|*-cl|*-cl.exe)
-         test::compiler::run_gcc "$@"  #mingw magic
-      ;;
-
-      *)
-         test::compiler::run_gcc "$@"
-      ;;
-   esac
+   # All compilation is now handled by mulle-platform compile
+   # which handles compiler-specific quirks internally
+   test::compiler::run_gcc "$@"
 }
 
 
@@ -525,12 +449,12 @@ test::compiler::suggest_debugger_commandline()
    esac
 
    (
-      case "${MULLE_UNAME}" in
-         darwin)
-            printf "%s " "DYLD_FRAMEWORK_PATH='${DEPENDENCY_DIR}/Frameworks'"
-            printf "%s " "DYLD_LIBRARY_PATH='${DEPENDENCY_DIR}/lib'"
-         ;;
-      esac
+      # Use mulle-platform quirks to check for DYLD paths on Darwin
+      if mulle-platform quirks check uses-dyld 2>/dev/null
+      then
+         printf "%s " "DYLD_FRAMEWORK_PATH='${DEPENDENCY_DIR}/Frameworks'"
+         printf "%s " "DYLD_LIBRARY_PATH='${DEPENDENCY_DIR}/lib'"
+      fi
 
       case ":${SANITIZER}:" in
          *:testallocator:*)

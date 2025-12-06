@@ -185,15 +185,13 @@ test::execute::a_out()
 
    case ":${SANITIZER}:" in
       *:gmalloc:*)
-         case "${MULLE_UNAME}" in
-            darwin)
-               insertlibpath="/usr/lib/libgmalloc${SHAREDLIB_EXTENSION}"
-            ;;
-
-            *)
-               insertlibpath="${libdir}/libgmalloc${SHAREDLIB_EXTENSION}"
-            ;;
-         esac
+         # Use mulle-platform quirks to determine gmalloc location
+         if mulle-platform quirks check uses-dyld 2>/dev/null
+         then
+            insertlibpath="/usr/lib/libgmalloc${SHAREDLIB_EXTENSION}"
+         else
+            insertlibpath="${libdir}/libgmalloc${SHAREDLIB_EXTENSION}"
+         fi
       ;;
    esac
 
@@ -245,67 +243,69 @@ test::execute::a_out()
       environment="${RVAL}"
    fi
 
-   case "${MULLE_UNAME}" in
-      'darwin')
-         r_colon_concat "${insertlibpath}" "${DYLD_INSERT_LIBRARIES}"
-         if [ ! -z "${RVAL}" ]
+   # Use mulle-platform quirks to set up platform-specific library paths
+   if mulle-platform quirks --check uses-dyld 2>/dev/null
+   then
+      # Darwin platform
+      r_colon_concat "${insertlibpath}" "${DYLD_INSERT_LIBRARIES}"
+      if [ ! -z "${RVAL}" ]
+      then
+         r_concat "${environment}" "DYLD_INSERT_LIBRARIES='${RVAL}'"
+         environment="${RVAL}"
+         if [ "${OPTION_DEBUG_DYLD}" = 'YES' ]
          then
-            r_concat "${environment}" "DYLD_INSERT_LIBRARIES='${RVAL}'"
-            environment="${RVAL}"
-            if [ "${OPTION_DEBUG_DYLD}" = 'YES' ]
-            then
-               r_concat "${environment}" "DYLD_PRINT_LIBRARIES='YES'"
-               environment="${RVAL}"
-            fi
-         fi
-
-         r_concat "${environment}" "DYLD_FRAMEWORK_PATH='${frameworksdir}'"
-         environment="${RVAL}"
-
-         r_concat "${environment}" "DYLD_LIBRARY_PATH='${libdir}'"
-         environment="${RVAL}"
-      ;;
-
-      'mingw'|'msys')
-         local custompath
-
-         test::execute::r_windows_custompath "${insertpath}"
-         custompath="${RVAL}"
-
-         r_concat "${environment}" " PATH='${custompath}'"
-         environment="${RVAL}"
-      ;;
-
-      'sunos')
-         local custompath
-
-         r_concat "${environment}" "LD_LIBRARY_PATH='${libdir}'"
-         environment="${RVAL}"
-      ;;
-
-      'windows')
-         local custompath
-         local wslenv 
-
-         test::execute::r_windows_custompath "${insertpath}"
-         custompath="${RVAL}"
-
-         r_colon_concat "${WSLENV}" "PATH/l"
-         wslenv="${RVAL}"
-
-         r_concat "${environment}" "PATH='${custompath}' WSLENV='${wslenv}'"
-         environment="${RVAL}"
-      ;;
-
-      *)
-         r_colon_concat "${insertlibpath}" "${LD_PRELOAD}"
-         if [ ! -z "${RVAL}" ]
-         then
-            r_concat "${environment}" "LD_PRELOAD='${RVAL}'"
+            r_concat "${environment}" "DYLD_PRINT_LIBRARIES='YES'"
             environment="${RVAL}"
          fi
-      ;;
-   esac
+      fi
+
+      r_concat "${environment}" "DYLD_FRAMEWORK_PATH='${frameworksdir}'"
+      environment="${RVAL}"
+
+      r_concat "${environment}" "DYLD_LIBRARY_PATH='${libdir}'"
+      environment="${RVAL}"
+   elif mulle-platform quirks --check windows-needs-dll-path 2>/dev/null
+   then
+      # Windows/MinGW/MSYS platform
+      local custompath
+
+      test::execute::r_windows_custompath "${insertpath}"
+      custompath="${RVAL}"
+
+      case "${MULLE_UNAME}" in
+         'windows')
+            local wslenv
+            r_colon_concat "${WSLENV}" "PATH/l"
+            wslenv="${RVAL}"
+            r_concat "${environment}" "PATH='${custompath}' WSLENV='${wslenv}'"
+            environment="${RVAL}"
+         ;;
+         *)
+            r_concat "${environment}" " PATH='${custompath}'"
+            environment="${RVAL}"
+         ;;
+      esac
+   elif mulle-platform quirks --check uses-ld-library-path 2>/dev/null
+   then
+      # Linux, BSD, SunOS platforms
+      r_concat "${environment}" "LD_LIBRARY_PATH='${libdir}'"
+      environment="${RVAL}"
+
+#      # Also set LD_PRELOAD for non-SunOS platforms
+#      case "${MULLE_UNAME}" in
+#         sunos)
+#            # SunOS doesn't use LD_PRELOAD the same way
+#         ;;
+#         *)
+#            r_colon_concat "${insertlibpath}" "${LD_PRELOAD}"
+#            if [ ! -z "${RVAL}" ]
+#            then
+#               r_concat "${environment}" "LD_PRELOAD='${RVAL}'"
+#               environment="${RVAL}"
+#            fi
+#         ;;
+#      esac
+   fi
 
    if [ "${PROJECT_DIALECT}" = 'objc' ]
    then
@@ -1134,7 +1134,7 @@ test::execute::main()
       then
          args_text="`PATH="${PWD}:${PATH}" rexekutor "${file_args}"`" || fail "${file_args} errored out"
       else
-         args_text="`cat "${file_args}"`"
+         args_text="`grep -E -v '^#' "${file_args}"`"
       fi
 
       TESTSOURCE="${sourcefile}" TESTNAME="${name}" r_expanded_string "${args_text}"
