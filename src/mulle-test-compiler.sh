@@ -32,7 +32,6 @@
 MULLE_TEST_COMPILER_SH='included'
 
 
-
 test::compiler::r_env_sanitizer_flags()
 {
    log_entry "test::compiler::r_env_sanitizer_flags" "$@"
@@ -103,6 +102,10 @@ test::compiler::r_common_c_flags()
    test::flagbuilder::r_include_cflags "'"
    incflags="${RVAL}"
 
+   # Get test-specific CFLAGS from .CFLAGS files
+   test::flagbuilder::r_cflags "${common_cflags}" "${srcfile}" "${configuration}"
+   common_cflags="${RVAL}"
+
    log_debug "common_cflags : ${common_cflags}"
    log_debug "incflags      : ${incflags}"
 
@@ -143,7 +146,7 @@ test::compiler::r_c_commandline()
    # Build mulle-platform compiler run command
    local cmdline
 
-   cmdline="${mulle_platform} ${MULLE_TECHNICAL_FLAGS} compile"
+   cmdline="${mulle_platform} ${MULLE_TECHNICAL_FLAGS} compiler run"
 
 #   # Add platform
 #   if [ ! -z "${MULLE_UNAME}" ]
@@ -167,7 +170,9 @@ test::compiler::r_c_commandline()
    if [ ! -z "${configuration}" ]
    then
       cmdline="${cmdline} --configuration ${configuration}"
-   fi   # Add sanitizer flags to mulle-platform
+   fi
+
+   # Add sanitizer flags to mulle-platform
    # Parse SANITIZER variable and add appropriate --sanitizer flags
    if [ ! -z "${SANITIZER}" ]
    then
@@ -223,11 +228,11 @@ test::compiler::r_c_commandline()
       ;;
    esac
 
-   # Add common flags (defines, includes) before source
-   if [ ! -z "${common_flags}" ]
-   then
-      cmdline="${cmdline} ${common_flags}"
-   fi   # Parse platform-specific linker flags and convert to abstract flags
+   # Add common flags (defines, includes) will be added after -- separator
+   # if [ ! -z "${common_flags}" ]
+   # then
+   #    cmdline="${cmdline} ${common_flags}"
+   # fi   # Parse platform-specific linker flags and convert to abstract flags
 
 
    # Add source and output
@@ -287,8 +292,16 @@ test::compiler::r_c_commandline()
    r_concat "${linkcommand}" "${LDFLAGS}" "${RPATH_FLAGS}"
    link_flags="${RVAL}"
 
-   r_concat "${cmdline}" "${RVAL}" ' -- '
-   cmdline="${RVAL}"
+   # Add -- separator and then common_flags and link_flags
+   cmdline="${cmdline} --"
+   if [ ! -z "${common_flags}" ]
+   then
+      cmdline="${cmdline} ${common_flags}"
+   fi
+   if [ ! -z "${link_flags}" ]
+   then
+      cmdline="${cmdline} ${link_flags}"
+   fi
 
    # No more flags after -- ! Everything is now handled by mulle-platform
 

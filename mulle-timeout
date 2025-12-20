@@ -54,7 +54,7 @@ You can also define environment variables before the command.
 Options:
   -h, --help            Show this help message and exit
   --version             Show version info and exit
-  -s, --signal=SIGNAL   Specify the signal to be sent on timeout (default: ABRT)
+  -s, --signal=SIGNAL   Specify the signal to be sent on timeout (default: KILL)
   -v, --verbose         Output verbose information about signals
 EOF
 }
@@ -66,7 +66,7 @@ mulle_show_version()
 }
 
 # Default values
-signal="TERM"
+signal="KILL"
 verbose=0
 timeout_seconds=""
 cmd=""
@@ -107,10 +107,10 @@ mulle_start_timeout_process()
         # check if running
         if kill -0 "$1" 2>/dev/null
         then
-            kill -$signal_num "$1" 2>/dev/null
+            kill -$signal_num -$1 2>/dev/null
             if [ $verbose -eq 1 ]
             then
-                echo "Timeout: sent $signal_num to process $1"  >&2
+                echo "Timeout: sent $signal_num to process group $1"  >&2
             fi
         else
            if [ $verbose -eq 1 ]
@@ -172,7 +172,8 @@ mulle_run_command_in_subshell()
    done
 
    # not exporting LD_PRELOAD protects our own shell
-   eval "${cmdline}"  0<&0 &
+   # Create new process group with setsid
+   setsid bash -c "${cmdline}" 0<&0 &
    cmd_pid=$!
 
    set +x
@@ -193,7 +194,11 @@ mulle_capture_exit_code()
 # Handle timeout, cleanup and exit status
 mulle_handle_timeout()
 {
-    if [ "$exit_code" -eq 134 ]
+    # Check if process was killed by our timeout signal
+    # Exit codes: 128 + signal_number for signals
+    local expected_exit_code=$((128 + signal_num))
+    
+    if [ "$exit_code" -eq "$expected_exit_code" ]
     then
         if [ $verbose -eq 1 ]
         then

@@ -32,6 +32,69 @@
 MULLE_TEST_CMAKE_SH='included'
 
 
+# TODO: get these from mulle-platform
+test::cmake::r_c_sanitizer_flags()
+{
+   log_entry "test::cmake::r_c_sanitizer_flags" "$@"
+
+   local sanitizer="$1"
+
+   RVAL=""
+   #  a bit too clang specific here or ?
+   case ":${sanitizer}:" in
+      *:undefined:*)
+         RVAL="-fsanitize=undefined"
+         return 0
+      ;;
+
+      *:valgrind:*)
+         RVAL="-DMULLE_TEST_VALGRIND"
+         # RVAL="-fprofile-instr-generate -fcoverage-mapping"
+         return 0
+      ;;
+
+      *:coverage:*)
+         RVAL="--coverage -fno-inline"
+         # RVAL="-fprofile-instr-generate -fcoverage-mapping"
+         return 0
+      ;;
+
+      *:thread:*)
+         RVAL="-fsanitize=thread"
+         return 0
+      ;;
+
+      *:address:*)
+         RVAL="-fsanitize=address"
+         return 0
+      ;;
+   esac
+
+   return 1
+}
+
+
+test::cmake::r_ld_sanitizer_flags()
+{
+   log_entry "test::cmake::r_ld_sanitizer_flags" "$@"
+
+   local sanitizer="$1"
+
+   RVAL=""
+
+   case ":${sanitizer}:" in
+      # MEMO: only produce coverage files for the shared library we
+      #       are testing, not for the tests themselves
+      *:coverage:*)
+         RVAL="-lgcov"
+         return 0
+      ;;
+   esac
+
+   return 1
+}
+
+
 test::cmake::r_add_cmakeflag()
 {
    local cmd="$1"
@@ -138,8 +201,15 @@ test::cmake::eval_mulle_make()
    local cmake_c_flags
 
    # dem flags are already quoted
+   log_setting "DEPENDENCY_DIR=${DEPENDENCY_DIR}"
+   log_setting "ADDICTION_DIR=${ADDICTION_DIR}"
+   log_setting "MULLE_VIRTUAL_ROOT=${MULLE_VIRTUAL_ROOT}"
+   log_setting "OPTION_CONFIGURATION=${OPTION_CONFIGURATION}"
+   
    test::flagbuilder::r_include_cflags ""
    cmake_c_flags="${RVAL}"
+   
+   log_setting "cmake_c_flags after r_include_cflags=${cmake_c_flags}"
 
    local kitchendir
 
@@ -171,7 +241,7 @@ test::cmake::eval_mulle_make()
    cmake_c_flags="${RVAL}"
 
    # add sanitizer flags
-   if test::compiler::r_c_sanitizer_flags "${SANITIZER}"
+   if test::cmake::r_c_sanitizer_flags "${SANITIZER}"
    then
       cmake_c_flags="${cmake_c_flags} ${RVAL}"
    fi
@@ -181,7 +251,7 @@ test::cmake::eval_mulle_make()
    cmake_exe_linker_flags="${RPATH_FLAGS}"
 
    # add sanitizer flags
-   if test::compiler::r_ld_sanitizer_flags "${SANITIZER}"
+   if test::cmake::r_ld_sanitizer_flags "${SANITIZER}"
    then
       cmake_exe_linker_flags="${cmake_exe_linker_flags} ${RVAL}"
    fi
@@ -207,7 +277,32 @@ test::cmake::eval_mulle_make()
    local environment
    local cmd
 
-   environment="CC='${CC}' CXX='${CXX}' MULLE_TEST_ENVIRONMENT="
+   # Get dialect from mulle-sde environment, fallback to detecting from files
+   local dialect
+   dialect="$(mulle-sde env get PROJECT_DIALECT 2>/dev/null)" || dialect=""
+   if [ -z "${dialect}" ]
+   then
+      dialect="$(mulle-sde env get PROJECT_LANGUAGE 2>/dev/null)" || dialect="c"
+   fi
+   
+   # If still no dialect and we have .m files, use objc
+   if [ "${dialect}" = "c" ] && [ -n "$(find . -name "*.m" -o -name "*.mm" 2>/dev/null | head -1)" ]
+   then
+      dialect="objc"
+   fi
+   
+   # Get compiler from mulle-platform with correct dialect
+   eval "$(mulle-platform compiler env --language c --dialect "${dialect}")"
+
+   environment="MULLE_TEST_ENVIRONMENT="
+   if [ -n "${CC}" ]
+   then
+      environment="CC='${CC}' ${environment}"
+   fi
+   if [ -n "${CXX}" ]
+   then
+      environment="CXX='${CXX}' ${environment}"
+   fi
 
    cmd="'${MULLE_MAKE:-mulle-make}'"
    r_concat "${cmd}" "${MULLE_TECHNICAL_FLAGS}"
@@ -230,6 +325,9 @@ test::cmake::eval_mulle_make()
    test::cmake::r_add_flag "${cmd}" "--info-dir" "${MULLE_VIRTUAL_ROOT}/.mulle/etc/craft/definition"
    cmd="${RVAL}"
    test::cmake::r_add_cmakeflag "${cmd}" "CMAKE_RULE_MESSAGES" "OFF"
+   cmd="${RVAL}"
+
+   test::cmake::r_add_cmakeflag "${cmd}" "CMAKE_C_COMPILER" "${CC}"
    cmd="${RVAL}"
 
    test::cmake::r_add_cmakeflag "${cmd}" "CMAKE_C_FLAGS" "${cmake_c_flags}"

@@ -55,6 +55,7 @@ Usage:
    <name>.environment : Environment variables sourced for test (export FOO=YES)
    <name>.cat         : command to use instead of the default cat
    <name>.diff        : command to use instead of the default diff
+   <name>.CFLAGS      : CFLAGS to compile the test with
 
    These files can be reused by other tests in the directory by changing <name>
    to "default". You can add ".${MULLE_UNAME}.${MULLE_ARCH}" to specify your
@@ -1345,6 +1346,12 @@ test::run::main()
 
          --print-exe)
             OPTION_PRINT_EXE='YES'
+         ;;
+
+         --valgrind|--*sanitize*|--coverage)
+            # too late must have been specified earlier, AI can never get
+            # this right
+            fail "$1 is a flag not a run option."
          ;;
 
          --)

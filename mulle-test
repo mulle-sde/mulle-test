@@ -110,6 +110,7 @@ Commands:
    run                     : run tests, crafts beforehand if needed
    rerun                   : run failing tests again
    retest                  : clean gravetidy, then craft and run
+   sanitizers              : list available sanitizers for this platform
    test-dir                : locate test folder
 
 Environment:
@@ -635,6 +636,11 @@ test::main()
          exit 0
       ;;
 
+      'sanitizers')
+         printf "%s\n" "address" "thread" "undefined" "valgrind" "valgrind-no-leaks" "testallocator" "zombie" "gmalloc" "glibc"
+         exit 0
+      ;;
+
 
       '')
          cmd=run
@@ -814,13 +820,13 @@ test::main()
       ;;
 
       run|rerun)
-         # # bypass for --help
-         # if test::is_non_environment_commandline "$@"
-         # then
-         #    include "test::run"
-         #    test::run::main "$@"
-         #    return
-         # fi
+         # bypass for --help
+         if test::is_non_environment_commandline "$@"
+         then
+            include "test::run"
+            test::run::main "$@"
+            return $?
+         fi
 #
          # if test::cd_test_dir
          # then
