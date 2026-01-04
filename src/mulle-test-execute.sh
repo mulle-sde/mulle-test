@@ -921,7 +921,8 @@ test::execute::run()
 
    if [ "${MULLE_VIBECODING}" = 'YES' ]
    then
-      log_vibe "Not cleaning up because of MULLE_VIBECODING='YES'"
+      # log_vibe a bit too wordy
+      log_fluff "Not cleaning up because of MULLE_VIBECODING='YES'"
    else
       if [ $rc -eq 0 ]
       then
