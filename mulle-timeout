@@ -172,8 +172,12 @@ mulle_run_command_in_subshell()
    done
 
    # not exporting LD_PRELOAD protects our own shell
-   # Create new process group with setsid
-   setsid bash -c "${cmdline}" 0<&0 &
+   # Create new process group - use setsid if available, otherwise job control
+   if command -v setsid >/dev/null 2>&1; then
+       setsid bash -c "${cmdline}" 0<&0 &
+   else
+       bash -c "set -m; ${cmdline}" 0<&0 &
+   fi
    cmd_pid=$!
 
    set +x
