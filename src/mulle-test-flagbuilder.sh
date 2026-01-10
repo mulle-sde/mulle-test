@@ -103,10 +103,20 @@ test::flagbuilder::r_cflags()
    local filename
 
    #
-   # CFLAGS must be completely overrideable by file
+   # CFLAGS must be completely override-able by file
    #
-   test::environment::r_get_test_datafile 'CFLAGS' "${name}"
-   filename="${RVAL}"
+   r_concat "${configuration}" 'CFLAGS' '.'
+   if [ "${RVAL}" != 'CFLAGS' ]
+   then
+      test::environment::r_get_test_datafile "${RVAL}" "${name}"
+      filename="${RVAL}"
+   fi
+
+   if [ -z "${filename}"  ]
+   then
+      test::environment::r_get_test_datafile 'CFLAGS' "${name}"
+      filename="${RVAL}"
+   fi
 
    local key
    local value
@@ -119,14 +129,8 @@ test::flagbuilder::r_cflags()
       value="${RVAL}"
       log_debug "Using default ${key}"
    else
-      value="$(grep -E "^${configuration}:" "${filename}" )"
-      if [ ! -z "${value}" ]
-      then
-         value="${value#:*}"
-      else
-         value="$(grep -v -E "^[A-Za-z_][A-Za-z0-9_]*:" "${filename}" )"
-      fi
-      log_debug "Using override CFLAGS from \"${filename}\""
+      value="$(grep -E -v "^#" "${filename}")"
+      log_fluff "Using override CFLAGS from \"${filename}\""
    fi
 
    log_setting "CFLAGS             : ${value}"

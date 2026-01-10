@@ -56,6 +56,7 @@ Usage:
    <name>.cat         : command to use instead of the default cat
    <name>.diff        : command to use instead of the default diff
    <name>.CFLAGS      : CFLAGS to compile the test with
+   <name>.<c>.CFLAGS  : CFLAGS for configuration <c> (e.g. Debug)
 
    These files can be reused by other tests in the directory by changing <name>
    to "default". You can add ".${MULLE_UNAME}.${MULLE_ARCH}" to specify your
@@ -606,11 +607,19 @@ test::run::run()
 
    case "${MULLE_UNAME}" in
       mingw|msys|windows)
-         a_out_ext="./run.bat"
+         a_out_ext="./run"
+         if [ -x ./run-test.bat ]
+         then
+            a_out_ext="./run.bat"
+         fi
       ;;
 
       *)
          a_out_ext="./run"
+         if [ -x ./run-test ]
+         then
+            a_out_ext="./run-test"
+         fi
       ;;
    esac
 
@@ -727,15 +736,15 @@ test::run::_run()
    fi
 
    case "${ext#.}" in
-      cmake)
+      'cmake')
          test::run::cmake "${name}" "" "${root}" "$@"
       ;;
 
-      args)
+      'args')
          test::run::exe "${name}" "${ext}" "${root}" "$@"
       ;;
 
-      run)
+      'run')
          if [ "${OPTION_RUN_SCRIPT}" = 'YES' ]
          then
             test::run::run "${name}" "${ext}" "${root}" "$@"
@@ -957,17 +966,17 @@ test::run::_scan_directory()
       return
    fi
 
-   if [ -x run ]
+   if [ -x run ] || [ -x run-test ]
    then
       r_basename "${PWD}"
-      test::run::run_in_directory "${PWD}" "${RVAL}" "run" "${root}" "$@"
+      test::run::run_in_directory "${PWD}" "${RVAL}" 'run' "${root}" "$@"
       return $?
    fi
 
    if [ -f CMakeLists.txt -a ! -e CMakeLists.txt.ignore ]
    then
       r_basename "${PWD}"
-      test::run::run_in_directory "${PWD}" "${RVAL}" "cmake" "${root}" "$@"
+      test::run::run_in_directory "${PWD}" "${RVAL}" 'cmake' "${root}" "$@"
       return $?
    fi
 

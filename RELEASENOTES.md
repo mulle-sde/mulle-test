@@ -1,3 +1,58 @@
+# 7.0.0
+
+* allow `<name>`.`<configuration>`.CFLAGS instead of the weird Debug: content hack we had before
+
+
+
+
+
+
+* Replace 'mulle-platform compile' with 'mulle-platform compiler run'
+* Update all comments and documentation references
+
+feat: migrate to mulle-platform for compiler and linker abstraction
+
+* Replace manual compiler flag construction with mulle-platform compile
+  - Delegate all compiler selection and flag generation to mulle-platform
+  - Remove platform-specific compiler flag handling (GCC vs MSVC)
+  - Remove manual SDK path handling (now handled by mulle-platform)
+  - Add support for mulle-platform sanitizer flags (address, thread, undefined, coverage)
+  - Add support for mulle-platform assembler output (--output-asm, --emit-llvm)
+
+* Add new link parser module for abstract linker flags
+  - Parse platform-specific linker output from mulle-sde linkorder
+  - Convert to abstract flags that mulle-platform understands
+  - Preserve library order while handling whole-archive wrapping
+  - Support -L, -l, --wholearchive, and --rpath abstractions
+
+* Improve platform detection using mulle-platform quirks
+  - Replace hardcoded `MULLE_UNAME` checks with quirks queries
+  - Use uses-dyld for Darwin DYLD path setup
+  - Use windows-needs-dll-path for Windows/MinGW PATH setup
+  - Use uses-ld-library-path for Linux/BSD/SunOS `LD_LIBRARY_PATH`
+
+* Simplify environment setup
+  - Remove compiler-specific CFLAGS definitions (handled by mulle-platform)
+  - Keep only file extension detection `(PROJECT_EXTENSIONS)`
+  - Remove `APPLE_SDKPATH` handling (delegated to mulle-platform)
+
+* Other improvements
+  - Support comments in .args files with grep -E -v '^#'
+  - Fix mulle-env call to use --search-here flag
+  - Add env command usage notes to prevent environment pollution
+
+
+
+
+
+
+* added mulle-timeout as a replacement for timeout that can properly evaluate FOO=x ccmdline
+
+* mulle-test now creates "include.h" and "import.h" for tests. So tests dont have to bother with dependency inclusion anymore
+* --golden-stdout (and --golden-stderr) produce the expected test result from a (hopefully) correct run of a test
+* --timout `<s>` kills long running tests after a certains amount the default is like 5 minutes or so
+
+
 ### 6.6.2
 
 * need to update `cmake_minimum_required` because cmake has a weird concept of min required

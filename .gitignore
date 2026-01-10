@@ -37,3 +37,5 @@ build-*/
 .mulle/etc/project/publisher-info.sh
 *.bak
 .mulle/etc/make/
+dox.unreleased
+research/

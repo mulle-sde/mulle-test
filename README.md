@@ -19,7 +19,7 @@ diff a.stdout a.result
 
 | Release Version                                       | Release Notes
 |-------------------------------------------------------|--------------
-| ![Mulle kybernetiK tag](https://img.shields.io/github/tag/mulle-sde/mulle-test.svg?branch=release)  | [RELEASENOTES](RELEASENOTES.md) |
+| ![Mulle kybernetiK tag](https://img.shields.io/github/tag/mulle-sde/mulle-test.svg)  | [RELEASENOTES](RELEASENOTES.md) |
 
 
 
