@@ -1446,6 +1446,7 @@ test::run::main()
       then
          remove_file_if_present "${MULLE_TEST_SUCCESS_FILE}"
       fi
+      r_mkdir_parent_if_missing "${MULLE_TEST_SUCCESS_FILE}"
 
       # cl.exe likes to clobber a central file, when multiple
       # tests are in one directory 
