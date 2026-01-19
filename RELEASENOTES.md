@@ -1,12 +1,11 @@
+## 7.1.0
+
+* fix CFLAGS handling
+
+
 # 7.0.0
 
 * allow `<name>`.`<configuration>`.CFLAGS instead of the weird Debug: content hack we had before
-
-
-
-
-
-
 * Replace 'mulle-platform compile' with 'mulle-platform compiler run'
 * Update all comments and documentation references
 

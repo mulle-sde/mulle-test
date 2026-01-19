@@ -139,6 +139,16 @@ test::flagbuilder::r_cflags()
    c_flags="${RVAL}"
 
    #
+   # Add plain CFLAGS environment variable (e.g., from -DCFLAGS=-m32)
+   #
+   if [ ! -z "${CFLAGS}" ]
+   then
+      log_setting "CFLAGS (env)        : ${CFLAGS}"
+      r_concat "${c_flags}" "${CFLAGS}"
+      c_flags="${RVAL}"
+   fi
+
+   #
    # this is used to glom -fobjc-tao unto the flags, but we can replace
    # -O0 -g
    #

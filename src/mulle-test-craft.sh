@@ -94,9 +94,13 @@ test::craft::emit_include_h()
 
    if [ ! -d "$INC_ROOT" ]
    then
-      INC_ROOT="$DEPENDENCY_DIR/include"
+      INC_ROOT="${DEPENDENCY_DIR}/include"
       if [ ! -d "$INC_ROOT" ]
       then
+         log_setting "DEPENDENCY_DIR=${DEPENDENCY_DIR}"
+         log_setting "style=${style}"
+         log_setting "configuration=${configuration}"
+
          log_warning "Warning: include directory '$INC_ROOT' does not exist"
          return 0
       fi
