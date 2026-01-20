@@ -75,7 +75,6 @@ test::craft::emit_include_h()
    local guard_identifier="$4"
 
    local DEPENDENCY_DIR
-   local INC_ROOT
 
    # 1) Resolve dependency directory
    if ! DEPENDENCY_DIR="$(mulle-sde dependency-dir)" 
@@ -88,6 +87,8 @@ test::craft::emit_include_h()
    local style 
 
    style="$(mulle-craft style --configuration "${configuration}")"
+
+   local INC_ROOT
 
    r_filepath_concat "${DEPENDENCY_DIR}" "$style" "include"
    INC_ROOT="${RVAL}"
@@ -138,26 +139,38 @@ test::craft::emit_include_h()
          fi
       }
 
+      local hdr
+      local rel
+
       # 4) Top-level headers (always C)
-      for hdr in $(find "$INC_ROOT" -maxdepth 1 -type f -name '*.h' | sort); do
+      for hdr in $(find "$INC_ROOT" -maxdepth 1 -type f -name '*.h' | sort)
+      do
          rel="${hdr#$INC_ROOT/}"
          emit_line "${rel}" "no"
       done
 
       # blank line if any top-level headers
-      if [ -n "$(find "$INC_ROOT" -maxdepth 1 -type f -name '*.h')" ]; then
+      if [ -n "$(find "$INC_ROOT" -maxdepth 1 -type f -name '*.h')" ]
+      then
          printf "\n"
       fi
 
+      local root_hdr
+      local depdir
+      local depname
+
       # 5) Per-dependency headers
-      for depdir in $(find "$INC_ROOT" -maxdepth 1 -mindepth 1 -type d | sort); do
-         depname="$(basename "$depdir")"
-         local root_hdr="$depdir/${depname}.h"
+      for depdir in $(find "$INC_ROOT" -maxdepth 1 -mindepth 1 -type d | sort)
+      do
+         r_basename "${depdir}"
+         depname="${RVAL}"
+
+         root_hdr="${depdir}/${depname}.h"
 
          # HACK:
          # do not emit #include <mulle-objc-runtime/mulle-objc-runtime.h>
          # as it conflicts with MulleObjC.
-         #
+         # Future: use .no-mulle-test file ?
          if [ "${meta_dialect}" = "objc" ]
          then
             case "${depname}" in
@@ -173,19 +186,36 @@ test::craft::emit_include_h()
             esac
          fi
 
+         # HACK:
+         # do not emit #include <mintomic/mintomic.h>
+         # as its private (and gives problems)
+         # Future: use .no-mulle-test file ?
+         case "${depname}" in
+            *'mintomic')
+               log_debug "Skip \"${depname}\""
+               continue
+            ;;
+         esac
+
          # Check if root header exists
-         if [ -f "$root_hdr" ]; then
-            # ObjC heuristic
-            if [[ "${depname:0:1}" =~ [A-Z] ]]; then
-               emit_line "${depname}/${depname}.h" "yes"
-            else
-               emit_line "${depname}/${depname}.h" "no"
+         if [ -f "$root_hdr" ]
+         then
+            if [ ! -e "${depdir}/.no-mulle-test" ]  # a way to keep it out of include
+            then
+               # ObjC heuristic
+               if [[ "${depname:0:1}" =~ [A-Z] ]]
+               then
+                  emit_line "${depname}/${depname}.h" "yes"
+               else
+                  emit_line "${depname}/${depname}.h" "no"
+               fi
             fi
             continue
          fi
 
          # no root header: include all headers under this directory
-         while IFS= read -r hdr; do
+         while IFS= read -r hdr
+         do
             rel="${hdr#$INC_ROOT/}"
             emit_line "${rel}" "no"
          done < <(find "$depdir" -type f -name '*.h' ! -path "*/cmake/*" | sort)
@@ -280,7 +310,9 @@ test::craft::postprocess()
 
    case "${PROJECT_LANGUAGE}" in
       'c')
-         test::craft::generate_generic_c_headers "${configuration}" "${PROJECT_DIALECT:-c}" "${guard_name}_include_h__"
+         test::craft::generate_generic_c_headers "${configuration}" \
+                                                 "${PROJECT_DIALECT:-c}" \
+                                                 "${guard_name}_include_h__"
 
          case "${PROJECT_DIALECT}" in
             'objc')
@@ -480,7 +512,7 @@ test::craft::main()
    fi
 
    #
-   # post processing depending on language, currently hardcode argh
+   # post processing depending on language, currently hardcoded argh
    #
    if [ "${OPTION_POSTPROCESS}" != 'NO' ]
    then
