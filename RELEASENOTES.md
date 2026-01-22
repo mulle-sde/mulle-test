@@ -1,3 +1,8 @@
+## 7.2.0
+
+Various small improvements
+
+
 ## 7.1.0
 
 * fix CFLAGS handling
