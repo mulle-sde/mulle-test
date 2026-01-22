@@ -1109,7 +1109,24 @@ test::run::named_test()
 
    if [ ! -e "${filepath}" ]
    then
-      fail "Test \"${TEST_PATH_PREFIX}${filepath}\" not found"
+      # Try to find file with extension if not found
+      local ext
+      local found='NO'
+      
+      .foreachpath ext in ${MULLE_TEST_EXTENSIONS}
+      .do
+         if [ -e "${filepath}.${ext}" ]
+         then
+            filepath="${filepath}.${ext}"
+            found='YES'
+            .break
+         fi
+      .done
+      
+      if [ "${found}" = 'NO' ]
+      then
+         fail "Test \"${TEST_PATH_PREFIX}${filepath}\" not found"
+      fi
    fi
 
    # make physical for WSL
