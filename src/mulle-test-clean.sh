@@ -38,33 +38,16 @@ test::clean::usage()
 
     cat <<EOF >&2
 Usage:
-   ${MULLE_USAGE_NAME} clean [domain]
+   ${MULLE_USAGE_NAME} clean
 
-   By default cleans everything including produced .exe files and inferior
-   cmake build directories. If you want to remove the stash folder too,
-   specify "tidy" or "gravetidy" as the clean domain.
+   Cleans all produced .exe files and cmake build directories.
+   If you want to remove the stash folder or the dependency folder use
+   mulle-sde test clean instead.
 
-   If you changed the sourcetree, you can clean the linkorder chaches
-   with "linkorder".
-
-Domains:
+Options:
+   -q  : does not clean .mulle/var/test
 EOF
-   mulle-sde clean domains-usage >&2
    exit 1
-}
-
-
-test::clean::depth_find_pwd()
-{
-   case "${MULLE_UNAME}" in
-      darwin|*bsd|dragonfly)
-         exekutor find -d . "$@"
-      ;;
-
-      *)
-         exekutor find . -depth "$@"
-      ;;
-   esac
 }
 
 
@@ -87,15 +70,6 @@ test::clean::main()
             OPTION_CLEAN_VAR='NO'
          ;;
 
-         --no-graveyard)
-            cleanoptions="$1"
-         ;;
-
-         -g)
-            # hack for clean
-            break
-         ;;
-
          -*)
             test::clean::usage "Unknown option \"$1\""
          ;;
@@ -108,52 +82,43 @@ test::clean::main()
       shift
    done
 
-   # MEMO: turn of MULLE_VIBECODING to avoid endless pingpong
-   #
-   case "${1:-all}" in
-      all|tidy|gravetidy|.g)
-         exekutor mulle-sde \
-                        -DMULLE_VIBECODING=NO \
-                        ${MULLE_TECHNICAL_FLAGS} \
-                     clean \
-                        ${cleanoptions} \
-                        "${1:-all}" &&
 
-         log_verbose "Cleaning individual test kitchen directories"
-         test::clean::depth_find_pwd -type d -name kitchen -exec rm -rf {} \;
+   [ $# -ne 0 ] && test::clean::usage "Superflous arguments \"$*\""
 
-         log_verbose "Cleaning test executables"
-         exekutor find . -type f -name "*.exe" -exec rm {} \;
+   log_verbose "Cleaning individual test kitchen directories"
 
-         log_verbose "Cleaning test vibecode output"
-         exekutor find . -type f \( -name "*.test.stderr" -o -name "*.test.stdout" -o -name "*.test.ccerr" \) -exec rm {} \;
+   local dir
 
-         log_verbose "Cleaning test coverage"
-         exekutor find . -type f \( -name "*.gcno" -o -name "*.gcda" -o -name "*.profdata" \) -exec rm {} \;
+   while read -r dir
+   do
+      exekutor rmdir_safer "$dir"
+   done < <(find * -type d -name 'kitchen' ! -path "${KITCHEN_DIR:-kitchen}")
 
-         if [ "${OPTION_CLEAN_VAR}" = 'YES' ]
-         then
-            log_verbose "Cleaning var"
-            rmdir_safer "${MULLE_TEST_VAR_DIR}"
-         fi
+   log_verbose "Cleaning test executables"
 
-         if [ ! -z "${MULLE_SDE_CLEAN_DEFAULT}" ]
-         then
-            rexekutor mulle-sde -DMULLE_VIBECODING=NO ${MULLE_TECHNICAL_FLAGS} clean
-         fi
-      ;;
+   local file
 
-      linkorder)
-      ;;
+   while read -r file
+   do
+     remove_file_if_present "$file"
+   done < <(find * -type f -name "*.exe")
 
-      *)
-         rexekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} clean "$1"
-         return $?
-      ;;
-   esac
+   log_verbose "Cleaning test vibecode output"
+   while read -r file
+   do
+     remove_file_if_present "$file"
+   done < <(find * -type f \( -name "*.test.stderr" -o -name "*.test.stdout" -o -name "*.test.ccerr" \))
+
+   log_verbose "Cleaning test coverage"
+   while read -r file
+   do
+     remove_file_if_present "$file"
+   done < <(find * -type f \( -name "*.gcno" -o -name "*.gcda" -o -name "*.profdata" \))
 
 
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
-
-   test::linkorder::main clean
+   if [ "${OPTION_CLEAN_VAR}" = 'YES' ]
+   then
+      log_verbose "Cleaning var"
+      rmdir_safer "${MULLE_TEST_VAR_DIR}"
+   fi
 }

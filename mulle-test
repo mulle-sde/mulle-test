@@ -49,23 +49,21 @@ fi
 # version is in mulle-test-env
 set +u
 
+# shellcheck source=src/mulle-test-options.sh
+. "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-options.sh"
+
 
 test::usage()
 {
    cat <<EOF >&2
 Usage:
-   ${MULLE_EXECUTABLE_NAME} [flags] <command> <options> -- <build> -- <run>
+   ${MULLE_EXECUTABLE_NAME} [flags] <command> <options> -- <run>
 
-   Run tests. Commands take options. Some commands take additional build and
-   run options. Notice the -- separator.
+   Run tests. Commands take options. Some commands take additional run
+   options. Notice the -- separator.
 
-   Create your test environment with \`mulle-test init\`. Then build your
-   test environment with \`mulle-test craft\`. Now you can run the tests with
-   \`mulle-test run\`.
-
-   To iterate over a test "foo.c" and library code until you get it right,
-   use \`mulle-test --no-clean crun foo.c\`. This will build changes to
-   the library and then recompile and run the test.
+   mulle-test is typically used via \`mulle-sde test\`. Use \`mulle-sde test craft\`
+   to build tests, then \`mulle-sde test run\` to run them.
 
    mulle-test can generate coverage information and supports various sanitizers
    such as valgrind (see Flags)
@@ -102,21 +100,16 @@ EOF
 
 Commands:
    arch                    : name of current architecture
-   clean                   : remove dependency, kitchens and exe files
-   craft                   : force rebuild of project, then run tests
+   clean                   : remove test residue files
    init                    : setup a test project for the current project
-   recraft                 : clean all, then craft
-   crun                    : craft library if needed, then run a single test
-   run                     : run tests, crafts beforehand if needed
+   run                     : run tests (use mulle-sde test for crafting)
    rerun                   : run failing tests again
-   retest                  : clean gravetidy, then craft and run
    sanitizers              : list available sanitizers for this platform
    test-dir                : locate test folder
 
 Environment:
    MULLE_TEST_DIR          : tests directory (test)
    MULLE_TEST_OBJC_DIALECT : use mulle-objc for mulle-clang
-   MULLE_TEST_CRAFT_BEFORE_RUN : run mulle-test craft before 'run' (like crun)
    PROJECT_DIALECT         : dialect of the tests, can be objc
    PROJECT_EXTENSIONS      : file extensions of the test files
    PROJECT_LANGUAGE        : language of the tests (c)
@@ -141,9 +134,9 @@ test::cd_test_dir()
 
    MULLE_TEST_DIR="${MULLE_TEST_DIR:-test}"
    test::locate::r_test_dir "${MULLE_TEST_DIR}"
-   rval=$?
+   rc=$?
 
-   if [ $rval -eq 1 ]
+   if [ $rc -eq 1 ]
    then
       fail "Did not find a \"${MULLE_TEST_DIR}\" directory (${MULLE_USER_PWD})
 ${C_INFO}Initialize tests with:
@@ -164,52 +157,9 @@ ${C_RESET_BOLD}   mulle-sde test init"
       exekutor cd "${MULLE_TEST_DIR}" || exit 1
    fi
 
-   return $rval
+   return $rc
 }
 
-
-test::do_craft()
-{
-   log_entry "test::do_craft" "$@"
-
-   local cmd
-
-   if [ -x "./craft-test" ]
-   then
-      cmd="exekutor ./craft-test ${MULLE_TECHNICAL_FLAGS}"
-   else
-      if [ -x "./build-test" ]
-      then
-         cmd="exekutor ./build-test ${MULLE_TECHNICAL_FLAGS}"
-      else
-         if [ ! -d ".mulle/share/sde" ]
-         then
-            log_debug "No .mulle/share/sde folder and no build-test script, so don't run craft"
-            return
-         fi
-
-         if [ "${MULLE_SDE_CRAFT_TARGET}" = 'NONE' ]
-         then
-            log_debug "MULLE_SDE_CRAFT_TARGET set to NONE, so nothing to do"
-            return
-         fi
-
-         # shellcheck source=src/mulle-test-craft.sh
-         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-craft.sh"
-
-         cmd="test::craft::main"
-      fi
-   fi
-
-   eval `mulle-sde tool-env` || exit 1
-
-   [ -z "${DEPENDENCY_DIR}" ] && _internal_fail "DEPENDENCY_DIR not set"
-   [ -z "${KITCHEN_DIR}" ]    && _internal_fail "KITCHEN_DIR not set"
-
-   log_verbose "Craft test dependencies"
-
-   ${cmd} "$@"
-}
 
 
 test::r_escape_args()
@@ -270,89 +220,12 @@ test::do_run()
 }
 
 
-test::is_non_environment_commandline()
-{
-   while [ $# -ne 0 ]
-   do
-      case "$1" in
-         -h|--help|help)
-            return 0
-         ;;
-
-         --)
-            break
-         ;;
-
-      esac
-      shift
-   done
-
-   return 1
-}
-
-
-# test::exec_in_subshell_if_needed()
-# {
-#    log_entry "test::exec_in_subshell_if_needed" "$@"
-#
-#    if test::is_non_environment_commandline "$@"
-#    then
-#       return
-#    fi
-#
-#    if [ "${MULLE_VIRTUAL_ROOT}" != "${PWD}" ]
-#    then
-#       if [ ! -z "${MULLE_TEST_DIR}" ]
-#       then
-#          exekutor cd "${MULLE_TEST_DIR}" || exit 1
-#       fi
-#       if [ -d "${PWD}/.mulle/share/env" ]
-#       then
-#          unset MULLE_VIRTUAL_ROOT
-#          exekutor exec mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-#                            exec mulle-test ${MULLE_TECHNICAL_FLAGS} "$@"
-#       else
-#          fail "Not a proper initialized test directory (${PWD#"${MULLE_USER_PWD}/"})
-# ${C_INFO}To initialize for mulle-test:
-# ${C_RESET_BOLD}   mulle-test init"
-#       fi
-#    else
-#       log_debug "Already in proper subshell ($MULLE_VIRTUAL_ROOT)"
-#    fi
-# }
-
-
-test::get_quickstatus()
-{
-   log_entry "test::get_quickstatus" "$@"
-
-   local rval
-
-   rexekutor "${MULLE_CRAFT:-mulle-craft}" -s \
-                  ${MULLE_TECHNICAL_FLAGS} \
-               quickstatus
-   rval=$?
-
-   if [ $rval -eq 1 ]
-   then
-      exit 1
-   fi
-
-   return $rval
-}
-
 
 test::run_or_rerun()
 {
    log_entry "test::run_or_rerun" "$@"
 
    local cmd="$1"; shift
-
-   if ! test::get_quickstatus
-   then
-      # MEMO can't forward flags here for run or rerun
-      test::do_craft || return 1
-   fi
 
    if [ "${cmd}" = "rerun" ]
    then
@@ -363,36 +236,8 @@ test::run_or_rerun()
 }
 
 
-test::clean()
-{
-   log_entry "test::clean" "$@"
 
-   local clean="$1"
-
-   case "${clean}" in 
-      'YES')
-         local domains
-
-         #
-         # PROJECT_NAME is for old project, who don't have
-         # TEST_PROJECT_NAME yet, of which there are many
-         #
-         domains="${MULLE_TEST_CLEAN_DOMAINS:-${TEST_PROJECT_NAME:-${PROJECT_NAME}}}"
-
-         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                           clean --lenient "${domains}" || return $?
-      ;;
-
-      'ALL'|'TIDY'|'GRAVETIDY')
-         r_lowercase "${clean}"
-         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                        clean "${RVAL}" || return $?
-      ;;
-   esac
-}
-
-
-test::main()
+test::_main()
 {
    local FLAG_OUTSIDE_ENV="NO"       # need comment
    local MULLE_FLAG_DEFER="DEFAULT"
@@ -443,6 +288,7 @@ test::main()
       ;;
    esac
 
+
    #
    # simple option handling:
    # MEMO: flags that you define here must be mirrored in
@@ -465,6 +311,13 @@ test::main()
             MULLE_FLAG_MAGNUM_FORCE="BOTH"
          ;;
 
+         --platform)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            MULLE_PLATFORM="$1"
+         ;;
+
          --configuration)
             [ $# -eq 1 ] && fail "Missing argument to \"$1\""
             shift
@@ -485,25 +338,6 @@ test::main()
             shift
 
             MULLE_TEST_DIR="$1"
-         ;;
-
-         --clean-all)
-            OPTION_CLEAN='ALL'
-         ;;
-
-         --no-clean)
-            OPTION_CLEAN='NO'
-         ;;
-
-         --clean-option)
-            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
-            shift
-
-            OPTION_CLEAN="$1"
-         ;;
-
-         --no-craft)
-            OPTION_CRAFT='NO'
          ;;
 
          ##
@@ -613,6 +447,10 @@ test::main()
 
    options_setup_trace "${MULLE_TRACE}" && set -x
 
+   MULLE_PLATFORM="${MULLE_PLATFORM:-${MULLE_TEST_PLATFORMS%%:*}}"
+   MULLE_PLATFORM="${MULLE_PLATFORM:-${MULLE_UNAME}}"
+   export MULLE_PLATFORM
+
    local cmd="$1"
 
    case "$cmd" in
@@ -636,6 +474,11 @@ test::main()
          exit 0
       ;;
 
+      'platform')
+         printf "%s\n" "${MULLE_PLATFORM}"
+         exit 0
+      ;;
+
       'sanitizers')
          printf "%s\n" "address" "thread" "undefined" "valgrind" "valgrind-no-leaks" "testallocator" "zombie" "gmalloc" "glibc"
          exit 0
@@ -653,8 +496,8 @@ test::main()
 
       *)
          case "${cmd}" in
-            build|clean|cleanrun|coverage|craft|env|fetch|init|libexec-dir|linkorder|log\
-|propose|rebuild|recraft|rerun|run|retest|test-dir|version)
+            build|clean|coverage|env|init|libexec-dir|linkorder|log\
+|rerun|run|test-dir|version)
                shift
             ;;
 
@@ -674,81 +517,6 @@ test::main()
       ;;
    esac
 
-   case "${cmd}" in 
-      'build')
-         cmd="craft"
-      ;;
-
-      'recraft'|'rebuild')
-         if [ "${OPTION_CLEAN}" != 'DEFAULT' ]
-         then
-            log_warning "${cmd} clobbers clean option"
-         fi
-         OPTION_CLEAN='ALL'
-         cmd="craft"
-      ;;
-
-      'retest')
-         if [ "${OPTION_CLEAN}" != 'DEFAULT' ]
-         then
-            log_warning "${cmd} clobbers clean option"
-         fi
-         OPTION_CLEAN='GRAVETIDY'
-         cmd="run"
-      ;;
-
-      'recrun')
-         if [ "${OPTION_CLEAN}" != 'DEFAULT' ]
-         then
-            log_warning "${cmd} clobbers clean option"
-         fi
-         OPTION_CLEAN='ALL'
-         cmd="run"
-      ;;
-
-      'crun')
-         if [ "${OPTION_CLEAN}" = 'DEFAULT' ]
-         then
-            OPTION_CLEAN='YES'
-         fi
-         cmd="run"
-      ;;
-
-      'run')
-         if [ "${OPTION_CLEAN}" = 'DEFAULT' ]
-         then
-            OPTION_CLEAN="${MULLE_TEST_CLEAN_BEFORE_RUN:-'YES'}"
-         fi
-         cmd="run"
-      ;;
-
-      'crerun')
-         if [ "${OPTION_CLEAN}" = 'DEFAULT' ]
-         then
-            OPTION_CLEAN='YES'
-         fi
-         cmd="rerun"
-      ;;
-
-      'nrun')
-         if [ "${OPTION_CLEAN}" != 'DEFAULT' ]
-         then
-            log_warning "${cmd} clobbers clean option"
-         fi
-         OPTION_CLEAN='NO'
-         cmd="run"
-      ;;
-
-      'nrerun'|'rerun')
-         if [ "${OPTION_CLEAN}" != 'DEFAULT' ]
-         then
-            log_warning "${cmd} clobbers clean option"
-         fi
-         OPTION_CLEAN='NO'
-         cmd="rerun"
-      ;;
-   esac
-
 #   log_setting "MULLE_VIBECODING='${MULLE_VIBECODING}'"
 #
 #   # escalate to -vv for AI to figure out what stderr and stdout does
@@ -758,38 +526,18 @@ test::main()
 #      log_vibe "Set verbosity to at least -vv because MULLE_VIBECODING is YES"
 #   fi
 
-   if [ "${OPTION_CLEAN}" = 'DEFAULT' ]
-   then
-      OPTION_CLEAN='YES'
-   fi
 
-   #
-   # if we are doing a run command with multiple tests, we'd need to figure
-   # out the suitable test directory for each. this is not impossible but
-   # of course we chicken out and complain.
-   #
-   case "${cmd}" in
-      propose)
-         include "test::run"
-
-         if test:run::r_proposed_test_dir "$@"
-         then
-            printf "%s\n" "${RVAL}"
-            return 0
-         fi
-
-         return 1
-      ;;
-   esac
 
    MULLE_TEST_DIR="${MULLE_TEST_DIR:-${PWD}}"
    MULLE_TEST_VAR_DIR="${MULLE_TEST_DIR}/.mulle/var/${MULLE_HOSTNAME}/${MULLE_USERNAME}/test"
 
-   log_setting "MULLE_VIRTUAL_ROOT=${MULLE_VIRTUAL_ROOT}"
-   log_setting "MULLE_USER_PWD=${MULLE_USER_PWD}"
+   log_setting "MULLE_PLATFORM=${MULLE_PLATFORM}"
+   log_setting "MULLE_UNAME=${MULLE_UNAME}"
+
    log_setting "MULLE_TEST_VAR_DIR=${MULLE_TEST_VAR_DIR}"
+   log_setting "MULLE_USER_PWD=${MULLE_USER_PWD}"
+   log_setting "MULLE_VIRTUAL_ROOT=${MULLE_VIRTUAL_ROOT}"
    log_setting "SANITIZER=${SANITIZER}"
-   log_setting "MULLE_FLAG_LOG_EXEKUTOR=${MULLE_FLAG_LOG_EXEKUTOR:-NO}"
 
    #
    # this tells mulle-craft that everything is fine, though
@@ -800,57 +548,9 @@ test::main()
    export MULLE_TEST_ENVIRONMENT
 
    case "${cmd}" in
-      craft)
-         # # bypass for --help
-         # if test::is_non_environment_commandline "$@"
-         # then
-         #    include "test::craft"
-#
-         #    test::craft::main "$@"
-         #    return
-         # fi
-#
-         # if test::cd_test_dir
-         # then
-         #    test::exec_in_subshell_if_needed "${cmd}" "$@"
-         # fi
-
-         test::clean "${OPTION_CLEAN}"
-         test::do_craft "$@" || return $?
-      ;;
-
       run|rerun)
-         # bypass for --help
-         if test::is_non_environment_commandline "$@"
-         then
-            include "test::run"
-            test::run::main "$@"
-            return $?
-         fi
-#
-         # if test::cd_test_dir
-         # then
-         #    test::exec_in_subshell_if_needed "${cmd}" "$@"
-         # fi
-
-         if [ "${OPTION_CRAFT}" != 'NO' ]
-         then
-            test::clean "${OPTION_CLEAN}"
-
-            test::do_craft || return $?
-         fi
+         # Just run tests - crafting is now handled by mulle-sde test
          test::run_or_rerun "${cmd}" "$@"
-      ;;
-
-      clean)
-         # if test::cd_test_dir
-         # then
-         #    test::exec_in_subshell_if_needed "${cmd}" "$@"
-         # fi
-#
-         include "test::clean"
-
-         test::clean::main "$@"
       ;;
 
       coverage)
@@ -864,30 +564,11 @@ test::main()
          test::coverage::main "$@"
       ;;
 
-      craftorder)
-         # if test::cd_test_dir
-         # then
-         #    test::exec_in_subshell_if_needed "${cmd}" "$@"
-         # fi
-
-         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                           craftorder "$@"
-      ;;
 
       env)
          rexekutor env | sort
       ;;
 
-
-      fetch)
-         # if test::cd_test_dir
-         # then
-         #    test::exec_in_subshell_if_needed "${cmd}" "$@"
-         # fi
-
-         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                           fetch "$@" 
-      ;;
 
       init)
          include "test::init"
@@ -901,25 +582,15 @@ test::main()
          exit 0
       ;;
 
-      linkorder)
+      link-args)
          # if test::cd_test_dir
          # then
          #    test::exec_in_subshell_if_needed "${cmd}" "$@"
          # fi
 #
-         include "test::linkorder"
+         include "test::link-args"
 
-         test::linkorder::main "$@"
-      ;;
-
-      log)
-         # if test::cd_test_dir
-         # then
-         #    test::exec_in_subshell_if_needed "${cmd}" "$@"
-         # fi
-
-         exekutor mulle-sde ${MULLE_TECHNICAL_FLAGS} \
-                           log "$@"
+         test::link_args::main "$@"
       ;;
 
       test-dir)
@@ -943,11 +614,20 @@ test::main()
 }
 
 
+test::main()
+{
+   # Platform loop is now handled by mulle-sde test
+   # Just run the tests directly
+   test::_main "$@"
+}
+
+
 if [ -z "${MULLE_ARCH}" ]
 then
    MULLE_ARCH="`gcc -v 2>&1  | sed -n -e '/Target:/s/.*: \([^-]*\)-.*/\1/p'`"
    MULLE_ARCH="${MULLE_ARCH:-`arch 2> /dev/null`}"
    MULLE_ARCH="${MULLE_ARCH:-x86_64}"
+   export MULLE_ARCH
 fi
 
 call_with_flags "test::main" "${MULLE_TEST_FLAGS}" "$@"

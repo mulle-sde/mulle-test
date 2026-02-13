@@ -138,15 +138,23 @@ mulle_run_command_in_subshell()
    # other
    local cmdline
    local sep
+   local envvar
+   local key
+   local value
+
+   local escaped
 
    while [ $# -ne 0  ]
    do
       case "$1" in
-         [A-Za-z_]*=*)
-           cmdline="${cmdline}${sep}$1"
-           sep=" "
-           shift
-           continue
+         [A-Za-z_][A-Za-z0-9_]*=*)
+            key="${1%%=*}"
+            value="${1#*=}"
+            printf -v escaped "%q" "${value}"
+            cmdline="${cmdline}${sep}${key}=${escaped}"
+            sep=" "
+            shift
+            continue
          ;;
       esac
       break
@@ -158,15 +166,11 @@ mulle_run_command_in_subshell()
       exit 1
    fi
 
-   local quote
-   local escaped
-
-   quote="'"
 
    while [ $# -ne 0  ]
    do
-     escaped="${1//${quote}/${quote}\"${quote}\"${quote}}"
-     cmdline="${cmdline}${sep}'${escaped}'"
+     printf -v escaped "%q" "$1"
+     cmdline="${cmdline}${sep}${escaped}"
      sep=" "
      shift
    done

@@ -59,7 +59,7 @@ Usage:
    <name>.<c>.CFLAGS  : CFLAGS for configuration <c> (e.g. Debug)
 
    These files can be reused by other tests in the directory by changing <name>
-   to "default". You can add ".${MULLE_UNAME}.${MULLE_ARCH}" to specify your
+   to "default". You can add ".${MULLE_PLATFORM}.${MULLE_ARCH}" to specify your
    current platform only (or just either one) e.g. "default.cat.linux.x86_64".
 
 Options:
@@ -240,7 +240,7 @@ test::run::common()
    r_relative_path_between "${RVAL}" "${root}"
    pretty_source="${RVAL}"
 
-   local rval
+   local rc
    local exeflags
    local output
 
@@ -259,21 +259,21 @@ test::run::common()
                         "${cc_errput}" \
                         "${flags}" \
                         "$@"
-      rval="$?"
+      rc="$?"
 
-      test::compiler::check_output "${srcfile}" "${cc_errput}" "${rval}" "${pretty_source}"
-      rval="$?"
+      test::compiler::check_output "${srcfile}" "${cc_errput}" "${rc}" "${pretty_source}"
+      rc="$?"
 
-      if [ "$rval" -ne 0 ]
+      if [ "$rc" -ne 0 ]
       then
-         if [ ${RVAL_EXPECTED_FAILURE} = $rval ]
+         if [ ${RVAL_EXPECTED_FAILURE} = $rc ]
          then
             return 0
          fi
 
-         log_debug "Compiler failure returns with $rval"
+         log_debug "Compiler failure returns with $rc"
          cat "${cc_errput}" >&2
-         return $rval
+         return $rc
       fi
    else
       exeflags="--keep-exe"
@@ -298,16 +298,16 @@ test::run::common()
                              "${a_out_ext}" \
                              "${srcfile}" \
                              "$@"
-   rval=$?
+   rc=$?
 
-   if [ ${RVAL_EXPECTED_FAILURE} = $rval ]
+   if [ ${RVAL_EXPECTED_FAILURE} = $rc ]
    then
       return 0
    fi
 
    if [ ! -z "${FAIL_TEST}" ]
    then
-      if [ "${rval}" -ne 0 ]
+      if [ "${rc}" -ne 0 ]
       then
          "${FAIL_TEST}" "${srcfile}" "${a_out}" "${ext}" "${name}" "$@"
       fi
@@ -315,8 +315,8 @@ test::run::common()
       log_debug "FAIL_TEST is undefined"
    fi
 
-   log_debug "Execute failure, returns with $rval"
-   return $rval
+   log_debug "Execute failure, returns with $rc"
+   return $rc
 }
 
 
@@ -689,11 +689,13 @@ test::run::_run()
 
 
    # we change the SANITIZER variable here on demand
-   if [ ! -z "${SANITIZER}" ] && [ -e "${name}.no-sanitizers" -o -e "${name}.no-sanitizers.${MULLE_UNAME}" ]
+   if [ ! -z "${SANITIZER}" ] && [ -e "${name}.no-sanitizers" -o -e "${name}.no-sanitizers.${MULLE_PLATFORM}" ]
    then
       case ":${SANITIZER}:" in
          *:coverage:*)
-            log_info "Disable all sanitizers except ${C_MAGENTA}${C_BOLD}coverage${C_INFO} as ${C_MAGENTA}${C_BOLD}${name}${C_INFO} doesn't work with any sanitizer"
+            _log_info "Disable all sanitizers except \
+${C_MAGENTA}${C_BOLD}coverage${C_INFO} as ${C_MAGENTA}${C_BOLD}${name}${C_INFO} \
+doesn't work with any sanitizer"
             SANITIZER="coverage"
          ;;
 
@@ -714,7 +716,7 @@ test::run::_run()
       r_lowercase "${sanitizer%%-*}" # turn valgrind-no-leaks into valgrind
       identifier="${RVAL}"
 
-      if [ -e "${name}.no-${identifier}" -o -e "${name}.no-${identifier}.${MULLE_UNAME}" ]
+      if [ -e "${name}.no-${identifier}" -o -e "${name}.no-${identifier}.${MULLE_PLATFORM}" ]
       then
          log_info "Disable ${C_RESET_BOLD}${sanitizer}${C_INFO} as it doesn't work with ${C_MAGENTA}${C_BOLD}${name}${C_INFO}"
       else
@@ -793,16 +795,16 @@ test::run::handle_return_value()
 {
    log_entry "test::run::handle_return_value" "$@"
 
-   local rval=$1; shift
+   local rc=$1; shift
 
    local directory="$1"
    local name="$2"
    local ext="$3"
    local root="$4"
 
-   log_debug "Return value of test::run::_run: ${rval}"
+   log_debug "Return value of test::run::_run: ${rc}"
 
-   case "${rval}" in
+   case "${rc}" in
       0|${RVAL_EXPECTED_FAILURE})
          if [ ! -z "${MULLE_TEST_SUCCESS_FILE}" ]
          then
@@ -824,7 +826,7 @@ test::run::handle_return_value()
             r_relative_path_between "${PWD}/${name}" "${root}"
             pretty_source="${RVAL}"
 
-            fail "Test \"${TEST_PATH_PREFIX}${pretty_source}\" failed ($rval)"
+            fail "Test \"${TEST_PATH_PREFIX}${pretty_source}\" failed ($rc)"
          fi
       ;;
    esac
@@ -864,6 +866,8 @@ test::run::_run_in_directory_parallel()
 test::run::run_in_directory()
 {
    log_entry "test::run::run_in_directory" "$@"
+
+   TOTAL="$((TOTAL + 1))"
 
    if test::run::has_run_successfully "$@"
    then
@@ -1025,7 +1029,7 @@ test::run::scan_directory()
    [ -z "${root}" ] && _internal_fail "root must not be empty"
 
    local old
-   local rval
+   local rc
 
    # preserve shell context (no subshell here)
    old="$PWD"
@@ -1036,10 +1040,10 @@ test::run::scan_directory()
    fi
 
    test::run::_scan_directory "${root}" "${extensions}" "$@"
-   rval=$?
+   rc=$?
 
    cd "${old}"
-   return $rval
+   return $rc
 }
 
 
@@ -1049,9 +1053,11 @@ test::run::all_tests()
 
    local RUNS
    local FAILS
+   local TOTAL
 
    RUNS=0
    FAILS=0
+   TOTAL=0
 
    local _parallel_maxjobs
    local _parallel_jobs
@@ -1078,13 +1084,18 @@ test::run::all_tests()
       FAILS="${_parallel_fails:-1}"
    fi
 
-   if [ "${RUNS}" -ne 0 -o "${OPTION_RERUN_FAILED}" = 'YES' ]
+   if [ "${RUNS}" -ne 0 -o "${OPTION_RERUN}" = 'YES' ]
    then
       if [ "${FAILS}" -eq 0 ]
       then
-         log_info "All tests (${RUNS}) passed successfully"
+         if [ "${RUNS}" -eq 0 ]
+         then
+            log_info "All ${C_MAGENTA}${C_BOLD}${MULLE_PLATFORM}${C_INFO} tests (${TOTAL}) already have passed successfully"
+         else
+            log_info "All ${C_MAGENTA}${C_BOLD}${MULLE_PLATFORM}${C_INFO} tests (${RUNS}) passed successfully"
+         fi
       else
-         log_error "${FAILS} tests out of ${RUNS} failed"
+         log_error "${FAILS} ${MULLE_PLATFORM} tests out of ${RUNS} failed"
          return 1
       fi
    else
@@ -1165,6 +1176,7 @@ test::run::named_test()
 
    local RUNS=0
    local FAILS=0
+   local TOTAL=0
 
    if ! test::run::run_matching_extensions_in_directory "${directory}" \
                                                         "${filename}" \
@@ -1192,211 +1204,73 @@ test::run::main()
    test::environment::include_required
 
    local DEFAULT_MAKEFLAGS
+   local OPTION_ALL
+   local OPTION_CONFIGURATION='Debug'
+   local OPTION_COVERAGE='NO'
    local OPTION_DEBUG_DYLD='NO'
+   local OPTION_EXTENSIONS
+   local OPTION_GDB
+   local OPTION_GOLDEN_STDOUT='NO'
    local OPTION_LENIENT='NO'
+   local OPTION_MAXJOBS
    local OPTION_OUTPUT_ASSEMBLER='NO'
    local OPTION_OUTPUT_ASSEMBLER_IR='NO'
+   local OPTION_PARALLEL=''
+   local OPTION_PATH_PREFIX
+   local OPTION_PLATFORM=''
+   local OPTION_POSTPROCESS
    local OPTION_PRINT_EXE='NO'
-   local OPTION_REQUIRE_LIBRARY='YES'
-   local OPTION_RERUN_FAILED='NO'
+   local OPTION_PROJECT_DIALECT
+   local OPTION_PROJECT_EXTENSIONS
+   local OPTION_PROJECT_LANGUAGE
+   local OPTION_REMOVE_EXE
+   local OPTION_RERUN='NO'
    local OPTION_REUSE_EXE='NO'
    local OPTION_RUN_SCRIPT='YES'
    local OPTION_RUN_TEST='YES'
+   local OPTION_SANITIZER=''
+   local OPTION_STANDALONE='NO'
+   local OPTION_TIMEOUT
    local OPTION_ULIMIT="unlimited"
-   local OPTION_GOLDEN_STDOUT='NO'
+   local OPTION_VALGRIND='NO'
 
    DEFAULT_MAKEFLAGS="-s"
 
-   test::environment::setup_execution_platform "${MULLE_UNAME}"
+   test::environment::setup_execution_platform "${MULLE_PLATFORM:-${MULLE_UNAME}}"
    if [ -z "${MULLE_TEST_EXECUTABLE}" ]
    then
-      test::environment::setup_development_environment "${MULLE_UNAME}"
+      test::environment::setup_development_environment "${MULLE_UNAME}" "${MULLE_PLATFORM:-${MULLE_UNAME}}"
    else
       # need this for shared library extension needed for
       # DYLD_INSERT_LIBRARIES
-      test::environment::setup_development_platform "${MULLE_UNAME}"
+      test::environment::setup_development_platform "${MULLE_PLATFORM:-${MULLE_UNAME}}"
    fi
 
-   # for windows its kinda important, that the flags are
-   # consistent with what we crafted
-   # TODO: figure out what we have...
+   log_debug "Parsing options: $*"
 
-   TEST_CFLAGS="${DEBUG_CFLAGS}"
-   OPTION_CONFIGURATION="${OPTION_CONFIGURATION:-Debug}"
+   # Parse options first
+   test::options::r_parse "$@"
+   # Shift away parsed options
+   shift "${RVAL}"
 
+   # Set TEST_CFLAGS based on configuration from common flags
+   if [ "${OPTION_CONFIGURATION}" = 'Release' ]
+   then
+      TEST_CFLAGS="${RELEASE_CFLAGS}"
+   else
+      TEST_CFLAGS="${DEBUG_CFLAGS}"
+   fi
 
-   while [ $# -ne 0 ]
-   do
-      case "$1" in
-         -h|--help|help)
-            test::run::usage
-         ;;
-
-         -l|--lenient)
-            OPTION_LENIENT='YES'
-         ;;
-
-         -V)
-            DEFAULT_MAKEFLAGS="VERBOSE=1"
-            MULLE_FLAG_LOG_EXEKUTOR='YES'
-         ;;
-
-         -j|--jobs)
-            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
-            shift
-
-            OPTION_MAXJOBS="$1"
-         ;;
-
-         --disable-coredumps)
-            OPTION_ULIMIT=0
-         ;;
-
-         --no-run-test)
-            OPTION_RUN_TEST='NO'
-         ;;
-
-         --no-run-script)
-            OPTION_RUN_SCRIPT='NO'
-         ;;
-
-         --assembler)
-            OPTION_OUTPUT_ASSEMBLER='YES'
-            OPTION_OUTPUT_ASSEMBLER_IR='NO'
-         ;;
-
-         --ir|--llvm-ir)
-            OPTION_OUTPUT_ASSEMBLER='YES'
-            OPTION_OUTPUT_ASSEMBLER_IR='YES'
-         ;;
-
-         --project-language)
-            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
-            shift
-
-            if [ "$1" != "${PROJECT_LANGUAGE}" ]
-            then
-               PROJECT_LANGUAGE="$1"
-               PROJECT_EXTENSIONS=""
-            fi
-         ;;
-
-         --project-dialect)
-            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
-            shift
-
-            if [ "$1" != "${PROJECT_DIALECT}" ]
-            then
-               PROJECT_DIALECT="$1"
-               PROJECT_EXTENSIONS=""
-            fi
-         ;;
-
-         --project-extensions)
-            [ $# -eq 1 ] && test::run::usage "Missing argument to \"$1\""
-            shift
-
-            PROJECT_EXTENSIONS="$1"
-         ;;
-
-         # this is used so inconsistently its prolly useless
-         # the idea was apparenly to have prettier output ?
-         --path-prefix)
-            shift
-            [ $# -eq 0 ] && test::run::usage
-
-            TEST_PATH_PREFIX="$1"
-         ;;
-
-         # don't make MULLE_TEST_SERIAL local so we can put it into env
-         --serial|--no-parallel)
-            MULLE_TEST_SERIAL='YES'
-         ;;
-
-         --parallel)
-            MULLE_TEST_SERIAL='NO'
-         ;;
-
-         --rerun|--rerun-failed)
-            OPTION_RERUN_FAILED='YES'
-         ;;
-
-         --run-args)
-            shift
-            break
-         ;;
-
-         --extensions)
-            [ $# -eq 1 ] && test::run::usage "Missing argument to \"$1\""
-            shift
-
-            MULLE_TEST_EXTENSIONS="$1"
-         ;;
-
-         --release)
-            TEST_CFLAGS="${RELEASE_CFLAGS}"
-            OPTION_CONFIGURATION="Release"
-         ;;
-
-         --debug)
-            TEST_CFLAGS="${DEBUG_CFLAGS}"
-            OPTION_CONFIGURATION="Debug"
-         ;;
-
-         --build-args)
-            # remove build-only flags, which must appear first
-            while [ $# -ne 0 ]
-            do
-               if [ "$1" = "--run-args" ]
-               then
-                  continue
-               fi
-               shift
-            done
-         ;;
-
-         --reuse-exe)
-            # this passed "silently" to mulle-test-execute... ugly
-            OPTION_REUSE_EXE='YES'
-            OPTION_REMOVE_EXE='NO'
-         ;;
-
-         --golden-stdout)
-            OPTION_GOLDEN_STDOUT='YES'
-         ;;
-
-         --keep-exe)
-            # this passed "silently" to mulle-test-execute... ugly
-            OPTION_REMOVE_EXE='NO'
-         ;;
-
-         --print-exe)
-            OPTION_PRINT_EXE='YES'
-         ;;
-
-         --valgrind|--*sanitize*|--coverage)
-            # too late must have been specified earlier, AI can never get
-            # this right
-            fail "$1 is a flag not a run option."
-         ;;
-
-         --)
-            shift
-            break
-         ;;
-
-         --*)
-            log_verbose "Unknown flag \"$1\" will be passed on"
-            break
-         ;;
-
-         *)
-            break
-         ;;
-      esac
-
-      shift
-   done
+   # Handle parallel from common flags
+   if [ "${OPTION_PARALLEL}" = 'YES' ]
+   then
+      MULLE_TEST_SERIAL='NO'
+   else 
+      if [ "${OPTION_PARALLEL}" = 'NO' ]
+      then
+         MULLE_TEST_SERIAL='YES'
+      fi
+   fi
 
    [ -z "${MULLE_TEST_DIR}" ] && _internal_fail "MULLE_TEST_DIR undefined"
    [ -z "${MULLE_TEST_VAR_DIR}" ] && _internal_fail "MULLE_TEST_VAR_DIR undefined"
@@ -1419,14 +1293,11 @@ test::run::main()
    #
    case ":${PROJECT_EXTENSIONS}:" in
       *:[Cc]:*|*:[Cc]++:*|*:[Cc][XxPp][XxPp]:*|*:[Mm]:*|*:aam:*)
-         . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-linkorder.sh"
+         include "test::link-args"
 
-         test::linkorder::r_get_link_command 'YES'
-         LINK_COMMAND="${RVAL}"
-
-         test::linkorder::r_get_link_command 'NO'
-         NO_STARTUP_LINK_COMMAND="${RVAL}"
-      ;;
+         LINK_COMMAND="$(test::link_args::main -s --startup cat)"
+         NO_STARTUP_LINK_COMMAND="$(test::link_args::main -s cat)"
+     ;;
 
       "")
         _internal_fail "PROJECT_EXTENSIONS is empty"
@@ -1459,7 +1330,7 @@ test::run::main()
 
    if [ "$RUN_ALL" = 'YES' -o $# -eq 0 -o "${1:0:1}" = '-' ]
    then
-      if [ "${OPTION_RERUN_FAILED}" = 'NO' ]
+      if [ "${OPTION_RERUN}" = 'NO' ]
       then
          remove_file_if_present "${MULLE_TEST_SUCCESS_FILE}"
       fi

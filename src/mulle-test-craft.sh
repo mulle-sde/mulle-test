@@ -86,7 +86,7 @@ test::craft::emit_include_h()
    # MEMO: need to ask craft where stuff is placed
    local style 
 
-   style="$(mulle-craft style --configuration "${configuration}")"
+   style="$(mulle-craft style --platform "${MULLE_PLATFORM}" --configuration "${configuration}")"
 
    local INC_ROOT
 
@@ -330,7 +330,14 @@ test::craft::main()
    local args
    local craftargs
    local sdeargs
-   local OPTION_STANDALONE
+   local OPTION_CONFIGURATION='Debug'
+   local OPTION_PLATFORM=''
+   local OPTION_PARALLEL=''
+   local OPTION_COVERAGE='NO'
+   local OPTION_VALGRIND='NO'
+   local OPTION_SANITIZER=''
+   local OPTION_CLEAN='DEFAULT'
+   local OPTION_STANDALONE='NO'
    local OPTION_POSTPROCESS='DEFAULT'
 
    if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
@@ -338,6 +345,26 @@ test::craft::main()
       craftargs="--mulle-test"
    fi
    
+   # Parse all flags
+   r_parse_common_flags "$@"
+   local shifts="${RVAL}"
+   sdeargs="${RVAL2}"
+
+   # Shift away all parsed flags
+   while [ ${shifts} -gt 0 ]
+   do
+      shift
+      shifts=$((shifts - 1))
+   done
+
+   # Handle coverage/sanitizer from common flags
+   if [ "${OPTION_COVERAGE}" = 'YES' ]
+   then
+      r_colon_concat "${SANITIZER}" coverage
+      SANITIZER="${RVAL}"
+   fi
+
+   # Handle special cases that need complex parsing
    while [ $# -ne 0 ]
    do
       case "$1" in
@@ -363,66 +390,11 @@ test::craft::main()
             done
          ;;
 
-         --coverage)
-            r_colon_concat "${SANITIZER}" coverage
-            SANITIZER="${RVAL}"
-         ;;
-
-         --valgrind|--sanitize*)
-            # ignore, don't complain
-         ;;
-
-         -g|-a)
-            r_concat "${sdeargs}" "$1"
-            sdeargs="${RVAL}"
-         ;;
-
-         --debug)
-            OPTION_CONFIGURATION='Debug';
-         ;;
-
-         --postprocess)
-            OPTION_POSTPROCESS='YES';
-         ;;
-
-         --postprocess-only|--only-postprocess)
-            OPTION_POSTPROCESS='ONLY';
-         ;;
-
-         --no-postprocess)
-            OPTION_POSTPROCESS='NO';
-         ;;
-
-         --release)
-            OPTION_CONFIGURATION='Release';
-         ;;
-
          --run-args)
             while [ $# -ne 0 ]
             do
                shift
             done
-         ;;
-
-         --serial|--no-parallel|--parallel)
-            r_concat "${sdeargs}" "'$1'"
-            sdeargs="${RVAL}"
-         ;;
-
-# TODO: Doesn't work for some reason
-#        --from)
-#           shift
-#           r_concat "${craftargs}" "--from '$1'"
-#           craftargs="${RVAL}"
-#        ;;
-
-         --standalone)
-            OPTION_STANDALONE='YES'
-         ;;
-
-         --)
-            shift
-            break
          ;;
 
          *)
@@ -437,15 +409,28 @@ test::craft::main()
    # only craftorders (also: the caller has clean beforehand...)
    sdeargs="${sdeargs} --no-clean"
 
-   configuration="${OPTION_CONFIGURATION:-Debug}"
+   # Add parallel flags to sdeargs
+   if [ "${OPTION_PARALLEL}" = 'NO' ]
+   then
+      r_concat "${sdeargs}" "'--serial'"
+      sdeargs="${RVAL}"
+   elif [ "${OPTION_PARALLEL}" = 'YES' ]
+   then
+      r_concat "${sdeargs}" "'--parallel'"
+      sdeargs="${RVAL}"
+   fi
+
+   configuration="${OPTION_CONFIGURATION}"
 
    if [ ! -z "${configuration}" ]
    then
       craftargs="${craftargs} --configuration '${configuration}'"
-#      makeargs="${makeargs} -DCMAKE_BUILD_TYPE='${configuration}'"
    fi
 
-   #  a bit too clang specific here or ?
+   if [ ! -z "${OPTION_PLATFORM}" ]
+   then
+      craftargs="${craftargs} --platform '${OPTION_PLATFORM}'"
+   fi
 
    if [ "${OPTION_STANDALONE}" != 'YES' ]
    then
@@ -493,7 +478,16 @@ test::craft::main()
       # appear as if we are in a test environment. Unset MULLE_TEST_ENVIRONMENT
       # and craft without test check.
       #
+      # If MULLE_PLATFORM is set, pass it to craft to build only that platform
+      #
       unset MULLE_TEST_ENVIRONMENT
+
+      local platform_args
+      if [ ! -z "${MULLE_PLATFORM}" ]
+      then
+         platform_args="--platform ${MULLE_PLATFORM}"
+      fi
+
       if ! eval_exekutor mulle-sde \
                                "${MULLE_TECHNICAL_FLAGS}" \
                                "${MULLE_SDE_FLAGS}" \
@@ -502,6 +496,7 @@ test::craft::main()
                             craft \
                                "${sdeargs}" \
                                -- \
+                               ${platform_args} \
                                "${craftargs}" \
                                -- \
                                "${makeargs}"

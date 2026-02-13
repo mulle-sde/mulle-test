@@ -148,11 +148,23 @@ test::compiler::r_c_commandline()
 
    cmdline="${mulle_platform} ${MULLE_TECHNICAL_FLAGS} compiler run"
 
-#   # Add platform
-#   if [ ! -z "${MULLE_UNAME}" ]
-#   then
-#      cmdline="${cmdline} --platform ${MULLE_UNAME}"
-#   fi
+   # Detect cross-compilation and add target platform
+   local target_platform="${MULLE_PLATFORM:-${MULLE_UNAME}}"
+   local cross_compiler_root=""
+
+   if [ "${target_platform}" != "${MULLE_UNAME}" ]
+   then
+      # Get cross-compiler root for this platform
+      local platform_upper
+      platform_upper="$(tr '[:lower:]' '[:upper:]' <<< "${target_platform}")"
+      local var_name="MULLE_CRAFT_CROSS_COMPILER_ROOT__${platform_upper}"
+      eval "cross_compiler_root=\"\${${var_name}}\""
+   fi
+
+   if [ ! -z "${target_platform}" ]
+   then
+      cmdline="${cmdline} --platform ${target_platform}"
+   fi
 
    # Add language/dialect
    if [ ! -z "${PROJECT_DIALECT}" ]
@@ -249,21 +261,25 @@ test::compiler::r_c_commandline()
       linkcommand="${LINK_COMMAND}"
    fi
 
+   #
    # Add export symbols to mulle-platform (for Darwin mainly)
    # mulle-platform will handle the platform-specific flag formatting
+   # TODO: are these hax even needed ?
+   #
    if [ ! -z "${linkcommand}" -o ! -z "${LDFLAGS}" ]
    then
       eval $(mulle-platform env)
 
+      # TODO: ??? for what platforms, which compiler/linkers is this valid ?
       case "${PROJECT_DIALECT}" in
          c)
             case "${linkcommand},${LDFLAGS}" in
-               *${MULLE_PLATFORM_LIBRARY_PREFIX}mulle-atinit${MULLE_PLATFORM_LIBRARY_SUFFIX_STATIC}*)
-                  cmdline="${cmdline} --export-symbol __mulle_atinit"
+               *${MULLE_PLATFORM_LIBRARY_PREFIX}mulle-atinit${MULLE_PLATFORM_LIBRARY_SUFFIX_STATIC}*|*${MULLE_PLATFORM_LIBRARY_PREFIX}mulle-core-all-load${MULLE_PLATFORM_LIBRARY_SUFFIX_STATIC}*)
+                  cmdline="${cmdline} --export-symbol _mulle_atinit"
                ;;
             esac
             case "${linkcommand},${LDFLAGS}" in
-               *${MULLE_PLATFORM_LIBRARY_PREFIX}mulle-atexit${MULLE_PLATFORM_LIBRARY_SUFFIX_STATIC}*)
+               *${MULLE_PLATFORM_LIBRARY_PREFIX}mulle-atexit${MULLE_PLATFORM_LIBRARY_SUFFIX_STATIC}*|*${MULLE_PLATFORM_LIBRARY_PREFIX}mulle-core-all-load${MULLE_PLATFORM_LIBRARY_SUFFIX_STATIC}*)
                   cmdline="${cmdline} --export-symbol _mulle_atexit"
                ;;
             esac
@@ -272,7 +288,7 @@ test::compiler::r_c_commandline()
          objc)
             case "${MULLE_TEST_OBJC_DIALECT:-mulle-objc}" in
                mulle-objc)
-                  cmdline="${cmdline} --export-symbol __mulle_atinit"
+                  cmdline="${cmdline} --export-symbol _mulle_atinit"
                   cmdline="${cmdline} --export-symbol _mulle_atexit"
                   cmdline="${cmdline} --export-symbol ___register_mulle_objc_universe"
                ;;
@@ -281,6 +297,11 @@ test::compiler::r_c_commandline()
       esac
    fi
 
+   case "${MULLE_PLATFORM}" in
+      windows)
+         linkcommand="${linkcommand} -Wl,--export-all-symbols"
+      ;;
+   esac
 
    log_setting "LINK_COMMAND=${linkcommand}"
    log_setting "LDFLAGS=${LDFLAGS}"
@@ -383,6 +404,44 @@ test::compiler::run_gcc()
 
    shift 4
 
+   # Detect cross-compilation and set compiler
+   local old_CC
+   local old_CXX
+
+   if [ ! -z "${MULLE_PLATFORM}" ]
+   then
+      # Cross-compiling - set up compiler
+      local platform_upper
+
+      r_uppercase "${MULLE_PLATFORM}"
+      platform_upper="${RVAL}"
+
+      local cross_compiler_root
+
+      r_shell_indirect_expand "MULLE_CRAFT_CROSS_COMPILER_ROOT__${platform_upper}"
+      cross_compiler_root="${RVAL}"
+
+      local triplet
+
+      r_shell_indirect_expand "MULLE_SDE_PLATFORM_TRIPLET__${platform_upper}"
+      triplet="${RVAL}"
+      triplet="${cross_compiler_triplet:-x86_64-w64-mingw32}"
+
+      if [ ! -z "${cross_compiler_root}" ]
+      then
+         old_CC="${CC}"
+         old_CXX="${CXX}"
+
+         # hax hax hax
+         case "${MULLE_PLATFORM}" in
+            windows)
+               export CC="${cross_compiler_root}/bin/${triplet}-clang"
+               export CXX="${cross_compiler_root}/bin/${triplet}-clang++"
+            ;;
+         esac
+      fi
+   fi
+
    local cmdline
 
    # MEMO: this is all done in `test::compiler::r_c_commandline` already
@@ -406,17 +465,38 @@ test::compiler::run_gcc()
       MULLE_FLAG_LOG_EXEKUTOR='YES'
    fi
 
-   local rval
+   local rc
 
    test::logging::err_redirect_grepping_eval_exekutor "${errput}" "${cmdline}"
-   rval=$?
+   rc=$?
+
+   # Restore original CC/CXX if we changed them
+   # (nat) why ???
+   if [ ! -z "${old_CC+x}" ]
+   then
+      if [ -z "${old_CC}" ]
+      then
+         unset CC
+      else
+         export CC="${old_CC}"
+      fi
+   fi
+   if [ ! -z "${old_CXX+x}" ]
+   then
+      if [ -z "${old_CXX}" ]
+      then
+         unset CXX
+      else
+         export CXX="${old_CXX}"
+      fi
+   fi
 
    # Assembler output is now handled by mulle-platform compiler run via --output-asm and --emit-llvm flags
    # The flags are added during command line construction in test::compiler::r_c_commandline
 
    MULLE_FLAG_LOG_EXEKUTOR="${old_MULLE_FLAG_LOG_EXEKUTOR}"
 
-   return $rval
+   return $rc
 }
 
 
@@ -494,7 +574,44 @@ MULLE_OBJC_TRACE_LEAK=NO"
          ;;
       esac
 
-      echo "${DEBUGGER:-gdb} ${a_out_ext}"
+      local debugger_cmd
+      local platform
+
+      platform="${MULLE_PLATFORM:-${MULLE_UNAME}}"
+
+      case "${platform}" in
+         'mingw'|'msys'|'windows')
+            r_uppercase "${MULLE_PLATFORM}"
+            r_shell_indirect_expand "MULLE_EMULATOR__${RVAL}"
+            r_extensionless_basename "${RVAL}"
+            case "${RVAL}" in
+               *wine*)
+                  debugger_cmd="winedbg"
+                  printf "%s " "\
+MULLE_OBJC_TRACE_UNIVERSE=YES \
+MULLE_OBJC_TRACE_LOAD=NO"
+               ;;
+            esac
+
+            local dllpath
+            local winepath
+
+            test::execute::r_windows_custompath
+            dllpath="${RVAL}"
+
+            test::execute::r_construct_winepath "${dllpath}"
+            winepath="${RVAL}"
+
+            if [ ! -z "${winepath}" ]
+            then
+               printf "%s " "WINEPATH='${winepath}'"
+            fi
+         ;;
+      esac
+
+      debugger_cmd="${debugger_cmd:-${DEBUGGER:-gdb}}"
+
+      echo "${debugger_cmd} ${a_out_ext}"
       if [ "${stdin}" != "/dev/null" ]
       then
          echo "run ${stdin}"
@@ -509,7 +626,7 @@ test::compiler::check_output()
 
    local srcfile="$1"
    local errput="$2"
-   local rval="$3"
+   local rc="$3"
    local pretty_source="$4"
    local ccdiag="$5"
 
@@ -534,10 +651,10 @@ test::compiler::check_output()
       then
          return ${RVAL_EXPECTED_FAILURE}
       fi
-      rval=1
+      rc=1
    fi
 
-   if [ "${rval}" -eq 0 ]
+   if [ "${rc}" -eq 0 ]
    then
       return 0
    fi

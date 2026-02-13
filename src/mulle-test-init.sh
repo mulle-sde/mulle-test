@@ -285,7 +285,7 @@ test::init::main()
 
    #
    # also set project language and dialect from main project
-   # use wild, since we don't want to copy all the tools and optionaltools
+   # use inherit, since we don't want to copy all the tools and optionaltools
    # over and have them get out of sync eventually
    #
    PROJECT_LANGUAGE="${PROJECT_LANGUAGE:-c}"
@@ -296,7 +296,7 @@ test::init::main()
       mulle-sde ${MULLE_TECHNICAL_FLAGS} \
                          -s \
                   init --no-motd \
-                       --style 'mulle/wild' \
+                       --style 'mulle/inherit' \
                        --github-user "'${GITHUB_USER}'" \
                        --project-name "'${PROJECT_NAME}'" \
                        --test-project-name "'${TEST_PROJECT_NAME}'" \

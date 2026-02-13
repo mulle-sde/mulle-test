@@ -55,47 +55,34 @@ EOF
 }
 
 
-test::execute::r_add_name_to_custompath()
-{
-   log_entry "test::execute::r_add_name_to_custompath" "$@"
-
-   local name="$1"; shift
-
-   local directory="$1"
-   local configuration="$2"
-   local custompath="${3:-}"
-
-   if [ ! -e "${directory}" ]
-   then
-      RVAL="${custompath}"
-      return
-   fi
-
-   r_filepath_concat "${directory}" "${configuration}" "${name}"
-   if [ -e "${RVAL}" ]
-   then
-      r_colon_concat "${RVAL}" "${custompath}"
-      custompath="${RVAL}"
-   fi
-
-   if [ ! -z "${configuration}" ]
-   then
-      r_filepath_concat "${directory}" "${name}"
-      if [ -e "${RVAL}" ]
-      then
-         r_colon_concat "${RVAL}" "${custompath}"
-         custompath="${RVAL}"
-      fi
-   fi
-
-   RVAL="${custompath}"
-}
-
-
 test::execute::r_add_bin_lib_to_custompath()
 {
-   test::execute::r_add_name_to_custompath bin "$1" "$2" "$3"
-   test::execute::r_add_name_to_custompath lib "$1" "$2" "${RVAL}"
+   local name="$1"
+   local platform="$2"
+   local configuration="$3"
+   local custompath="${4:-}"
+
+   local bindir
+
+   bindir="$(rexekutor mulle-craft searchpath --platform "${platform}" \
+                                              --configuration "${configuration}" \
+                                              --no-addiction \
+                                              --if-exists \
+                                              binary)"
+
+   r_colon_concat "${bindir}" "${custompath}"
+   custompath="${RVAL}"
+
+   local libdir
+
+   libdir="$(rexekutor mulle-craft searchpath --platform "${platform}" \
+                                              --configuration "${configuration}" \
+                                              --no-addiction \
+                                              --if-exists \
+                                              library)"
+
+   r_colon_concat "${libdir}" "${custompath}"
+   custompath="${RVAL}"
 }
 
 #
@@ -121,11 +108,13 @@ test::execute::r_windows_custompath()
    # add addiction/lib and dependency/lib to PATH for dlls
    #
    test::execute::r_add_bin_lib_to_custompath "${DEPENDENCY_DIR:-dependency}" \
+                                              "${MULLE_PLATFORM:-windows}" \
                                               "${OPTION_CONFIGURATION:-Debug}" \
                                               "${custompath}"
    custompath="${RVAL}"
 
    test::execute::r_add_bin_lib_to_custompath "${ADDICTION_DIR:-addiction}" \
+                                              "${MULLE_PLATFORM:-windows}" \
                                               "" \
                                               "${custompath}"
    custompath="${RVAL}"
@@ -137,6 +126,33 @@ test::execute::r_windows_custompath()
       custompath="${RVAL}"
    fi
    RVAL="${custompath}"   
+}
+
+
+test::execute::r_construct_winepath()
+{
+   log_entry "test::execute::r_construct_winepath" "$@"
+
+   local dllpath="$1"
+
+   local winepathexe
+   local winepath
+   local winedir
+   local dlldir
+
+   RVAL=""
+
+   if winepathexe="`command -v winepath`"
+   then
+      .foreachpath dlldir in ${dllpath}
+      .do
+          winedir="$(winepath -w "${dlldir}")"
+          r_concat "${winepath}" "${winedir}" ';'
+          winepath="${RVAL}"
+      .done
+
+      RVAL="${winepath}"
+   fi
 }
 
 
@@ -161,20 +177,32 @@ test::execute::a_out()
       env | sort >&2
    fi
 
+   # MEMO: need to add windows bin dir most likely here
+   local platform
+
+   platform="${MULLE_PLATFORM}"
+   if [ "${MULLE_PLATFORM}" = "${MULLE_UNAME}" ]
+   then
+      platform=""
+   fi
 
    local libdir
 
-   test::execute::r_add_name_to_custompath "lib" \
-                                            "${DEPENDENCY_DIR}" \
-                                            "${OPTION_CONFIGURATION:-Debug}"
-   libdir="${RVAL}"
+   libdir="$(rexekutor mulle-craft searchpath --platform "${platform}" \
+                                              --configuration "${library}" \
+                                              --no-addiction \
+                                              library)"
+
+   log_setting "libdir=${libdir}"
 
    local frameworksdir
 
-   test::execute::r_add_name_to_custompath "Frameworks" \
-                                            "${DEPENDENCY_DIR}" \
-                                            "${OPTION_CONFIGURATION:-Debug}"
-   frameworksdir="${RVAL}"
+   frameworksdir="$(rexekutor mulle-craft searchpath --platform "${platform}" \
+                                                     --configuration "${library}" \
+                                                     --no-addiction \
+                                                     framework)"
+
+   log_setting "frameworksdir=${frameworksdir}"
 
    ###
    #
@@ -217,7 +245,7 @@ test::execute::a_out()
 
    case ":${SANITIZER}:" in
       *:coverage:*)
-         r_concat "${environment}" "LLVM_PROFILE_FILE='${a_out_ext%.exe}.${MULLE_UNAME}.profraw'"
+         r_concat "${environment}" "LLVM_PROFILE_FILE='${a_out_ext%.exe}.${MULLE_PLATFORM}.profraw'"
          environment="${RVAL}"
       ;;
    esac
@@ -275,6 +303,7 @@ test::execute::a_out()
       case "${MULLE_UNAME}" in
          'windows')
             local wslenv
+
             r_colon_concat "${WSLENV}" "PATH/l"
             wslenv="${RVAL}"
             r_concat "${environment}" "PATH='${custompath}' WSLENV='${wslenv}'"
@@ -343,6 +372,7 @@ MULLE_ATINIT_FAILURE=0"
       ;;
    esac
 
+
    local runner
 
    case ":${SANITIZER}:" in
@@ -370,9 +400,97 @@ MULLE_ATINIT_FAILURE=0"
       ;;
    esac
 
+   local platform
+
+   platform="${MULLE_PLATFORM}"
+   if [ "${MULLE_PLATFORM}" = "${MULLE_UNAME}" ]
+   then
+      platform=""
+   fi
+
+   # Check if cross-compiling and emulator is needed
+   # TODO: need a proper "current" platform
+   if [ ! -z "${platform}" ]
+   then
+      # Check for platform-specific emulator (e.g., MULLE_EMULATOR__WINDOWS)
+      local emulator_var
+
+      r_uppercase "${platform}"
+      emulator_var="MULLE_EMULATOR__${RVAL}"
+
+      local emulator
+
+      eval "emulator=\"\${${emulator_var}}\""
+
+      if [ ! -z "${emulator}" ]
+      then
+         log_verbose "Using emulator for ${platform}: ${emulator}"
+         if [ -z "${runner}" ]
+         then
+            runner="${emulator}"
+         else
+            r_concat "${emulator}" "${runner}"
+            runner="${RVAL}"
+         fi
+      fi
+   fi
+
+   local escaped
+
+   #
+   # For cross-compilation with Wine, copy DLLs to executable directory
+   # so Wine (running in Docker) can find them.
+   # MEMO: Aren't they in PATH though ?
+   #
+   case "${platform}" in
+      'mingw'|'msys'|'windows')
+         local dllpath
+
+         # need testallocator or other sanitizer stuff  for insertpath
+         test::execute::r_windows_custompath # "${insertpath}"
+         dllpath="${RVAL}"
+
+         printf -v escaped "%q" "${dllpath}"
+         log_fluff "Prepend \"${escaped}\" to PATH"
+
+         r_colon_concat "${dllpath}" "${PATH}"
+         PATH="${RVAL}"
+
+         local winepath
+
+         test::execute::r_construct_winepath "${dllpath}"
+         winepath="${RVAL}"
+
+         if [ ! -z "${winepath}" ]
+         then
+            printf -v escaped "%q" "${winepath}"
+            log_fluff "Prepend \"${escaped}\" to WINEPATH"
+
+            r_concat "${environment}" "WINEPATH='${winepath}'"
+            environment="${RVAL}"
+         fi
+#         local exedir
+#
+#         r_dirname "${a_out_ext}"
+#         exedir="${RVAL}"
+#
+#         local dlldir
+#
+#         .foreachpath dlldir in ${dllpath}
+#         .do
+#            if [ -d "${dlldir}" ] && [ -d "${exedir}" ]
+#            then
+#               log_verbose "Copying DLLs from ${dlldir} to ${exedir} for Wine"
+#               exekutor cp -f "${dlldir}"/*.dll "${exedir}/" 2>/dev/null || true
+#            fi
+#         .done
+      ;;
+   esac
+
    local timeout_s
 
-   timeout_s="${MULLE_TEST_RUN_TIMEOUT:-360}"
+   timeout_s="${OPTION_TIMEOUT:-${MULLE_TEST_RUN_TIMEOUT}}"
+   timeout_s="${timeout_s:-360}"
 
    if [ "${timeout_s}" -gt 0 ]
    then
@@ -386,9 +504,13 @@ MULLE_ATINIT_FAILURE=0"
       fi
    fi
 
-   if [ ! -z "${environment}" ]
+   local old_MULLE_FLAG_LOG_EXEKUTOR
+   local rc
+
+   old_MULLE_FLAG_LOG_EXEKUTOR="${MULLE_FLAG_LOG_EXEKUTOR}"
+   if [ "${MULLE_FLAG_LOG_VERBOSE}" = 'YES' ]
    then
-      log_verbose "Custom environment: ${environment}"
+      MULLE_FLAG_LOG_EXEKUTOR='YES'
    fi
 
    if [ "${MULLE_FLAG_LOG_VERBOSE}" = 'NO' ]
@@ -401,18 +523,26 @@ MULLE_ATINIT_FAILURE=0"
                                                  "${runner}" \
                                                  "'${a_out_ext}'" \
                                                  ${args}
-      return $?
-   fi
+      rc=$?
+   else
+      if [ ! -z "${environment}" ]
+      then
+         printf -v escaped "%q" "${environment}"
+         log_verbose "Custom environment: ${escaped}"
+      fi
 
-   test::logging::full_redirekt_eval_tee_exekutor "${input}" \
-                                                  "${output}" \
-                                                  "${errput}" \
-                                                  "${timeout}" \
-                                                  "${environment}" \
-                                                  "${runner}" \
-                                                  "'${a_out_ext}'" \
-                                                  ${args}
-   return $?
+      test::logging::full_redirekt_eval_tee_exekutor "${input}" \
+                                                     "${output}" \
+                                                     "${errput}" \
+                                                     "${timeout}" \
+                                                     "${environment}" \
+                                                     "${runner}" \
+                                                     "'${a_out_ext}'" \
+                                                     ${args}
+      rc=$?
+   fi
+   MULLE_FLAG_LOG_EXEKUTOR="${old_MULLE_FLAG_LOG_EXEKUTOR}"
+   return $rc
 }
 
 
@@ -574,24 +704,24 @@ mulle_diff()
       esac
    fi
 
-   local rval
+   local rc
 
    set -- "$@" "${file_a}" "${file_b}"
    if [ "${OPTION_TERSE}" = 'YES' ]
    then
       rexekutor "$@" > /dev/null
-      rval=$?
+      rc=$?
    else
       rexekutor "$@"
-      rval=$?
+      rc=$?
    fi
 
    [ ! -z "${tmp_file_a}" ] && exekutor rm "${tmp_file_a}"
    [ ! -z "${tmp_file_b}" ] && exekutor rm "${tmp_file_b}"
 
-   log_debug "rval: ${rval}"
+   log_debug "rc: ${rc}"
 
-   return $rval
+   return $rc
 }
 
 
@@ -604,7 +734,7 @@ test::execute::_check_output()
    local errors="$3"
    local output="$4" # test output
    local errput="$5"
-   local rval="$6"
+   local errcode="$6"
    local pretty_source="$7"  # environment
    local a_out="$8"
    local ext="$9"
@@ -617,7 +747,7 @@ test::execute::_check_output()
    [ -z "${output}" ] && _internal_fail "output must not be empty"
    [ -z "${errput}" ] && _internal_fail "errput must not be empty"
    [ -z "${a_out}" ]  && _internal_fail "a_out must not be empty"
-   [ "${rval}" = "" ] && _internal_fail "rval must not be empty"
+   [ "${errcode}" = "" ] && _internal_fail "errcode must not be empty"
 
    [ -z "${CAT}" ]    && _internal_fail "CAT must be defined"
 
@@ -625,7 +755,7 @@ test::execute::_check_output()
 
    info_text="\"${TEST_PATH_PREFIX}${pretty_source}\" (${TEST_PATH_PREFIX}${a_out}"
 
-   if [ ${rval} -ne 0 ]
+   if [ ${errcode} -ne 0 ]
    then
       if [ ! -f "${errors}" ]
       then
@@ -633,11 +763,11 @@ test::execute::_check_output()
          rexekutor "${CAT}" "${output}" >&2
          log_info "Stderr"
          rexekutor cat "${errput}" >&2
-         if [ ${rval} -ne 1 ]
+         if [ ${errcode} -ne 1 ]
          then
-            log_error "TEST CRASHED ($rval): ${info_text}, ${errput})"
+            log_error "TEST CRASHED ($errcode): ${info_text}, ${errput})"
          else
-            log_error "TEST FAILED: ${info_text}, ${errput}) (returned ${rval})"
+            log_error "TEST FAILED: ${info_text}, ${errput}) (returned ${errcode})"
          fi
          return ${RVAL_FAILURE}
       fi
@@ -651,7 +781,7 @@ test::execute::_check_output()
 
    if [ -f "${errors}" ]
    then
-      log_error "TEST FAILED TO CRASH: ${rval}"
+      log_error "TEST FAILED TO CRASH: ${errcode}"
       return ${RVAL_FAILURE}
    fi
 
@@ -768,7 +898,7 @@ test::execute::check_output()
 #   local errors="$3"
    local output="$4"
    local errput="$5"
-# local rval=$?
+# local errcode=$6
    local pretty_source="$7"
 #   local a_out="$8"
 #   local ext="$9"
@@ -847,22 +977,23 @@ test::execute::run()
    # retrieve stdout and stderr into temporary files
    #
    local executable
+   local rc
 
    executable="${a_out}"
    if [ ! -z "${executable}" ]
    then
       test::execute::a_out "${executable}" "${args}" "${stdin}" "${output}.tmp" "${errput}.tmp"
-      rval=$?
+      rc=$?
    else
       r_concat "${name}" "${ext}" "."
       r_filepath_concat "${root}" "${RVAL}"
       executable="${RVAL}"
 
       test::execute::other "${executable}" "${args}" "${stdin}" "${output}.tmp" "${errput}.tmp"
-      rval=$?
+      rc=$?
    fi
 
-   log_debug "Check test \"${name}\" output (rval: $rval)"
+   log_debug "Check test \"${name}\" output (rc: $rc)"
 
    [ -z "${CRLFCAT}" ] && _internal_fail "CRLFCAT must be defined"
 
@@ -906,14 +1037,12 @@ test::execute::run()
       log_setting "-----------------------"
    fi
 
-   local rc
-
    test::execute::check_output  "${stdout}" \
                                 "${stderr}" \
                                 "${errors}" \
                                 "${output}" \
                                 "${errput}" \
-                                "${rval}"   \
+                                "${rc}"   \
                                 "${pretty_source}" \
                                 "${executable}" \
                                 "${ext}"

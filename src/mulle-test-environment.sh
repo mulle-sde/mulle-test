@@ -32,7 +32,6 @@
 MULLE_TEST_ENVIRONMENT_SH='included'
 
 
-# Use mulle-platform for compiler selection and flag generation
 test::environment::setup_compiler()
 {
    log_entry "test::environment::setup_compiler" "$@"
@@ -137,14 +136,6 @@ test::environment::setup_execution_platform()
          CRLFCAT="dos2unix"
       ;;
 
-      'darwin')
-         CRLFCAT="cat"
-      ;;
-
-      'windows'|'linux')
-         CRLFCAT="cat"
-      ;;
-
       "")
          fail "platform not set"
       ;;
@@ -153,6 +144,11 @@ test::environment::setup_execution_platform()
          CRLFCAT="cat"
       ;;
    esac
+
+   if ! exe="$(command -v "${CRLFCAT}")"
+   then
+      fail "Please install dos2unix for tests"
+   fi
 
    log_setting "CRLFCAT             : ${CRLFCAT}"
    log_setting "EXE_EXTENSION       : ${EXE_EXTENSION}"
@@ -204,7 +200,8 @@ test::environment::setup_development_platform()
 
    local target_platform 
 
-   target_platform="${MULLE_CRAFT_PLATFORMS%%:*}"
+   target_platform="${MULLE_PLATFORM}"
+   target_platform="${target_platform:-MULLE_CRAFT_PLATFORMS%%:*}"
    target_platform="${target_platform:-${MULLE_UNAME}}"
 
    platform::environment::__get_fix_definitions "${target_platform}"
@@ -271,11 +268,11 @@ test::environment::r_get_environmentfile()
    local varname="$2"
    local fallback="$3"
 
-   RVAL="${name}.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
+   RVAL="${name}.${varname}.${MULLE_PLATFORM}.${MULLE_ARCH}"
    if [ ! -f "${RVAL}" ]
    then
       log_debug "\"${RVAL}\" not present"
-      RVAL="${name}.${varname}.${MULLE_UNAME}"
+      RVAL="${name}.${varname}.${MULLE_PLATFORM}"
       if [ ! -f "${RVAL}" ]
       then
          log_debug "\"${RVAL}\" not present"
@@ -287,11 +284,11 @@ test::environment::r_get_environmentfile()
             if [ ! -f "${RVAL}" ]
             then
                log_debug "\"${RVAL}\" not present"
-               RVAL="default.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
+               RVAL="default.${varname}.${MULLE_PLATFORM}.${MULLE_ARCH}"
                if [ ! -f "${RVAL}" ]
                then
                   log_debug "\"${RVAL}\" not present"
-                  RVAL="default.${varname}.${MULLE_UNAME}"
+                  RVAL="default.${varname}.${MULLE_PLATFORM}"
                   if [ ! -f "${RVAL}" ]
                   then
                      log_debug "\"${RVAL}\" not present"
@@ -334,11 +331,11 @@ test::environment::r_get_test_datafile()
    local name="$2"
    local fallback="$3"
 
-   RVAL="${name}.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
+   RVAL="${name}.${varname}.${MULLE_PLATFORM}.${MULLE_ARCH}"
    if [ ! -f "${RVAL}" ]
    then
       log_debug "\"${RVAL}\" not present"
-      RVAL="${name}.${varname}.${MULLE_UNAME}"
+      RVAL="${name}.${varname}.${MULLE_PLATFORM}"
       if [ ! -f "${RVAL}" ]
       then
          log_debug "\"${RVAL}\" not present"
@@ -350,11 +347,11 @@ test::environment::r_get_test_datafile()
             if [ ! -f "${RVAL}" ]
             then
                log_debug "\"${RVAL}\" not present"
-               RVAL="default.${varname}.${MULLE_UNAME}.${MULLE_ARCH}"
+               RVAL="default.${varname}.${MULLE_PLATFORM}.${MULLE_ARCH}"
                if [ ! -f "${RVAL}" ]
                then
                   log_debug "\"${RVAL}\" not present"
-                  RVAL="default.${varname}.${MULLE_UNAME}"
+                  RVAL="default.${varname}.${MULLE_PLATFORM}"
                   if [ ! -f "${RVAL}" ]
                   then
                      log_debug "\"${RVAL}\" not present"
@@ -407,18 +404,19 @@ test::environment::setup_development_environment()
 {
    log_entry "test::environment::setup_development_environment" "$@"
 
-   local platform="$1"
+   local uname="$1"
+   local platform="${2:-${uname}}"
 
    #
    # MULLE_TEST_OBJC_DIALECT to be set in environment
    #
-   eval `mulle-platform environment --platform "$1" --build-tools`
+   eval `mulle-platform environment --platform "${platform}" --build-tools`
 
-#   test::environment::setup_tooling     "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
+#   test::environment::setup_tooling     "${uname}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}"
    test::environment::setup_development_platform "${platform}"
-   test::environment::setup_compiler    "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" "${MULLE_TEST_OBJC_DIALECT}"
-   test::environment::setup_debugger    "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
-   test::environment::setup_environment "${platform}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
+   test::environment::setup_compiler    "${uname}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" "${MULLE_TEST_OBJC_DIALECT}"
+   test::environment::setup_debugger    "${uname}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
+   test::environment::setup_environment "${uname}" "${PROJECT_LANGUAGE}" "${PROJECT_DIALECT}" # after tooling
 
    log_setting "DEBUGGER            : ${DEBUGGER}"
    log_setting "DEBUG_EXE_EXTENSION : ${DEBUG_EXE_EXTENSION}"

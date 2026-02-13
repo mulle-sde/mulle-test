@@ -57,17 +57,17 @@ MULLE_TEST_LOGGING_SH='included'
 #
 #   if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN}" != 'YES' ]
 #   then
-#      local rval
+#      local rc
 #
 #      ( eval "$@" ) > "${output}" 2>&1
-#      rval=$?
+#      rc=$?
 #
 #      if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
 #      then
 #         cat "${output}" >&2 # get stderr mixed in :/
 #      fi
 #
-#      return $rval
+#      return $rc
 #   fi
 #}
 
@@ -139,17 +139,17 @@ test::logging::err_redirect_grepping_eval_exekutor()
 
    if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN:-}" != 'YES' ]
    then
-      local rval
+      local rc
 
       ( eval "$@" )  2>&1 | tee "${output}" | test::logging::grep_warning_error
-      rval=$?
+      rc=$?
 
       if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
       then
          cat "${output}" >&2 # get stderr mixed in :/
       fi
 
-      return $rval
+      return $rc
    fi
 }
 
@@ -198,19 +198,19 @@ test::logging::full_redirekt_eval_exekutor()
 
    if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN:-}" != 'YES' ]
    then
-      local rval
+      local rc
 
       # Use env command to set environment variables only for the final executable
       # This prevents the environment from affecting intermediate commands like /usr/bin/env
       ( eval "$@" ) < "${stdin}" > "${stdout}" 2> "${stderr}"
-      rval=$?
+      rc=$?
 
       if [ "${MULLE_FLAG_LOG_EXEKUTOR}" = 'YES' ]
       then
          cat "${stderr}" >&2
       fi
 
-      return $rval
+      return $rc
    fi
 }
 
@@ -235,14 +235,14 @@ test::logging::full_redirekt_eval_tee_exekutor()
 
    if [ "${MULLE_FLAG_EXEKUTOR_DRY_RUN:-}" != 'YES' ]
    then
-      local rval
+      local rc
 
       # Use env command to set environment variables only for the final executable
       # This prevents the environment from affecting intermediate commands like /usr/bin/env
       ( eval "$@" ) < "${stdin}" 2> >(tee "${stderr}" >&2) > >(tee "${stdout}")
-      rval=$?
+      rc=$?
 
-      return $rval
+      return $rc
    fi
 }
 

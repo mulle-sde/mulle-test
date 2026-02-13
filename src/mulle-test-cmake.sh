@@ -237,9 +237,6 @@ test::cmake::eval_mulle_make()
       cmake_c_flags="${RVAL}"
    fi
    
-   r_concat "${cmake_c_flags}" "-DMULLE_INCLUDE_DYNAMIC=1"
-   cmake_c_flags="${RVAL}"
-
    # add sanitizer flags
    if test::cmake::r_c_sanitizer_flags "${SANITIZER}"
    then
@@ -372,14 +369,14 @@ test::cmake::eval_mulle_make()
       MULLE_FLAG_LOG_EXEKUTOR='YES'
    fi
 
-   local rval
+   local rc
 
    eval_exekutor "${environment}" "${cmd}" "${argv}"
-   rval=$?
+   rc=$?
 
    MULLE_FLAG_LOG_EXEKUTOR="${old_MULLE_FLAG_LOG_EXEKUTOR}"
 
-   return $rval
+   return $rc
 }
 
 
