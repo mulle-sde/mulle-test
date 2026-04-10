@@ -15,7 +15,7 @@ allocation traces in the output and logs.
 When a zombie object gets message you will get an abort. This may already
 be helpful enough, when you sift through the log file:
 
-`<leakaddress> <path>/<testname>.test.stderr`
+`<leakaddress> <path>/<testname>.tmp.stderr`
 
 Read the GDB HOWTO how to get a stacktrace.
 

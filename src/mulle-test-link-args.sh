@@ -56,16 +56,31 @@ EOF
 
 
 
+test::link_args::r_linkfile_path()
+{
+   local dependency_dir="$1"
+   local platform="$2"
+   local sdk="${3:-Default}"
+   local configuration="${4:-Debug}"
+
+   local style
+
+   style="${sdk}-${platform}-${configuration}"
+   r_filepath_concat "${dependency_dir}" "etc" "link--${style}"
+   # return 1 if file doesn't exist
+   [ -f "${RVAL}" ]
+}
+
+
 test::link_args::main()
 {
    log_entry "test::link_args::main" "$@"
 
    local OPTION_STARTUP='DEFAULT'
-   local OPTION_PLATFORM="${MULLE_PLATFORM}"
-   local OPTION_CONFIGURATION="${OPTION_CONFIGURATION:-Debug}"
-   local OPTION_SDK="${OPTION_SDK:-Default}"
+   local OPTION_PLATFORM="${TEST_PLATFORM}"
+   local OPTION_CONFIGURATION="${TEST_CONFIGURATION}"
+   local OPTION_SDK="${TEST_SDK}"
    local OPTION_TERSE
-
 
    while [ $# -ne 0 ]
    do
@@ -131,9 +146,30 @@ test::link_args::main()
    r_filepath_concat "${DEPENDENCY_DIR}" "etc" "link--${style}"
    LINKORDER_FILE="${RVAL}"
 
-   if [ ! -f "${LINKORDER_FILE}" ]
+   if ! test::link_args::r_linkfile_path "${DEPENDENCY_DIR}" \
+                                         "${OPTION_PLATFORM}" \
+                                         "${OPTION_SDK}" \
+                                         "${OPTION_CONFIGURATION}"
    then
-      fail "Link command file ${C_RESET_BOLD}${LINKORDER_FILE#${MULLE_USER_PWD}/}${C_ERROR} is missing"$'\n'"${C_INFO}A ${C_RESET_BOLD}mulle-sde test craft${C_INFO} is needed."
+      LINKORDER_FILE="${RVAL}"
+      local craft_cmd="mulle-sde test craft"
+
+      if [ "${OPTION_SDK}" != "Default" ]
+      then
+         craft_cmd="${craft_cmd} --sdk ${OPTION_SDK}"
+      fi
+
+      if [ "${OPTION_CONFIGURATION}" != "Debug" ]
+      then
+         craft_cmd="${craft_cmd} --configuration ${OPTION_CONFIGURATION}"
+      fi
+
+      if [ "${OPTION_PLATFORM}" != "${MULLE_UNAME}" ]
+      then
+         craft_cmd="${craft_cmd} --platform ${OPTION_PLATFORM}"
+      fi
+
+      fail "Link command file ${C_RESET_BOLD}${LINKORDER_FILE#${MULLE_USER_PWD}/}${C_ERROR} is missing"$'\n'"${C_INFO}Needed for platform ${C_RESET_BOLD}${OPTION_PLATFORM}${C_INFO}, configuration ${C_RESET_BOLD}${OPTION_CONFIGURATION}${C_INFO}."$'\n'"${C_INFO}Run ${C_RESET_BOLD}${craft_cmd}${C_INFO} to generate it."
    fi
 
    case "${1:-cat}" in

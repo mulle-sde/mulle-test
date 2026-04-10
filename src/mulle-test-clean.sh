@@ -107,7 +107,7 @@ test::clean::main()
    while read -r file
    do
      remove_file_if_present "$file"
-   done < <(find * -type f \( -name "*.test.stderr" -o -name "*.test.stdout" -o -name "*.test.ccerr" \))
+   done < <(find * -type f \( -name "*.tmp.stderr" -o -name "*.tmp.stdout" -o -name "*.tmp.ccerr" \))
 
    log_verbose "Cleaning test coverage"
    while read -r file

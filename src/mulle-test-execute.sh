@@ -57,16 +57,18 @@ EOF
 
 test::execute::r_add_bin_lib_to_custompath()
 {
-   local name="$1"
-   local platform="$2"
-   local configuration="$3"
-   local custompath="${4:-}"
+   local addiction_flag="$1"
+   local sdk="$2"
+   local platform="$3"
+   local configuration="$4"
+   local custompath="${5:-}"
 
    local bindir
 
-   bindir="$(rexekutor mulle-craft searchpath --platform "${platform}" \
+   bindir="$(rexekutor mulle-craft searchpath --sdk "${sdk}" \
+                                              --platform "${platform}" \
                                               --configuration "${configuration}" \
-                                              --no-addiction \
+                                              ${addiction_flag} \
                                               --if-exists \
                                               binary)"
 
@@ -75,9 +77,10 @@ test::execute::r_add_bin_lib_to_custompath()
 
    local libdir
 
-   libdir="$(rexekutor mulle-craft searchpath --platform "${platform}" \
+   libdir="$(rexekutor mulle-craft searchpath --sdk "${sdk}" \
+                                              --platform "${platform}" \
                                               --configuration "${configuration}" \
-                                              --no-addiction \
+                                              ${addiction_flag} \
                                               --if-exists \
                                               library)"
 
@@ -107,15 +110,17 @@ test::execute::r_windows_custompath()
    #
    # add addiction/lib and dependency/lib to PATH for dlls
    #
-   test::execute::r_add_bin_lib_to_custompath "${DEPENDENCY_DIR:-dependency}" \
-                                              "${MULLE_PLATFORM:-windows}" \
-                                              "${OPTION_CONFIGURATION:-Debug}" \
+   test::execute::r_add_bin_lib_to_custompath --no-addiction \
+                                              "${TEST_SDK}" \
+                                              "${TEST_PLATFORM}" \
+                                              "${TEST_CONFIGURATION}" \
                                               "${custompath}"
    custompath="${RVAL}"
 
-   test::execute::r_add_bin_lib_to_custompath "${ADDICTION_DIR:-addiction}" \
-                                              "${MULLE_PLATFORM:-windows}" \
-                                              "" \
+   test::execute::r_add_bin_lib_to_custompath --only-addiction \
+                                              "${TEST_SDK}" \
+                                              "${TEST_PLATFORM}" \
+                                              "${TEST_CONFIGURATION}" \
                                               "${custompath}"
    custompath="${RVAL}"
 
@@ -125,6 +130,34 @@ test::execute::r_windows_custompath()
       r_colon_concat "${insertlibpath}" "${custompath}"
       custompath="${RVAL}"
    fi
+
+   #
+   # Add cross-compiler runtime DLLs (e.g. libwinpthread-1.dll) to path
+   #
+   local platform_upper
+   local cross_compiler_root
+   local cross_triplet
+   local cross_bin
+
+   r_uppercase "${TEST_PLATFORM}"
+   platform_upper="${RVAL}"
+
+   r_shell_indirect_expand "MULLE_CRAFT_CROSS_COMPILER_ROOT__${platform_upper}"
+   cross_compiler_root="${RVAL}"
+
+   r_shell_indirect_expand "MULLE_SDE_PLATFORM_TRIPLET__${platform_upper}"
+   cross_triplet="${RVAL:-x86_64-w64-mingw32}"
+
+   if [ ! -z "${cross_compiler_root}" ]
+   then
+      cross_bin="${cross_compiler_root}/${cross_triplet}/bin"
+      if [ -d "${cross_bin}" ]
+      then
+         r_colon_concat "${cross_bin}" "${custompath}"
+         custompath="${RVAL}"
+      fi
+   fi
+
    RVAL="${custompath}"   
 }
 
@@ -180,29 +213,37 @@ test::execute::a_out()
    # MEMO: need to add windows bin dir most likely here
    local platform
 
-   platform="${MULLE_PLATFORM}"
-   if [ "${MULLE_PLATFORM}" = "${MULLE_UNAME}" ]
+   platform="${TEST_PLATFORM}"
+   if [ "${TEST_PLATFORM}" = "${MULLE_UNAME}" ]
    then
       platform=""
    fi
 
-   local libdir
+   local libpath
 
-   libdir="$(rexekutor mulle-craft searchpath --platform "${platform}" \
-                                              --configuration "${library}" \
+   libpath="$(rexekutor mulle-craft searchpath \
+                                       --sdk "${TEST_SDK}" \
+                                       --platform "${platform}" \
+                                       --configuration "${TEST_CONFIGURATION}" \
+                                       --no-addiction \
+                                       library)"
+
+   log_setting "libpath=${libpath}"
+
+   local frameworkspath
+
+   frameworkspath="$(rexekutor mulle-craft searchpath \
+                                              --sdk "${TEST_SDK}" \
+                                              --platform "${platform}" \
+                                              --configuration "${TEST_CONFIGURATION}" \
                                               --no-addiction \
-                                              library)"
-
-   log_setting "libdir=${libdir}"
-
-   local frameworksdir
-
-   frameworksdir="$(rexekutor mulle-craft searchpath --platform "${platform}" \
-                                                     --configuration "${library}" \
-                                                     --no-addiction \
-                                                     framework)"
+                                              framework)"
 
    log_setting "frameworksdir=${frameworksdir}"
+
+   [ -z "${DEPENDENCY_DIR}" ]      && _internal_fail "DEPENDENCY_DIR is empty"
+   [ -z "${SHAREDLIB_EXTENSION}" ] && _internal_fail "SHAREDLIB_EXTENSION is empty"
+   [ -z "${libpath}" ]             && log_warning "libpath is empty"
 
    ###
    #
@@ -210,6 +251,7 @@ test::execute::a_out()
    #
 
    local insertlibpath
+   local found
 
    case ":${SANITIZER}:" in
       *:gmalloc:*)
@@ -226,14 +268,26 @@ test::execute::a_out()
    case ":${SANITIZER}:" in
       *:testallocator:*)
          local filepath
+         local filename
 
-         filepath="${libdir}/${SHAREDLIB_PREFIX}mulle-testallocator${SHAREDLIB_EXTENSION}"
-         if [ -f "${filepath}" ]
+         filename="${SHAREDLIB_PREFIX}mulle-testallocator${SHAREDLIB_EXTENSION}"
+         found='NO'
+         .foreachpath libdir in ${libpath}
+         .do
+            r_filepath_concat "${libdir}" "${filename}"
+            filepath="{RVAL}"
+
+            if [ -f "${filepath}" ]
+            then
+               r_colon_concat "${insertlibpath}" "${filepath}"
+               insertlibpath="${RVAL}"
+               found='YES'
+               .break
+            fi
+         .done
+         if [ "${found}" = 'NO' ]
          then
-            r_colon_concat "${insertlibpath}" "${filepath}"
-            insertlibpath="${RVAL}"
-         else
-            log_verbose "\"${filepath#"${MULLE_USER_PWD}/"}\" not found, memory checks will be unavailable"
+            log_verbose "\"${filename}\" not found, memory checks will be unavailable"
             SANITIZER="${SANITIZER/testallocator/}"
             r_remove_ugly "${SANITIZER}" ":"
             SANITIZER="${RVAL}"
@@ -245,7 +299,7 @@ test::execute::a_out()
 
    case ":${SANITIZER}:" in
       *:coverage:*)
-         r_concat "${environment}" "LLVM_PROFILE_FILE='${a_out_ext%.exe}.${MULLE_PLATFORM}.profraw'"
+         r_concat "${environment}" "LLVM_PROFILE_FILE='${a_out_ext%.exe}.${TEST_PLATFORM}.profraw'"
          environment="${RVAL}"
       ;;
    esac
@@ -400,13 +454,6 @@ MULLE_ATINIT_FAILURE=0"
       ;;
    esac
 
-   local platform
-
-   platform="${MULLE_PLATFORM}"
-   if [ "${MULLE_PLATFORM}" = "${MULLE_UNAME}" ]
-   then
-      platform=""
-   fi
 
    # Check if cross-compiling and emulator is needed
    # TODO: need a proper "current" platform
@@ -961,8 +1008,8 @@ test::execute::run()
 
    if [ "${MULLE_VIBECODING}" = 'YES' ]
    then
-      output="${name}.test.stdout"
-      errput="${name}.test.stderr"
+      output="${name}.tmp.stdout"
+      errput="${name}.tmp.stderr"
       log_vibe "stdout will be redirected \"${output}\" and stderr will be redirected to \"${errput}\""
    else
       [ -z "${MULLE_TEST_VAR_DIR}" ] && _internal_fail "MULLE_TEST_VAR_DIR undefined"
@@ -1092,6 +1139,7 @@ test::execute::main()
    local args
    local diff
    local cat
+   local crlfcat
    local c_flags
    local pretty_source
 
@@ -1161,6 +1209,13 @@ test::execute::main()
             shift
 
             cat="$1"
+         ;;
+
+         --crlfcat)
+            [ $# -eq 1 ] && test::execute::usage "missing argument to \"$1\""
+            shift
+
+            crlfcat="$1"
          ;;
 
          --keep-exe)
@@ -1252,6 +1307,12 @@ test::execute::main()
       cat="${RVAL}"
    fi
 
+   if [ -z "${crlfcat}" ]
+   then
+      test::environment::r_get_test_datafile "crlfcat" "${name}" ""
+      crlfcat="${RVAL}"
+   fi
+
    local args_text
    local file_args
 
@@ -1298,6 +1359,18 @@ test::execute::main()
 
       CAT="`command -v ${cat}`"
       [ -z "${CAT}" ] && fail "There is no ${cat} installed on this system"
+
+      # ok so crlfcat has already special handling, we may override though
+      if [ ! -z "${crlfcat}" ]
+      then
+         if [ -x "${PWD}/${crlfcat}" ]
+         then
+            CRLFCAT="${PWD}/${crlfcat}"
+         else
+            CRLFCAT="`command -v ${crlfcat}`"
+            [ -z "${CRLFCAT}" ] && fail "There is no ${crlfcat} installed on this system"
+         fi
+      fi
 
       test::execute::run "${a_out}" \
                          "${args_text}" \

@@ -86,7 +86,7 @@ test::cmake::r_ld_sanitizer_flags()
       # MEMO: only produce coverage files for the shared library we
       #       are testing, not for the tests themselves
       *:coverage:*)
-         RVAL="-lgcov"
+         RVAL="--coverage"
          return 0
       ;;
    esac
@@ -204,9 +204,9 @@ test::cmake::eval_mulle_make()
    log_setting "DEPENDENCY_DIR=${DEPENDENCY_DIR}"
    log_setting "ADDICTION_DIR=${ADDICTION_DIR}"
    log_setting "MULLE_VIRTUAL_ROOT=${MULLE_VIRTUAL_ROOT}"
-   log_setting "OPTION_CONFIGURATION=${OPTION_CONFIGURATION}"
+   log_setting "TEST_CONFIGURATION=${TEST_CONFIGURATION}"
    
-   test::flagbuilder::r_include_cflags ""
+   test::compiler::r_include_cflags ""
    cmake_c_flags="${RVAL}"
    
    log_setting "cmake_c_flags after r_include_cflags=${cmake_c_flags}"
@@ -308,6 +308,56 @@ test::cmake::eval_mulle_make()
    cmd="${RVAL}"
    r_concat "${cmd}" "--clean"
    cmd="${RVAL}"
+
+   # Add toolchain for cross-compilation only
+   if [ ! -z "${TEST_PLATFORM}" -a "${TEST_PLATFORM}" != "${MULLE_UNAME}" ]
+   then
+      local platform_upper
+      r_uppercase "${TEST_PLATFORM}"
+      platform_upper="${RVAL}"
+
+      local triplet
+      r_shell_indirect_expand "MULLE_SDE_PLATFORM_TRIPLET__${platform_upper}"
+      triplet="${RVAL}"
+      triplet="${triplet:-x86_64-w64-mingw32}"
+
+      local build_os
+      build_os="${MULLE_UNAME:-linux}"
+
+      local toolchain_name
+      toolchain_name="toolchain--${build_os}-${TEST_PLATFORM}--${triplet}--mulle-clang"
+
+      # Search for toolchain file - start from current dir and walk up to project root
+      local toolchain_path
+      local search_dir
+      search_dir="${PWD}"
+
+      while [ "${search_dir}" != "/" ]
+      do
+         # Check test/cmake first (for test projects)
+         if [ -f "${search_dir}/test/cmake/${toolchain_name}.cmake" ]
+         then
+            toolchain_path="${search_dir}/test/cmake/${toolchain_name}.cmake"
+            break
+         fi
+         # Then check cmake/share (for main projects)
+         if [ -f "${search_dir}/cmake/share/${toolchain_name}.cmake" ]
+         then
+            toolchain_path="${search_dir}/cmake/share/${toolchain_name}.cmake"
+            break
+         fi
+         r_dirname "${search_dir}"
+         search_dir="${RVAL}"
+      done
+
+      if [ -z "${toolchain_path}" ]
+      then
+         toolchain_path="${toolchain_name}"
+      fi
+
+      test::cmake::r_add_flag "${cmd}" "--toolchain" "${toolchain_path}"
+      cmd="${RVAL}"
+   fi
 
 #  case "${build_type}" in
 #     Test)
@@ -436,7 +486,19 @@ test::cmake::fail_test()
    (
       exekutor cd "${directory}" &&
       test::cmake::eval_mulle_make "Debug" "$@" &&
-      exekutor cp -p "${TEST_KITCHEN_DIR:-kitchen}/${produced}" "./${final}"
+      # Handle Windows cross-compilation double .exe extension
+      local built_file="${produced}"
+      if [ "${is_exe}" = 'YES' ] && [ ! -f "${TEST_KITCHEN_DIR:-kitchen}/${produced}" ]
+      then
+         if [ -f "${TEST_KITCHEN_DIR:-kitchen}/${produced}.exe" ]
+         then
+            built_file="${produced}.exe"
+         else
+            # Linux: no .exe extension
+            built_file="${built_file%.exe}"
+         fi
+      fi &&
+      exekutor cp -p "${TEST_KITCHEN_DIR:-kitchen}/${built_file}" "./${final}"
    )
 
    r_absolutepath "${directory}"
@@ -488,14 +550,23 @@ test::cmake::run()
          set -- "${flags}" "$@"
       fi
 
-      test::cmake::eval_mulle_make "${OPTION_CONFIGURATION:-Test}" "$@" || exit 1
+      # ensure this is gone, force recompile
+      rmdir_safer "${TEST_KITCHEN_DIR:-kitchen}"
+
+      test::cmake::eval_mulle_make "${TEST_CONFIGURATION}" "$@" || exit 1
 
       #
       # check if it produces a shlib or an exe
       #
       if [ "${is_exe}" = 'YES' ]
       then
-         exekutor cp -p "${TEST_KITCHEN_DIR:-kitchen}/${executable}" "./${executable}"
+         # Handle Windows cross-compilation double .exe extension
+         local built_exe="${executable}"
+         if [ ! -f "${TEST_KITCHEN_DIR:-kitchen}/${executable}" ] && [ -f "${TEST_KITCHEN_DIR:-kitchen}/${executable}.exe" ]
+         then
+            built_exe="${executable}.exe"
+         fi
+         exekutor cp -p "${TEST_KITCHEN_DIR:-kitchen}/${built_exe}" "./${executable}"
       else
          exekutor cp -p "${TEST_KITCHEN_DIR:-kitchen}/${shlib}" "./${shlib}"
       fi

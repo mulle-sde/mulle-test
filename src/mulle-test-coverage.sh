@@ -48,6 +48,65 @@ EOF
 }
 
 
+#
+# Read the gcov format version from a .gcno file header (bytes 4-7)
+# and find a matching gcov-N executable. The version is e.g. "*11B"
+# meaning GCC 11 format. Returns the gcov executable path in RVAL.
+#
+test::coverage::r_find_matching_gcov()
+{
+   log_entry "test::coverage::r_find_matching_gcov" "$@"
+
+   local objroot="$1"
+
+   local gcno_file
+
+   gcno_file="$(find "${objroot}" -name "*.gcno" -print -quit 2>/dev/null)"
+   if [ -z "${gcno_file}" ]
+   then
+      log_verbose "No .gcno files found, using default gcov"
+      RVAL="gcov"
+      return 0
+   fi
+
+   #
+   # bytes 4-7 of .gcno are the version e.g. 2a 31 31 42 = "*11B"
+   # the two middle bytes (5-6) are the GCC major version as ASCII digits
+   #
+   local gcno_version
+
+   gcno_version="$(dd if="${gcno_file}" bs=1 skip=5 count=2 2>/dev/null)"
+   if [ -z "${gcno_version}" ]
+   then
+      RVAL="gcov"
+      return 0
+   fi
+
+   # check if default gcov already matches
+   local default_version
+
+   default_version="$(gcov --version 2>/dev/null | sed -n 's/^gcov.* \([0-9][0-9]*\)\..*/\1/p')"
+   if [ "${default_version}" = "${gcno_version}" ]
+   then
+      log_verbose "Default gcov (${default_version}) matches .gcno format"
+      RVAL="gcov"
+      return 0
+   fi
+
+   # try gcov-<version>
+   if command -v "gcov-${gcno_version}" > /dev/null 2>&1
+   then
+      log_verbose "Using gcov-${gcno_version} to match .gcno format (default gcov is ${default_version:-unknown})"
+      RVAL="gcov-${gcno_version}"
+      return 0
+   fi
+
+   log_warning "gcov format is GCC ${gcno_version} but only gcov ${default_version:-unknown} is available (gcov-${gcno_version} not found)"
+   RVAL="gcov"
+   return 0
+}
+
+
 test::coverage::copy_object_files()
 {
    log_entry "test::coverage::copy_object_files" "$@"
@@ -202,21 +261,48 @@ test::coverage::main()
    local exe
    local exename
 
-   if ! exe="`command -v "$1"`"
+   # For llvm-cov and mulle-cov, try versioned variants if unversioned not found
+   local tool="$1"
+   if ! exe="`command -v "${tool}"`"
    then
-      fatal "coverage tool \"$1\" is not in PATH"
+      case "${tool}" in
+         mulle-cov|llvm-cov)
+            local _v
+            for _v in 18 17 16 15 14
+            do
+               if exe="`command -v "llvm-cov-${_v}"`"
+               then
+                  break
+               fi
+               exe=''
+            done
+         ;;
+      esac
+      if [ -z "${exe}" ]
+      then
+         fail "coverage tool \"${tool}\" is not in PATH"
+      fi
    fi
    shift
 
    r_extensionless_basename "${exe}"
    exename="${RVAL}"
+   # strip version suffix and normalize for case matching
+   case "${exename}" in
+      llvm-cov-*)
+         exename="llvm-cov"
+      ;;
+      mulle-cov)
+         exename="llvm-cov"
+      ;;
+   esac
 
    local OBJROOT
    local SRCROOT
    local OBJFLATROOT
 
    OBJROOT="`rexekutor mulle-craft ${MULLE_TECHNICAL_FLAGS} craftorder-kitchen-dir "${TEST_PROJECT_NAME:-${PROJECT_NAME}}"`" \
-   || fatal "could not find object files for ${TEST_PROJECT_NAME:-${PROJECT_NAME}}"
+   || fail "could not find object files for ${TEST_PROJECT_NAME:-${PROJECT_NAME}}"
    # remove cruft that will give us warnings
    exekutor find "${OBJROOT}" -name "*CMakeCCompilerId.gcno" -exec rm {} \;
    SRCROOT="`( cd .. ; mulle-sde source-dir)`"
@@ -237,18 +323,19 @@ test::coverage::main()
          then
             log_verbose "Using options ${C_RESET_BOLD}${gcovroptions}${C_VERBOSE} found in ${C_RESET_BOLD}.gcovr-options"
          fi
-#         include "test::run"
-#
-#         test::run::r_all_test_roots 'YES' ':'
-#         roots="${RVAL}"
-#
-#         test::coverage::r_gcov_prepare_objects "${OBJROOT}:${roots}"
-#         OBJFLATROOT="${RVAL}"
-#
-#         test::coverage::r_gcov_prepare_sources "${SRCROOT}:${roots}"
-#         SRCFLATROOT="${RVAL}"
 
-         exekutor "${exe}" --object-directory="${OBJROOT}" \
+         local gcov_exe
+
+         test::coverage::r_find_matching_gcov "${OBJROOT}"
+         gcov_exe="${RVAL}"
+
+         if [ "${gcov_exe}" != "gcov" ]
+         then
+            log_info "Using ${C_RESET_BOLD}${gcov_exe}${C_INFO} to match .gcno format"
+         fi
+
+         exekutor "${exe}" --gcov-executable="${gcov_exe}" \
+                           --object-directory="${OBJROOT}" \
                            --root="${SRCROOT}" \
                            ${gcovroptions} \
                            "$@"
@@ -259,7 +346,33 @@ test::coverage::main()
          return $rc
       ;;
 
+      llvm-cov)
+         # Use gcovr with llvm-cov gcov as the gcov executable.
+         # llvm-cov gcov understands clang's .gcno/.gcda format.
+         local gcovr_exe
+         if ! gcovr_exe="`command -v gcovr`"
+         then
+            fail "gcovr not found in PATH (needed for llvm-cov mode)"
+         fi
+
+         local gcovroptions
+         if gcovroptions="`grep -E -v '^#' .gcovr-options 2> /dev/null`"
+         then
+            log_verbose "Using options ${C_RESET_BOLD}${gcovroptions}${C_VERBOSE} found in ${C_RESET_BOLD}.gcovr-options"
+         fi
+
+         exekutor "${gcovr_exe}" --gcov-executable="${exe} gcov" \
+                                 --object-directory="${OBJROOT}" \
+                                 --root="${SRCROOT}" \
+                                 ${gcovroptions} \
+                                 "$@"
+         return $?
+      ;;
+
       gcov)
+         test::coverage::r_find_matching_gcov "${OBJROOT}"
+         exe="${RVAL}"
+
          test::coverage::r_gcov_prepare_objects "${OBJROOT}"
          OBJFLATROOT="${RVAL}"
 
@@ -272,8 +385,9 @@ test::coverage::main()
       ;;
 
       *)
-         test::coverage::r_gcov_prepare "${SRCROOT}" "${OBJROOT}"
-         export OBJFLATROOT="${RVAL}"
+         test::coverage::r_gcov_prepare_objects "${OBJROOT}"
+         OBJFLATROOT="${RVAL}"
+         export OBJFLATROOT
          export OBJROOT
          export SRCROOT
          exekutor "${exe}" "$@"

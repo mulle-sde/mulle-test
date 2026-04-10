@@ -48,14 +48,15 @@ mulle_show_help()
     cat << EOF
 Usage: $0 [OPTIONS] <timeout_seconds> [var=value]* <command...>
 
-You can also define environment variables before the command.
-
+   You can also define environment variables before the command.
+   Use <timeout_seconds> 0 for no timeout.
 
 Options:
   -h, --help            Show this help message and exit
   --version             Show version info and exit
   -s, --signal=SIGNAL   Specify the signal to be sent on timeout (default: KILL)
-  -v, --verbose         Output verbose information about signals
+  -v, --verbose         Output verbose information 
+  -t, --terse           Only the return value indicates timeout
 EOF
 }
 
@@ -67,7 +68,7 @@ mulle_show_version()
 
 # Default values
 signal="KILL"
-verbose=0
+verbose=1
 timeout_seconds=""
 cmd=""
 
@@ -108,28 +109,37 @@ mulle_start_timeout_process()
         if kill -0 "$1" 2>/dev/null
         then
             kill -$signal_num -$1 2>/dev/null
-            if [ $verbose -eq 1 ]
+            if [ $verbose -gt 1 ]
             then
                 echo "Timeout: sent $signal_num to process group $1"  >&2
             fi
         else
-           if [ $verbose -eq 1 ]
+           if [ $verbose -gt 1 ]
            then
               echo "Process $1 already finished"  >&2
            fi
         fi
     ) &
     timeout_pid=$!
-    if [ $verbose -eq 1 ]
+    if [ $verbose -gt 1 ]
     then
        echo "Timeout process $timeout_pid started" >&2
     fi
 }
 
+# Kill child process group (always use TERM, INT is ignored by non-interactive bash)
+mulle_kill_child()
+{
+   if [ -n "${cmd_pid}" ] && kill -0 "$cmd_pid" 2>/dev/null
+   then
+      kill -TERM -"$cmd_pid" 2>/dev/null || kill -TERM "$cmd_pid" 2>/dev/null
+   fi
+}
+
 # Run the command in a subshell
 mulle_run_command_in_subshell()
 {
-   if [ $verbose -eq 1 ]
+   if [ $verbose -gt 1 ]
    then
        echo "Start process: $*" >&2
    fi
@@ -176,17 +186,21 @@ mulle_run_command_in_subshell()
    done
 
    # not exporting LD_PRELOAD protects our own shell
-   # Create new process group - use setsid if available, otherwise job control
-   if command -v setsid >/dev/null 2>&1; then
+   # Create new process group - use setsid if available, otherwise use
+   # perl POSIX::setsid (macOS has no setsid command but always has perl)
+   if command -v setsid >/dev/null 2>&1
+   then
        setsid bash -c "${cmdline}" 0<&0 &
    else
-       bash -c "set -m; ${cmdline}" 0<&0 &
+       perl -e 'use POSIX; POSIX::setsid(); exec "bash", "-c", $ARGV[0]' "${cmdline}" 0<&0 &
    fi
    cmd_pid=$!
 
-   set +x
+   # Trap INT/TERM to forward to child process group before exiting
+   trap 'mulle_kill_child; exit 130' INT
+   trap 'mulle_kill_child; exit 143' TERM
 
-   if [ $verbose -eq 1 ]
+   if [ $verbose -gt 1 ]
    then
        echo "Process $cmd_pid started" >&2
    fi
@@ -195,6 +209,12 @@ mulle_run_command_in_subshell()
 # Capture exit code of the command and clean up timeout
 mulle_capture_exit_code()
 {
+    # wait can be interrupted by trapped signals, so loop
+    while kill -0 "$cmd_pid" 2>/dev/null
+    do
+       wait "$cmd_pid" 2> /dev/null
+       exit_code=$?
+    done
     wait "$cmd_pid" 2> /dev/null
     exit_code=$?
 }
@@ -208,7 +228,7 @@ mulle_handle_timeout()
     
     if [ "$exit_code" -eq "$expected_exit_code" ]
     then
-        if [ $verbose -eq 1 ]
+        if [ $verbose -ge 1 ]
         then
             echo "Command timed out" >&2
         fi
@@ -239,8 +259,13 @@ mulle_main()
                 signal=$2
                 shift 2
                 ;;
+    
+            -t|--terse)
+                verbose=0
+                shift
+                ;;
             -v|--verbose)
-                verbose=1
+                verbose=2
                 shift
                 ;;
             *)
@@ -264,7 +289,10 @@ mulle_main()
     exit_code=124
 
     # Start the timeout process for the command's PID
-    mulle_start_timeout_process "$cmd_pid"
+    if [ "${timeout_seconds%%[!0-9]*}" -gt 0 ]
+    then
+       mulle_start_timeout_process "$cmd_pid"
+    fi
 
     # Wait for the command to finish and capture its exit code
     mulle_capture_exit_code

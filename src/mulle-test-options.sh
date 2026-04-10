@@ -68,7 +68,9 @@ test::options::r_parse()
 {
    log_entry "test::options::r_parse" "$@"
    local shifts=0
+   local rc
 
+   rc=0
    while [ $# -ne 0 ]
    do
       case "$1" in
@@ -144,7 +146,7 @@ test::options::r_parse()
             shifts=$((shifts + 1))
          ;;
 
-         --no-parallel|--serial|--no-parallel)
+         --no-parallel|--serial)
             OPTION_PARALLEL='NO'
             shifts=$((shifts + 1))
          ;;
@@ -170,6 +172,10 @@ test::options::r_parse()
          ;;
 
          --parallel)
+            if [ "${MULLE_TEST_PARALLEL}" = 'NO' ]
+            then
+               fail "Can't use --parallel when MULLE_TEST_PARALLEL is set to NO (MULLE_TEST_PARALLEL)"
+            fi
             OPTION_PARALLEL='YES'
             shifts=$((shifts + 1))
          ;;
@@ -282,8 +288,14 @@ test::options::r_parse()
             break
          ;;
 
+         -h*|--help|help)
+            # dont consume
+            rc=2
+            break
+         ;;
+
          -*)
-            log_debug "Unknown option: $1"
+            fail "Unknown option: $1"
          ;;
 
          *)

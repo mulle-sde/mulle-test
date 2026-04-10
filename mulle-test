@@ -62,7 +62,7 @@ Usage:
    Run tests. Commands take options. Some commands take additional run
    options. Notice the -- separator.
 
-   mulle-test is typically used via \`mulle-sde test\`. Use \`mulle-sde test craft\`
+   mulle-test is to be used via \`mulle-sde test\`. Use \`mulle-sde test craft\`
    to build tests, then \`mulle-sde test run\` to run them.
 
    mulle-test can generate coverage information and supports various sanitizers
@@ -80,15 +80,15 @@ EOF
       options_technical_flags_usage "                   : "
       cat <<EOF
    --dir-name <name>       : specify test directory name (default: test)
+   --dependency-dir <path> : set DEPENDENCY_DIR to <path>
    --no-sanitizer          : no sanitizer
-   --no-clean              : do not clean before crafting
    --coverage              : produce clang coverage information
    --gdb                   : use gdb to run
    --objc-coverage         : produce mulle-objc coverage information
-   --sanitize-address      : use address sanitizer to craft and run
-   --sanitize-thread       : use thread sanitizer to craft and run
-   --sanitize-undefined    : use undefined sanitizer to craft and run
-   --testallocator         : use mulle-testallocator to run (default)
+   --sanitize-address      : use address sanitizer
+   --sanitize-thread       : use thread sanitizer
+   --sanitize-undefined    : use undefined sanitizer
+   --testallocator         : use mulle-testallocator (default)
    --valgrind              : use valgrind to run
    --valgrind-no-leaks     : use valgrind without leak checker run
    --zombie                : use zombie sanitizer
@@ -102,13 +102,13 @@ Commands:
    arch                    : name of current architecture
    clean                   : remove test residue files
    init                    : setup a test project for the current project
-   run                     : run tests (use mulle-sde test for crafting)
+   run                     : run tests
    rerun                   : run failing tests again
    sanitizers              : list available sanitizers for this platform
    test-dir                : locate test folder
 
 Environment:
-   MULLE_TEST_DIR          : tests directory (test)
+   DEPENDENCY_DIR          : dependency root for headers and libraries
    MULLE_TEST_OBJC_DIALECT : use mulle-objc for mulle-clang
    PROJECT_DIALECT         : dialect of the tests, can be objc
    PROJECT_EXTENSIONS      : file extensions of the test files
@@ -180,11 +180,32 @@ test::do_run()
    log_entry "test::do_run" "$@"
 
    local cmd
+   local OPTION_RUN_SCRIPT='YES'
 
    log_verbose "Run tests"
 
+   # Check for --help before doing anything that requires a project environment
+   local arg
+   for arg in "$@"
+   do
+      case "${arg}" in
+         -h|--help|help)
+            include "test::run"
+            test::run::usage
+         ;;
+
+         --no-run-script)
+            OPTION_RUN_SCRIPT='NO'
+         ;;
+
+         --)
+            break
+         ;;
+      esac
+   done
+
    # legacy support :)
-   if [ -x "./run-test" ]
+   if [ "${OPTION_RUN_SCRIPT}" = 'YES' -a -x "./run-test" ]
    then
       cmd="./run-test ${MULLE_TECHNICAL_FLAGS}"
    else
@@ -197,7 +218,6 @@ test::do_run()
    eval `mulle-sde tool-env` || exit 1
 
    [ -z "${DEPENDENCY_DIR}" ] && _internal_fail "DEPENDENCY_DIR not set"
-   [ -z "${KITCHEN_DIR}" ]    && _internal_fail "KITCHEN_DIR not set"
 
    local environment
 
@@ -315,7 +335,7 @@ test::_main()
             [ $# -eq 1 ] && fail "Missing argument to \"$1\""
             shift
 
-            MULLE_PLATFORM="$1"
+            TEST_PLATFORM="$1"
          ;;
 
          --configuration)
@@ -338,6 +358,13 @@ test::_main()
             shift
 
             MULLE_TEST_DIR="$1"
+         ;;
+
+         --dependency-dir)
+            [ $# -eq 1 ] && fail "Missing argument to \"$1\""
+            shift
+
+            DEPENDENCY_DIR="$1"
          ;;
 
          ##
@@ -447,9 +474,16 @@ test::_main()
 
    options_setup_trace "${MULLE_TRACE}" && set -x
 
-   MULLE_PLATFORM="${MULLE_PLATFORM:-${MULLE_TEST_PLATFORMS%%:*}}"
-   MULLE_PLATFORM="${MULLE_PLATFORM:-${MULLE_UNAME}}"
-   export MULLE_PLATFORM
+   TEST_PLATFORM="${TEST_PLATFORM:-${MULLE_TEST_PLATFORMS%%:*}}"
+   TEST_PLATFORM="${TEST_PLATFORM:-${MULLE_UNAME}}"
+   TEST_CONFIGURATION="${OPTION_CONFIGURATION:-Debug}"
+   TEST_SDK="${OPTION_SDK:-Default}"
+
+   [ -z "${TEST_PLATFORM}" ] && fail "TEST_PLATFORM is empty"
+   [ -z "${TEST_CONFIGURATION}" ] && fail "TEST_CONFIGURATION is empty"
+   [ -z "${TEST_SDK}" ] && fail "TEST_SDK is empty"
+
+   export TEST_PLATFORM TEST_CONFIGURATION TEST_SDK
 
    local cmd="$1"
 
@@ -475,7 +509,7 @@ test::_main()
       ;;
 
       'platform')
-         printf "%s\n" "${MULLE_PLATFORM}"
+         printf "%s\n" "${TEST_PLATFORM}"
          exit 0
       ;;
 
@@ -531,7 +565,7 @@ test::_main()
    MULLE_TEST_DIR="${MULLE_TEST_DIR:-${PWD}}"
    MULLE_TEST_VAR_DIR="${MULLE_TEST_DIR}/.mulle/var/${MULLE_HOSTNAME}/${MULLE_USERNAME}/test"
 
-   log_setting "MULLE_PLATFORM=${MULLE_PLATFORM}"
+   log_setting "TEST_PLATFORM=${TEST_PLATFORM}"
    log_setting "MULLE_UNAME=${MULLE_UNAME}"
 
    log_setting "MULLE_TEST_VAR_DIR=${MULLE_TEST_VAR_DIR}"
@@ -540,7 +574,6 @@ test::_main()
    log_setting "SANITIZER=${SANITIZER}"
 
    #
-   # this tells mulle-craft that everything is fine, though
    # .mulle/share/sde/mulle-sde is present, to prevent manual crafting
    # of tests, which is undesirable
    #
@@ -548,6 +581,12 @@ test::_main()
    export MULLE_TEST_ENVIRONMENT
 
    case "${cmd}" in
+      clean)
+         include "test::clean"
+
+         test::clean::main "$@"
+      ;;
+
       run|rerun)
          # Just run tests - crafting is now handled by mulle-sde test
          test::run_or_rerun "${cmd}" "$@"

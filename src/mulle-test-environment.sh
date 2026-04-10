@@ -147,7 +147,7 @@ test::environment::setup_execution_platform()
 
    if ! exe="$(command -v "${CRLFCAT}")"
    then
-      fail "Please install dos2unix for tests"
+      fail "Please install ${C_RESET_BOLD}${CRLFCAT}${C_ERROR} for tests"
    fi
 
    log_setting "CRLFCAT             : ${CRLFCAT}"
@@ -200,9 +200,7 @@ test::environment::setup_development_platform()
 
    local target_platform 
 
-   target_platform="${MULLE_PLATFORM}"
-   target_platform="${target_platform:-MULLE_CRAFT_PLATFORMS%%:*}"
-   target_platform="${target_platform:-${MULLE_UNAME}}"
+   target_platform="${TEST_PLATFORM}"
 
    platform::environment::__get_fix_definitions "${target_platform}"
 
@@ -262,141 +260,98 @@ test::environment::setup_debugger()
 
 
 
-test::environment::r_get_environmentfile()
-{
-   local name="$1"
-   local varname="$2"
-   local fallback="$3"
-
-   RVAL="${name}.${varname}.${MULLE_PLATFORM}.${MULLE_ARCH}"
-   if [ ! -f "${RVAL}" ]
-   then
-      log_debug "\"${RVAL}\" not present"
-      RVAL="${name}.${varname}.${MULLE_PLATFORM}"
-      if [ ! -f "${RVAL}" ]
-      then
-         log_debug "\"${RVAL}\" not present"
-         RVAL="${name}.${varname}.${MULLE_ARCH}"
-         if [ ! -f "${RVAL}" ]
-         then
-            log_debug "\"${RVAL}\" not present"
-            RVAL="${name}.${varname}"
-            if [ ! -f "${RVAL}" ]
-            then
-               log_debug "\"${RVAL}\" not present"
-               RVAL="default.${varname}.${MULLE_PLATFORM}.${MULLE_ARCH}"
-               if [ ! -f "${RVAL}" ]
-               then
-                  log_debug "\"${RVAL}\" not present"
-                  RVAL="default.${varname}.${MULLE_PLATFORM}"
-                  if [ ! -f "${RVAL}" ]
-                  then
-                     log_debug "\"${RVAL}\" not present"
-                     RVAL="default.${varname}.${MULLE_ARCH}"
-                     if [ ! -f "${RVAL}" ]
-                     then
-                        log_debug "\"${RVAL}\" not present"
-                        RVAL="default.${varname}"
-                        if [ ! -f "${RVAL}" ]
-                        then
-                           log_debug "\"${RVAL}\" not present"
-                           RVAL="${fallback}"
-                           if [ -z "${RVAL}" ]
-                           then
-                              return 1
-                           fi
-                           if [ ! -f "${RVAL}" ]
-                           then
-                              log_debug "\"${RVAL}\" not present"
-                              RVAL=
-                              return 1
-                           fi
-                        fi
-                     fi
-                  fi
-               fi
-            fi
-         fi
-      fi
-   fi
-
-   log_debug "\"${RVAL}\" found!"
-   return 0
-}
-
-
 test::environment::r_get_test_datafile()
 {
    local varname="$1"
    local name="$2"
    local fallback="$3"
 
-   RVAL="${name}.${varname}.${MULLE_PLATFORM}.${MULLE_ARCH}"
-   if [ ! -f "${RVAL}" ]
-   then
-      log_debug "\"${RVAL}\" not present"
-      RVAL="${name}.${varname}.${MULLE_PLATFORM}"
-      if [ ! -f "${RVAL}" ]
-      then
-         log_debug "\"${RVAL}\" not present"
-         RVAL="${name}.${varname}.${MULLE_ARCH}"
-         if [ ! -f "${RVAL}" ]
+   [ -z "${TEST_SDK}" ] && _internal_fail "TEST_PLATFORM is empty"
+   [ -z "${TEST_PLATFORM}" ] && _internal_fail "TEST_PLATFORM is empty"
+   [ -z "${TEST_CONFIGURATION}" ] && _internal_fail "TEST_PLATFORM is empty"
+
+   local triplet
+
+   r_concat "${TEST_PLATFORM}" "${TEST_CONFIGURATION}" '-'
+   triplet="${RVAL}"
+
+   r_concat "${TEST_SDK}" "${triplet}" '-'
+   triplet="${RVAL}"
+
+   local first
+   local third
+
+   # avoid multiple "empty" loops
+   local thirds
+
+   r_concat "${triplet}" "${TEST_SDK}"
+   r_concat "${RVAL}" "${TEST_PLATFORM}"
+   r_concat "${RVAL}" "${TEST_CONFIGURATION}"
+   r_concat "${RVAL}" "${MULLE_ARCH}"
+   thirds="${RVAL}"
+
+   #
+   # not sure a glob an subsequent filter is really faster, because glob
+   # has to make a lot of system calls too or ?
+   #
+   for first in "${name}" 'default'
+   do
+      for third in ${thirds} ''
+      do
+         if [ ! -z "${third}" -a "${third}" != "${MULLE_ARCH}" ]
          then
-            log_debug "\"${RVAL}\" not present"
-            RVAL="${name}.${varname}"
-            if [ ! -f "${RVAL}" ]
+            RVAL="${first}.${varname}.${third}.${MULLE_ARCH}"
+            if [ -f "${RVAL}" ]
             then
-               log_debug "\"${RVAL}\" not present"
-               RVAL="default.${varname}.${MULLE_PLATFORM}.${MULLE_ARCH}"
-               if [ ! -f "${RVAL}" ]
-               then
-                  log_debug "\"${RVAL}\" not present"
-                  RVAL="default.${varname}.${MULLE_PLATFORM}"
-                  if [ ! -f "${RVAL}" ]
-                  then
-                     log_debug "\"${RVAL}\" not present"
-                     RVAL="default.${varname}.${MULLE_ARCH}"
-                     if [ ! -f "${RVAL}" ]
-                     then
-                        log_debug "\"${RVAL}\" not present"
-                        RVAL="default.${varname}"
-                        if [ ! -f "${RVAL}" ]
-                        then
-                           log_debug "\"${RVAL}\" not present, returning \"${fallback}\""
-                           RVAL="${fallback}"
-                        fi
-                     fi
-                  fi
-               fi
+               log_debug "Found \"${RVAL}\""
+               return 0
             fi
+            log_debug "\"${RVAL}\" not present"
          fi
-      fi
-   fi
+
+         r_concat "${first}.${varname}" "${third}" '.'
+         if [ -f "${RVAL}" ]
+         then
+            log_debug "Found \"${RVAL}\""
+            return 0
+         fi
+         log_debug "\"${RVAL}\" not present"
+      done
+   done
+
+   log_debug "Returning fallback \"${fallback}\""
+   RVAL="${fallback}"
+   return 2
 }
 
 
-
-test::environment::include_required()
+test::environment::r_get_environmentfile()
 {
-   log_entry "test::environment::include_required" "$@"
+   local varname="$1"
+   local name="$2"
+   local fallback="$3"
 
-   if [ -z "${MULLE_PATH_SH}" ]
+   if test::environment::r_get_test_datafile "${varname}" "${name}"
    then
-      . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-path.sh"
-   fi
-   if [ -z "${MULLE_FILE_SH}" ]
-   then
-      . "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-file.sh"
+      return
    fi
 
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-cmake.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-compiler.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-execute.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-flagbuilder.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-link-parser.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-locate.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-logging.sh"
-   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-regex.sh"
+   RVAL="${fallback}"
+   if [ -z "${RVAL}" ]
+   then
+      log_debug "No fallback given"
+      return 1
+   fi
+
+   if [ ! -f "${RVAL}" ]
+   then
+      log_debug "Fallback \"${RVAL}\" not present"
+      RVAL=
+      return 1
+   fi
+
+   log_debug "Fallback \"${RVAL}\" found!"
+   return
 }
 
 
@@ -426,5 +381,24 @@ test::environment::setup_development_environment()
    log_setting "SHAREDLIB_PREFIX    : ${SHAREDLIB_PREFIX}"
    log_setting "STATICLIB_EXTENSION : ${STATICLIB_EXTENSION}"
    log_setting "STATICLIB_PREFIX    : ${STATICLIB_PREFIX}"
+}
+
+
+
+test::environment::include_required()
+{
+   log_entry "test::environment::include_required" "$@"
+
+   include "path"
+   include "file"
+
+
+   include "test::cmake"
+   include "test::compiler"
+   include "test::execute"
+   include "test::link-parser"
+   include "test::locate"
+   include "test::logging"
+   include "test::regex"
 }
 

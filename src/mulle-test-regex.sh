@@ -65,7 +65,7 @@ test::regex::search()
             log_error "${banner}"
             fail=2
          fi
-         log_error "${indent}${regexp} not found"
+         log_error "${indent}\"${regexp}\" not found"
       fi
    done < "${strings}"
 

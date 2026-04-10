@@ -57,10 +57,16 @@ Usage:
    <name>.diff        : command to use instead of the default diff
    <name>.CFLAGS      : CFLAGS to compile the test with
    <name>.<c>.CFLAGS  : CFLAGS for configuration <c> (e.g. Debug)
+   <name>.skip        : Skip this test unconditionally (empty file)
+   <name>.skip.<p>    : Skip this test on platform <p> (e.g. foo.skip.windows)
+   <name>.skip.<p>.<a>: Skip this test on platform <p> and arch <a>
 
    These files can be reused by other tests in the directory by changing <name>
-   to "default". You can add ".${MULLE_PLATFORM}.${MULLE_ARCH}" to specify your
+   to "default". You can add ".${TEST_PLATFORM}.${MULLE_ARCH}" to specify your
    current platform only (or just either one) e.g. "default.cat.linux.x86_64".
+
+   A "no-mulle-test.<platform>" file in a test directory skips the whole
+   directory on that platform (extends the existing "no-mulle-test" mechanism).
 
 Options:
    --assembler        : produce assembler code on the side (C|ObjC/gcc|clang)
@@ -228,7 +234,7 @@ test::run::common()
 
    if [ "${MULLE_VIBECODING}" = 'YES' ]
    then
-      cc_errput="${name}.test.ccerr"
+      cc_errput="${name}.tmp.ccerr"
       log_vibe "compiler diagnostics will be redirected \"${cc_errput}\""
    else
       _r_make_tmp_in_dir "${MULLE_TEST_VAR_DIR}/tmp" "${name}" "f" || exit 1
@@ -341,9 +347,16 @@ test::run::cmake()
 
    local cmakeflags
 
-   if test::environment::r_get_environmentfile "${purename}" "cmakeflags" "cmakeflags"
+   if test::environment::r_get_environmentfile "cmakeflags" "${purename}" "cmakeflags"
    then
       cmakeflags="`grep -E -v '^#' "${RVAL}"`"
+   fi
+
+   # ensure LINK_COMMAND is set for cmake sub-projects (e.g. executable projects)
+   if [ -z "${LINK_COMMAND}" ]
+   then
+      include "test::link-args"
+      LINK_COMMAND="$(test::link_args::main -s --platform "${TEST_PLATFORM}" --sdk "${TEST_SDK}" --configuration "${TEST_CONFIGURATION}" --startup cat 2>/dev/null)"
    fi
 
    log_debug "junk ? $*"
@@ -410,14 +423,14 @@ test::run::c()
    a_out="${PWD}/${name}"
 
    # cmake-output: hein ?
-   if test::environment::r_get_environmentfile "${purename}" "cmake-output" "cmake-output"
+   if test::environment::r_get_environmentfile "cmake-output" "${purename}" "cmake-output"
    then
       a_out="`grep -E -v '^#' "${RVAL}"`"
    fi
 
    local c_flags
 
-   if test::environment::r_get_environmentfile "${purename}" "c_flags" "c_flags"
+   if test::environment::r_get_environmentfile "c_flags" "${purename}" "c_flags"
    then
       c_flags="`rexekutor grep -E -v '^#' "${RVAL}"`"
 
@@ -426,7 +439,7 @@ test::run::c()
       .foreachline line in ${c_flags}
       .do
          case "${line}" in
-            ${OPTION_CONFIGURATION}:*)
+            ${TEST_CONFIGURATION}:*)
                c_flags="${line#*:}"
                .break
             ;;
@@ -463,10 +476,14 @@ test::run::r_find_a_out_ext()
    local exename
    local exename_ext
 
-   EXE_SEARCH_PATH="${EXE_SEARCH_PATH:-"`mulle-sde searchpath --if-exists binary`"}"
+   EXE_SEARCH_PATH="${EXE_SEARCH_PATH:-"`mulle-sde searchpath --if-exists \
+      ${TEST_PLATFORM:+--platform "${TEST_PLATFORM}"} \
+      ${TEST_SDK:+--sdk "${TEST_SDK}"} \
+      ${TEST_CONFIGURATION:+--configuration "${TEST_CONFIGURATION}"} \
+      binary`"}"
    exename="${executable}"
 
-   case "${MULLE_UNAME}" in
+   case "${TEST_PLATFORM:-${MULLE_UNAME}}" in
       'mingw'|'msys'|'windows')
          exename_ext="${exename}${EXE_EXTENSION}"
       ;;
@@ -476,7 +493,7 @@ test::run::r_find_a_out_ext()
       ;;
    esac
 
-   RVAL=$( EXE_SEARCH_PATH="${EXE_SEARCH_PATH}" command -v "${exename_ext}" )
+   RVAL=$( PATH="${EXE_SEARCH_PATH}:${PATH}" command -v "${exename_ext}" )
 }
 
 
@@ -687,9 +704,16 @@ test::run::_run()
    [ -z "${ext}" ]  && _internal_fail "ext must not be ? empty"
    [ -z "${root}" ] && _internal_fail "root must not be empty"
 
+   if [ -e "${name}.skip" ] \
+      || [ -e "${name}.skip.${TEST_PLATFORM}" ] \
+      || [ -e "${name}.skip.${TEST_PLATFORM}.${MULLE_ARCH}" ]
+   then
+      log_info "${C_MAGENTA}${C_BOLD}${name}${C_INFO} skipped on platform ${TEST_PLATFORM}"
+      return ${RVAL_SKIP}
+   fi
 
    # we change the SANITIZER variable here on demand
-   if [ ! -z "${SANITIZER}" ] && [ -e "${name}.no-sanitizers" -o -e "${name}.no-sanitizers.${MULLE_PLATFORM}" ]
+   if [ ! -z "${SANITIZER}" ] && [ -e "${name}.no-sanitizers" -o -e "${name}.no-sanitizers.${TEST_PLATFORM}" ]
    then
       case ":${SANITIZER}:" in
          *:coverage:*)
@@ -716,7 +740,7 @@ doesn't work with any sanitizer"
       r_lowercase "${sanitizer%%-*}" # turn valgrind-no-leaks into valgrind
       identifier="${RVAL}"
 
-      if [ -e "${name}.no-${identifier}" -o -e "${name}.no-${identifier}.${MULLE_PLATFORM}" ]
+      if [ -e "${name}.no-${identifier}" -o -e "${name}.no-${identifier}.${TEST_PLATFORM}" ]
       then
          log_info "Disable ${C_RESET_BOLD}${sanitizer}${C_INFO} as it doesn't work with ${C_MAGENTA}${C_BOLD}${name}${C_INFO}"
       else
@@ -730,7 +754,7 @@ doesn't work with any sanitizer"
    local purename
 
    purename="${name#"${name%%[!0-9_-]*}"}"
-   if test::environment::r_get_environmentfile "${purename}" "environment" "environment"
+   if test::environment::r_get_environmentfile "environment" "${purename}" "environment"
    then
       log_verbose "Read environment file \"${RVAL}\" (${PWD#"${MULLE_USER_PWD}/"}) "
       # as we are running in a subshell this is OK
@@ -815,6 +839,10 @@ test::run::handle_return_value()
 
       ${RVAL_INTERNAL_ERROR})
          fail "Test exited due to internal problems (assert, crasher)"
+      ;;
+
+      ${RVAL_SKIP})
+         SKIPS=$((SKIPS + 1))
       ;;
 
       *)
@@ -970,6 +998,12 @@ test::run::_scan_directory()
       return
    fi
 
+   if [ -e "no-mulle-test.${TEST_PLATFORM}" ]
+   then
+      log_info "${C_MAGENTA}${C_BOLD}${PWD#${MULLE_USER_PWD}/}${C_INFO} skipped on platform ${TEST_PLATFORM}"
+      return
+   fi
+
    if [ -x run ] || [ -x run-test ]
    then
       r_basename "${PWD}"
@@ -1054,10 +1088,12 @@ test::run::all_tests()
    local RUNS
    local FAILS
    local TOTAL
+   local SKIPS
 
    RUNS=0
    FAILS=0
    TOTAL=0
+   SKIPS=0
 
    local _parallel_maxjobs
    local _parallel_jobs
@@ -1088,14 +1124,19 @@ test::run::all_tests()
    then
       if [ "${FAILS}" -eq 0 ]
       then
+         local skipped_info=''
+         if [ "${SKIPS}" -ne 0 ]
+         then
+            skipped_info=" (${SKIPS} skipped)"
+         fi
          if [ "${RUNS}" -eq 0 ]
          then
-            log_info "All ${C_MAGENTA}${C_BOLD}${MULLE_PLATFORM}${C_INFO} tests (${TOTAL}) already have passed successfully"
+            log_info "All ${C_MAGENTA}${C_BOLD}${TEST_PLATFORM}${C_INFO} tests (${TOTAL}) already have passed successfully${skipped_info}"
          else
-            log_info "All ${C_MAGENTA}${C_BOLD}${MULLE_PLATFORM}${C_INFO} tests (${RUNS}) passed successfully"
+            log_info "All ${C_MAGENTA}${C_BOLD}${TEST_PLATFORM}${C_INFO} tests (${RUNS}) passed successfully${skipped_info}"
          fi
       else
-         log_error "${FAILS} ${MULLE_PLATFORM} tests out of ${RUNS} failed"
+         log_error "${FAILS} ${TEST_PLATFORM} tests out of ${RUNS} failed"
          return 1
       fi
    else
@@ -1205,7 +1246,7 @@ test::run::main()
 
    local DEFAULT_MAKEFLAGS
    local OPTION_ALL
-   local OPTION_CONFIGURATION='Debug'
+   local OPTION_CONFIGURATION="${OPTION_CONFIGURATION}" # from main ugly
    local OPTION_COVERAGE='NO'
    local OPTION_DEBUG_DYLD='NO'
    local OPTION_EXTENSIONS
@@ -1215,9 +1256,9 @@ test::run::main()
    local OPTION_MAXJOBS
    local OPTION_OUTPUT_ASSEMBLER='NO'
    local OPTION_OUTPUT_ASSEMBLER_IR='NO'
-   local OPTION_PARALLEL=''
+   local OPTION_PARALLEL="${MULLE_TEST_PARALLEL:-YES}"
    local OPTION_PATH_PREFIX
-   local OPTION_PLATFORM=''
+   local OPTION_PLATFORM
    local OPTION_POSTPROCESS
    local OPTION_PRINT_EXE='NO'
    local OPTION_PROJECT_DIALECT
@@ -1228,7 +1269,8 @@ test::run::main()
    local OPTION_REUSE_EXE='NO'
    local OPTION_RUN_SCRIPT='YES'
    local OPTION_RUN_TEST='YES'
-   local OPTION_SANITIZER=''
+   local OPTION_SDK
+   local OPTION_SANITIZER
    local OPTION_STANDALONE='NO'
    local OPTION_TIMEOUT
    local OPTION_ULIMIT="unlimited"
@@ -1236,22 +1278,36 @@ test::run::main()
 
    DEFAULT_MAKEFLAGS="-s"
 
-   test::environment::setup_execution_platform "${MULLE_PLATFORM:-${MULLE_UNAME}}"
-   if [ -z "${MULLE_TEST_EXECUTABLE}" ]
-   then
-      test::environment::setup_development_environment "${MULLE_UNAME}" "${MULLE_PLATFORM:-${MULLE_UNAME}}"
-   else
-      # need this for shared library extension needed for
-      # DYLD_INSERT_LIBRARIES
-      test::environment::setup_development_platform "${MULLE_PLATFORM:-${MULLE_UNAME}}"
-   fi
-
    log_debug "Parsing options: $*"
 
    # Parse options first
-   test::options::r_parse "$@"
+   if ! test::options::r_parse "$@"
+   then
+      test::run::usage
+   fi
+
    # Shift away parsed options
    shift "${RVAL}"
+
+   # Update TEST_* globals from OPTION_* if provided
+   TEST_SDK="${OPTION_SDK:-${TEST_SDK}}"
+   TEST_PLATFORM="${OPTION_PLATFORM:-${TEST_PLATFORM}}"
+   TEST_CONFIGURATION="${OPTION_CONFIGURATION:-${TEST_CONFIGURATION}}"
+
+   log_setting "TEST_SDK             : ${TEST_SDK}"
+   log_setting "TEST_PLATFORM        : ${TEST_PLATFORM}"
+   log_setting "TEST_CONFIGURATION   : ${TEST_CONFIGURATION}"
+
+   test::environment::setup_execution_platform "${TEST_PLATFORM}"
+
+   if [ -z "${MULLE_TEST_EXECUTABLE}" ]
+   then
+      test::environment::setup_development_environment "${MULLE_UNAME}" "${TEST_PLATFORM}"
+   else
+      # need this for shared library extension needed for
+      # DYLD_INSERT_LIBRARIES
+      test::environment::setup_development_platform "${TEST_PLATFORM}"
+   fi
 
    # Set TEST_CFLAGS based on configuration from common flags
    if [ "${OPTION_CONFIGURATION}" = 'Release' ]
@@ -1278,13 +1334,13 @@ test::run::main()
    MULLE_TEST_EXTENSIONS="${MULLE_TEST_EXTENSIONS:-${PROJECT_EXTENSIONS}}"
 
    log_setting "MULLE_FLAG_LOG_EXEKUTOR: ${MULLE_FLAG_LOG_EXEKUTOR:-NO}"
-   log_setting "OPTION_CONFIGURATION: ${OPTION_CONFIGURATION}"
 
    local RVAL_INTERNAL_ERROR=1
    local RVAL_FAILURE=2
    local RVAL_OUTPUT_DIFFERENCES=3
    local RVAL_EXPECTED_FAILURE=4
    local RVAL_IGNORED_FAILURE=5
+   local RVAL_SKIP=77
 
    local HAVE_WARNED='NO'
 
@@ -1295,8 +1351,8 @@ test::run::main()
       *:[Cc]:*|*:[Cc]++:*|*:[Cc][XxPp][XxPp]:*|*:[Mm]:*|*:aam:*)
          include "test::link-args"
 
-         LINK_COMMAND="$(test::link_args::main -s --startup cat)"
-         NO_STARTUP_LINK_COMMAND="$(test::link_args::main -s cat)"
+         LINK_COMMAND="$(test::link_args::main -s --platform "${TEST_PLATFORM}" --sdk "${TEST_SDK}" --configuration "${TEST_CONFIGURATION}" --startup cat)" || exit 1
+         NO_STARTUP_LINK_COMMAND="$(test::link_args::main -s --platform "${TEST_PLATFORM}" --sdk "${TEST_SDK}" --configuration "${TEST_CONFIGURATION}" cat)" || exit 1
      ;;
 
       "")
@@ -1304,6 +1360,11 @@ test::run::main()
       ;;
 
       *:args:*)
+         include "test::link-args"
+
+         LINK_COMMAND="$(test::link_args::main -s --platform "${TEST_PLATFORM}" --sdk "${TEST_SDK}" --configuration "${TEST_CONFIGURATION}" --startup cat)" || exit 1
+         NO_STARTUP_LINK_COMMAND="$(test::link_args::main -s --platform "${TEST_PLATFORM}" --sdk "${TEST_SDK}" --configuration "${TEST_CONFIGURATION}" cat)" || exit 1
+
          MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-${TEST_PROJECT_NAME}}"
          MULLE_TEST_EXECUTABLE="${MULLE_TEST_EXECUTABLE:-run-test.exe}"
       ;;
@@ -1326,7 +1387,7 @@ test::run::main()
       exit 0
    fi
 
-   MULLE_TEST_SUCCESS_FILE="${MULLE_TEST_VAR_DIR}/passed.txt"
+   MULLE_TEST_SUCCESS_FILE="${MULLE_TEST_VAR_DIR}/passed--${TEST_SDK}-${TEST_PLATFORM}-${TEST_CONFIGURATION}.txt"
 
    if [ "$RUN_ALL" = 'YES' -o $# -eq 0 -o "${1:0:1}" = '-' ]
    then

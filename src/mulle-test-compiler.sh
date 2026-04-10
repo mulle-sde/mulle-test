@@ -56,6 +56,59 @@ test::compiler::r_env_sanitizer_flags()
 }
 
 
+test::compiler::r_include_cflags()
+{
+   log_entry "test::compiler::r_include_cflags" "$@"
+
+   local quote="$1"
+
+   local c_flags
+
+   if [ ! -z "${DEPENDENCY_DIR}" -a ! -z "${ADDICTION_DIR}" ]
+   then
+      include "platform::flags"
+   fi
+
+   local frameworkpath
+
+   frameworkpath="$(mulle-craft searchpath --if-exists --sdk "${TEST_SDK}" --platform "${TEST_PLATFORM}" --configuration "${TEST_CONFIGURATION}" framework)"
+
+   local headerpath
+
+   headerpath="$(mulle-craft searchpath --if-exists --sdk "${TEST_SDK}" --platform "${TEST_PLATFORM}" --configuration "${TEST_CONFIGURATION}" header)"
+
+   # make top level include-able (for "include.h")
+   # make this first so test local "include.h" will be found first
+   if [ ! -z "${MULLE_VIRTUAL_ROOT}" ]
+   then
+      platform::flags::r_cc_include_dir "${MULLE_VIRTUAL_ROOT}" "${quote}"
+      r_concat "${c_flags}" "${RVAL}"
+      c_flags="${RVAL}"
+   else
+      log_warning "Environment variable ${C_RESET_BOLD}MULLE_VIRTUAL_ROOT${C_WARNING} undefined, you may experience not working or wrong included 'include.h' and 'import.h' files"
+   fi
+
+   local directory
+
+   .foreachpath directory in ${headerpath}
+   .do
+      platform::flags::r_cc_include_dir "${directory}" "${quote}"
+      r_concat "${c_flags}" "${RVAL}"
+      c_flags="${RVAL}"
+   .done
+
+
+   .foreachpath directory in ${frameworkpath}
+   .do
+      platform::flags::r_cc_framework_dir "${directory}" "${quote}"
+      r_concat "${c_flags}" "${RVAL}"
+      c_flags="${RVAL}"
+   .done
+
+   RVAL="${c_flags}"
+}
+
+
 test::compiler::r_common_c_flags()
 {
    log_entry "test::compiler::r_common_c_flags" "$@"
@@ -63,14 +116,69 @@ test::compiler::r_common_c_flags()
    local srcfile="$1"
    local configuration="$2"
 
-   local common_cflags
-
-   # Get OTHER_CFLAGS (special flags like -fobjc-tao, --coverage, etc)
-   # but NOT the basic CFLAGS which contain -O* and -g
-   # (mulle-platform handles optimization via --configuration)
+   local c_flags
    local key
    local value
 
+   #
+   # Check for .CFLAGS file that would clobber platform defaults
+   #
+   local name
+   local filename
+
+   r_extensionless_basename "${srcfile}"
+   name="${RVAL}"
+
+   # look for <configuration>.CFLAGS file first, then .CFLAGS
+   r_concat "${configuration}" 'CFLAGS' '.'
+   if [ "${RVAL}" != 'CFLAGS' ]
+   then
+      test::environment::r_get_test_datafile "${RVAL}" "${name}"
+      filename="${RVAL}"
+   fi
+
+   if [ -z "${filename}" ]
+   then
+      test::environment::r_get_test_datafile 'CFLAGS' "${name}"
+      filename="${RVAL}"
+   fi
+
+   local cflags_clobbered='NO'
+
+   if [ ! -z "${filename}" ]
+   then
+      # file clobbers - use these instead of platform defaults
+      c_flags="$(grep -E -v "^#" "${filename}")"
+      log_fluff "CFLAGS clobbered by \"${filename}\""
+      cflags_clobbered='YES'
+   fi
+
+   # CFLAGS env var augments (whether we have file or not)
+   if [ ! -z "${CFLAGS}" ]
+   then
+      log_setting "CFLAGS (env)        : ${CFLAGS}"
+      r_concat "${c_flags}" "${CFLAGS}"
+      c_flags="${RVAL}"
+   fi
+
+   # OTHER_CFLAGS file augments
+   test::environment::r_get_test_datafile 'OTHER_CFLAGS' "${name}"
+   if [ ! -z "${RVAL}" ]
+   then
+      local other_cflags_file="${RVAL}"
+      local other_cflags_from_file
+
+      other_cflags_from_file="$(grep -E -v "^#" "${other_cflags_file}")"
+      log_setting "OTHER_CFLAGS (file) : ${other_cflags_from_file} (from ${other_cflags_file})"
+      r_concat "${c_flags}" "${other_cflags_from_file}"
+      c_flags="${RVAL}"
+   fi
+
+   log_setting "CFLAGS             : ${c_flags}"
+
+   #
+   # OTHER_CFLAGS: augment, don't clobber (-fobjc-tao, --coverage etc.)
+   #
    r_uppercase "${configuration}"
    key="${RVAL}_OTHER_CFLAGS"
    r_shell_indirect_expand "${key}"
@@ -78,38 +186,41 @@ test::compiler::r_common_c_flags()
 
    if [ ! -z "${value}" ]
    then
-      r_concat "${common_cflags}" "${value}"
-      common_cflags="${RVAL}"
+      log_setting "${key}  : ${value}"
+      r_concat "${c_flags}" "${value}"
+      c_flags="${RVAL}"
    fi
 
    if [ ! -z "${OTHER_CFLAGS}" ]
    then
-      r_concat "${common_cflags}" "${OTHER_CFLAGS}"
-      common_cflags="${RVAL}"
+      log_setting "OTHER_CFLAGS        : ${OTHER_CFLAGS}"
+      r_concat "${c_flags}" "${OTHER_CFLAGS}"
+      c_flags="${RVAL}"
    fi
 
-   # Always use -D format for defines; mulle-platform will convert to /D for MSVC
+   # -DMULLE_TEST=1 define
    if [ "${MULLE_TEST_DEFINE}" = 'YES' ]
    then
-      r_concat "${common_cflags}" "-DMULLE_TEST=1"
-      common_cflags="${RVAL}"
+      r_concat "${c_flags}" "-DMULLE_TEST=1"
+      c_flags="${RVAL}"
    fi
 
-   # Note: MULLE_INCLUDE_DYNAMIC is now automatically defined by mulle-platform when --shared is used
-
+   # include flags
    local incflags
 
-   test::flagbuilder::r_include_cflags "'"
+   test::compiler::r_include_cflags "'"
    incflags="${RVAL}"
 
-   # Get test-specific CFLAGS from .CFLAGS files
-   test::flagbuilder::r_cflags "${common_cflags}" "${srcfile}" "${configuration}"
-   common_cflags="${RVAL}"
+   log_debug "c_flags  : ${c_flags}"
+   log_debug "incflags : ${incflags}"
 
-   log_debug "common_cflags : ${common_cflags}"
-   log_debug "incflags      : ${incflags}"
+   r_concat "${c_flags}" "${incflags}"
 
-   r_concat "${common_cflags}" "${incflags}"
+   # Return 4 if CFLAGS were clobbered
+   if [ "${cflags_clobbered}" = 'YES' ]
+   then
+      return 4
+   fi
 }
 
 
@@ -120,7 +231,7 @@ test::compiler::r_c_commandline()
    local c_flags="$1"
    local srcfile="$2"
    local a_out="$3"
-   local configuration="$4"
+   local configuration="$4"  # used to build Debug
 
    shift 4
 
@@ -149,7 +260,7 @@ test::compiler::r_c_commandline()
    cmdline="${mulle_platform} ${MULLE_TECHNICAL_FLAGS} compiler run"
 
    # Detect cross-compilation and add target platform
-   local target_platform="${MULLE_PLATFORM:-${MULLE_UNAME}}"
+   local target_platform="${TEST_PLATFORM}"
    local cross_compiler_root=""
 
    if [ "${target_platform}" != "${MULLE_UNAME}" ]
@@ -178,10 +289,31 @@ test::compiler::r_c_commandline()
       fi
    fi
 
+   # Get common c flags early to determine if we have CFLAGS that clobber
+   local HAVE_CFLAGS='NO'
+
+   local rc
+   local common_flags
+
+   test::compiler::r_common_c_flags "${srcfile}" "${configuration}"
+   rc=$?
+   common_flags="${RVAL}"
+
+   if [ ${rc} -eq 4 ]
+   then
+      HAVE_CFLAGS='YES'
+   fi
+
    # Add configuration
    if [ ! -z "${configuration}" ]
    then
       cmdline="${cmdline} --configuration ${configuration}"
+   fi
+
+   # Add --no-default-cflags if CFLAGS file exists
+   if [ "${HAVE_CFLAGS}" = 'YES' ]
+   then
+      cmdline="${cmdline} --no-default-cflags"
    fi
 
    # Add sanitizer flags to mulle-platform
@@ -226,11 +358,7 @@ test::compiler::r_c_commandline()
       fi
    fi
 
-   # Get common c flags (includes -D defines and -I includes)
-   # These should be passed to mulle-platform BEFORE the source file
-   # mulle-platform handles optimization flags via --configuration, so we don't pass -O* or -g
-   test::compiler::r_common_c_flags "${srcfile}" "${configuration}"
-   local common_flags="${RVAL}"
+   # common_flags already set earlier (before --configuration)
 
    # Add valgrind define if needed (not a compiler sanitizer, just a define)
    case ":${SANITIZER}:" in
@@ -297,7 +425,7 @@ test::compiler::r_c_commandline()
       esac
    fi
 
-   case "${MULLE_PLATFORM}" in
+   case "${TEST_PLATFORM}" in
       windows)
          linkcommand="${linkcommand} -Wl,--export-all-symbols"
       ;;
@@ -364,7 +492,11 @@ test::compiler::fail_c()
 
       a_out="${a_out%}${DEBUG_EXE_EXTENSION}"
 
-      test::compiler::r_c_commandline "${c_flags}" "${srcfile}" "${a_out}" 'Debug' "$@"
+      test::compiler::r_c_commandline "${c_flags}" \
+                                      "${srcfile}" \
+                                      "${a_out}" \
+                                      'Debug' \
+                                      "$@"
       cmdline="${RVAL}"
 
       log_info "DEBUG: "
@@ -408,12 +540,12 @@ test::compiler::run_gcc()
    local old_CC
    local old_CXX
 
-   if [ ! -z "${MULLE_PLATFORM}" ]
+   if [ "${TEST_PLATFORM}" != "${MULLE_UNAME}" ]
    then
       # Cross-compiling - set up compiler
       local platform_upper
 
-      r_uppercase "${MULLE_PLATFORM}"
+      r_uppercase "${TEST_PLATFORM}"
       platform_upper="${RVAL}"
 
       local cross_compiler_root
@@ -433,7 +565,7 @@ test::compiler::run_gcc()
          old_CXX="${CXX}"
 
          # hax hax hax
-         case "${MULLE_PLATFORM}" in
+         case "${TEST_PLATFORM}" in
             windows)
                export CC="${cross_compiler_root}/bin/${triplet}-clang"
                export CXX="${cross_compiler_root}/bin/${triplet}-clang++"
@@ -453,7 +585,7 @@ test::compiler::run_gcc()
    test::compiler::r_c_commandline "${c_flags}" \
                                    "${srcfile}" \
                                    "${a_out}" \
-                                   "${OPTION_CONFIGURATION}" \
+                                   "${TEST_CONFIGURATION}" \
                                    "$@"
    cmdline="${RVAL}"
 
@@ -577,11 +709,11 @@ MULLE_OBJC_TRACE_LEAK=NO"
       local debugger_cmd
       local platform
 
-      platform="${MULLE_PLATFORM:-${MULLE_UNAME}}"
+      platform="${TEST_PLATFORM}"
 
       case "${platform}" in
          'mingw'|'msys'|'windows')
-            r_uppercase "${MULLE_PLATFORM}"
+            r_uppercase "${TEST_PLATFORM}"
             r_shell_indirect_expand "MULLE_EMULATOR__${RVAL}"
             r_extensionless_basename "${RVAL}"
             case "${RVAL}" in
