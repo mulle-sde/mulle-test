@@ -2,7 +2,7 @@
 #
 #
 #
-export PROJECT_TYPE="none"
+export PROJECT_TYPE="executable"
 
 
 #
@@ -39,5 +39,4 @@ export PROJECT_EXTENSIONS="c"
 #
 #
 export MULLE_SDE_CRAFT_TARGET="craftorder"
-
 
