@@ -1,0 +1,196 @@
+#! /bin/sh
+
+[ "${TRACE}" = 'YES' ] && set -x && : "$0" "$@"
+
+###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###
+MULLE_BASHFUNCTIONS_LIBEXEC_DIR="`mulle-bashfunctions libexec-dir`" || exit 1
+export MULLE_BASHFUNCTIONS_LIBEXEC_DIR
+. "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-boot.sh" || exit 1
+. "${MULLE_BASHFUNCTIONS_LIBEXEC_DIR}/mulle-bashfunctions.sh" || exit 1
+###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###   ###
+
+MULLE_TEST_LIBEXEC_DIR="${MULLE_TEST_LIBEXEC_DIR:-$(cd "$(dirname "$0")/../.." && pwd)/src}"
+
+
+create_pe32plus_executable()
+{
+   local filename="$1"
+
+   dd if=/dev/zero of="${filename}" bs=1 count=512 > /dev/null 2>&1
+   printf '\x4d\x5a' | dd of="${filename}" bs=1 seek=0 conv=notrunc > /dev/null 2>&1
+   printf '\x80\x00\x00\x00' | dd of="${filename}" bs=1 seek=60 conv=notrunc > /dev/null 2>&1
+   printf '\x50\x45\x00\x00' | dd of="${filename}" bs=1 seek=128 conv=notrunc > /dev/null 2>&1
+   printf '\x0b\x02' | dd of="${filename}" bs=1 seek=152 conv=notrunc > /dev/null 2>&1
+   chmod +x "${filename}"
+}
+
+
+create_pe32_executable()
+{
+   local filename="$1"
+
+   dd if=/dev/zero of="${filename}" bs=1 count=512 > /dev/null 2>&1
+   printf '\x4d\x5a' | dd of="${filename}" bs=1 seek=0 conv=notrunc > /dev/null 2>&1
+   printf '\x80\x00\x00\x00' | dd of="${filename}" bs=1 seek=60 conv=notrunc > /dev/null 2>&1
+   printf '\x50\x45\x00\x00' | dd of="${filename}" bs=1 seek=128 conv=notrunc > /dev/null 2>&1
+   printf '\x0b\x01' | dd of="${filename}" bs=1 seek=152 conv=notrunc > /dev/null 2>&1
+   chmod +x "${filename}"
+}
+
+
+load_execute_functions()
+{
+   . "${MULLE_TEST_LIBEXEC_DIR}/mulle-test-execute.sh" || fail "could not source mulle-test-execute.sh"
+}
+
+
+#
+# Run the preflight inside a subshell so `fail` calls do not abort the test.
+# Capture combined output; check for expected strings.
+#
+run_preflight()
+{
+   local executable="$1"
+   local emulator="$2"
+
+   ( load_execute_functions ; test::execute::preflight_windows_wine_loader "${executable}" "${emulator}" ) 2>&1
+   return $?
+}
+
+
+test_pe32plus_with_wine32_fails()
+{
+   local tmpdir
+
+   r_make_tmp_directory || exit 1
+   tmpdir="${RVAL}"
+
+   local exefile="${tmpdir}/fake-test.exe"
+   create_pe32plus_executable "${exefile}" || fail "could not create PE32+ executable"
+
+   local output
+   output="`run_preflight "${exefile}" "wine32"`"
+   local rc=$?
+
+   if [ ${rc} -eq 0 ]
+   then
+      fail "test_pe32plus_with_wine32_fails: expected failure but preflight returned 0"
+   fi
+
+   case "${output}" in
+      *'Cannot run 64-bit Windows test'*)
+      ;;
+      *)
+         fail "test_pe32plus_with_wine32_fails: expected 'Cannot run 64-bit Windows test' in:
+${output}"
+      ;;
+   esac
+
+   case "${output}" in
+      *'configured emulator is wine32'*)
+      ;;
+      *)
+         fail "test_pe32plus_with_wine32_fails: expected 'configured emulator is wine32' in:
+${output}"
+      ;;
+   esac
+
+   rmdir_safer "${tmpdir}"
+   log_info "test_pe32plus_with_wine32_fails: passed"
+}
+
+
+test_pe32plus_with_wine64_passes_when_available()
+{
+   if ! command -v wine64 > /dev/null 2>&1
+   then
+      log_info "test_pe32plus_with_wine64_passes_when_available: skipped (wine64 not installed)"
+      return 0
+   fi
+
+   local tmpdir
+
+   r_make_tmp_directory || exit 1
+   tmpdir="${RVAL}"
+
+   local exefile="${tmpdir}/fake-test.exe"
+   create_pe32plus_executable "${exefile}" || fail "could not create PE32+ executable"
+
+   local output
+   output="`run_preflight "${exefile}" "wine64"`"
+   local rc=$?
+
+   if [ ${rc} -ne 0 ]
+   then
+      fail "test_pe32plus_with_wine64_passes_when_available: expected pass but got:
+${output}"
+   fi
+
+   rmdir_safer "${tmpdir}"
+   log_info "test_pe32plus_with_wine64_passes_when_available: passed"
+}
+
+
+test_non_pe_file_is_skipped()
+{
+   local tmpdir
+
+   r_make_tmp_directory || exit 1
+   tmpdir="${RVAL}"
+
+   local exefile="${tmpdir}/not-a-pe.exe"
+   printf 'ELF not a PE' > "${exefile}"
+
+   local output
+   output="`run_preflight "${exefile}" "wine32"`"
+   local rc=$?
+
+   if [ ${rc} -ne 0 ]
+   then
+      fail "test_non_pe_file_is_skipped: expected preflight to pass (skip) for non-PE file, got:
+${output}"
+   fi
+
+   rmdir_safer "${tmpdir}"
+   log_info "test_non_pe_file_is_skipped: passed"
+}
+
+
+test_non_wine_emulator_is_skipped()
+{
+   local tmpdir
+
+   r_make_tmp_directory || exit 1
+   tmpdir="${RVAL}"
+
+   local exefile="${tmpdir}/fake-test.exe"
+   create_pe32plus_executable "${exefile}" || fail "could not create PE32+ executable"
+
+   local output
+   output="`run_preflight "${exefile}" "qemu-x86_64"`"
+   local rc=$?
+
+   if [ ${rc} -ne 0 ]
+   then
+      fail "test_non_wine_emulator_is_skipped: expected preflight to pass (skip) for non-wine emulator, got:
+${output}"
+   fi
+
+   rmdir_safer "${tmpdir}"
+   log_info "test_non_wine_emulator_is_skipped: passed"
+}
+
+
+main()
+{
+   _options_mini_main "$@" && set -x
+
+   test_pe32plus_with_wine32_fails
+   test_pe32plus_with_wine64_passes_when_available
+   test_non_pe_file_is_skipped
+   test_non_wine_emulator_is_skipped
+
+   log_info "----- ALL PASSED -----"
+}
+
+main "$@"

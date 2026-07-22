@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+
+[ "${TRACE}" = 'YES' ] && set -x && : "$0" "$@"
+
+MULLE_TIMEOUT="${1:-$(dirname "$0")/../../mulle-timeout}"
+
+PIDFILE="/tmp/mulle-timeout-test-$$"
+
+fail()
+{
+   echo "FAIL: $*" >&2
+   cleanup
+   exit 1
+}
+
+cleanup()
+{
+   local pid
+   local f
+
+   for f in "${PIDFILE}.child" "${PIDFILE}.mt"
+   do
+      if [ -f "$f" ]
+      then
+         pid="$(cat "$f")"
+         kill -9 "$pid" 2>/dev/null
+      fi
+   done
+   rm -f "${PIDFILE}.child" "${PIDFILE}.mt"
+}
+
+wait_for_file()
+{
+   local i=0
+
+   while [ ! -f "$1" ] && [ $i -lt 20 ]
+   do
+      sleep 0.1
+      i=$((i + 1))
+   done
+   [ -f "$1" ]
+}
+
+test_normal_exit()
+{
+   local result
+
+   result="$("${MULLE_TIMEOUT}" 30 echo "hello")"
+   [ $? -eq 0 ]    || fail "expected exit 0"
+   [ "$result" = "hello" ] || fail "expected 'hello', got '${result}'"
+   echo "test_normal_exit: passed" >&2
+}
+
+test_term_kills_child()
+{
+   "${MULLE_TIMEOUT}" 30 bash -c 'echo $$ > "'"${PIDFILE}"'.child"; sleep 30' &
+   local mt_pid=$!
+   echo $mt_pid > "${PIDFILE}.mt"
+
+   wait_for_file "${PIDFILE}.child" || fail "child never started"
+
+   local child_pid
+   child_pid="$(cat "${PIDFILE}.child")"
+   kill -0 "$child_pid" 2>/dev/null || fail "child not running"
+
+   kill -TERM $mt_pid
+   wait $mt_pid 2>/dev/null
+   sleep 0.3
+
+   if kill -0 "$child_pid" 2>/dev/null
+   then
+      fail "child $child_pid survived SIGTERM"
+   fi
+
+   rm -f "${PIDFILE}.child" "${PIDFILE}.mt"
+   echo "test_term_kills_child: passed" >&2
+}
+
+test_timeout_kills_child()
+{
+   "${MULLE_TIMEOUT}" 1 bash -c 'echo $$ > "'"${PIDFILE}"'.child"; sleep 30' &
+   local mt_pid=$!
+   echo $mt_pid > "${PIDFILE}.mt"
+
+   wait_for_file "${PIDFILE}.child" || fail "child never started"
+
+   local child_pid
+   child_pid="$(cat "${PIDFILE}.child")"
+
+   wait $mt_pid 2>/dev/null
+   local rc=$?
+
+   sleep 0.3
+
+   if kill -0 "$child_pid" 2>/dev/null
+   then
+      fail "child $child_pid survived timeout"
+   fi
+
+   [ $rc -eq 124 ] || fail "expected exit 124, got $rc"
+
+   rm -f "${PIDFILE}.child" "${PIDFILE}.mt"
+   echo "test_timeout_kills_child: passed" >&2
+}
+
+main()
+{
+   test_normal_exit
+   test_term_kills_child
+   test_timeout_kills_child
+
+   echo "All tests passed" >&2
+}
+
+main "$@"
