@@ -7,24 +7,21 @@
 
 setup_test()
 {
-#   echo "**********************************************" >&2
-#   echo "**********************************************" >&2
-#   echo "**********************************************" >&2
-#   echo "**********************************************" >&2
-#   echo "**********************************************" >&2
-#   env >&2
-#   echo "**********************************************" >&2
-#   echo "**********************************************" >&2
-#   echo "**********************************************" >&2
-#   echo "**********************************************" >&2
-#   echo "**********************************************" >&2
+   # During upgrade the test directory is handled separately by
+   # sde::upgrade::test in mulle-sde-upgrade.sh. Skip here to avoid
+   # running the upgrade twice.
+   if [ "${MULLE_SDE_EXTENSION_INIT_UPGRADE}" = 'YES' ]
+   then
+      log_verbose "Skipping test directory setup during upgrade (handled by mulle-sde upgrade)"
+      return 0
+   fi
 
    case "${PROJECT_DIALECT}" in
       c|objc)
          MULLE_VIRTUAL_ROOT="" exekutor mulle-sde ${MULLE_SDE_FLAGS} \
                                           ${MULLE_TECHNICAL_FLAGS} \
                                           init -d test \
-                                          -r "mulle-sde/${PROJECT_DIALECT}-test" \
+                                          -m "mulle-sde/${PROJECT_DIALECT}-test" \
                                           none
       ;;
 

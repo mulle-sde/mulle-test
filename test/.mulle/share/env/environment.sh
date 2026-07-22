@@ -22,8 +22,8 @@ then
    # usefule for related directories, that are placed outside of the
    # project like maybe KITCHEN_DIR
    #
-   MULLE_VIRTUAL_ROOT_ID="$(shasum -a 256 <<< "${MULLE_VIRTUAL_ROOT}")"
-   MULLE_VIRTUAL_ROOT_ID="${MULLE_VIRTUAL_ROOT_ID:1:12}"
+   r_fnv1a_32  "${MULLE_VIRTUAL_ROOT}"
+   printf -v MULLE_VIRTUAL_ROOT_ID "%08x" "${RVAL}"
    export MULLE_VIRTUAL_ROOT_ID
 fi
 

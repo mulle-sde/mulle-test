@@ -162,6 +162,142 @@ test::execute::r_windows_custompath()
 }
 
 
+test::execute::r_read_hexbytes()
+{
+   log_entry "test::execute::r_read_hexbytes" "$@"
+
+   local executable="$1"
+   local offset="$2"
+   local count="$3"
+   local value
+
+   value="`dd if="${executable}" bs=1 skip="${offset}" count="${count}" 2>/dev/null \
+               | od -An -v -t x1 2>/dev/null \
+               | tr -d '[:space:]'`"
+   if [ "${#value}" -ne $(( count * 2 )) ]
+   then
+      return 1
+   fi
+
+   RVAL="${value}"
+}
+
+
+test::execute::r_windows_executable_arch()
+{
+   log_entry "test::execute::r_windows_executable_arch" "$@"
+
+   local executable="$1"
+   local bytes
+   local pe_offset
+
+   if ! test::execute::r_read_hexbytes "${executable}" 0 2
+   then
+      return 1
+   fi
+
+   case "${RVAL}" in
+      4d5a) ;;
+      *) return 1 ;;
+   esac
+
+   if ! test::execute::r_read_hexbytes "${executable}" 60 4
+   then
+      return 1
+   fi
+
+   pe_offset=$(( 16#${RVAL:6:2}${RVAL:4:2}${RVAL:2:2}${RVAL:0:2} ))
+
+   if ! test::execute::r_read_hexbytes "${executable}" "${pe_offset}" 4
+   then
+      return 1
+   fi
+
+   case "${RVAL}" in
+      50450000) ;;
+      *) return 1 ;;
+   esac
+
+   if ! test::execute::r_read_hexbytes "${executable}" "$(( pe_offset + 24 ))" 2
+   then
+      return 1
+   fi
+
+   case "${RVAL}" in
+      0b02)
+         RVAL='64'
+         return 0
+      ;;
+      0b01)
+         RVAL='32'
+         return 0
+      ;;
+   esac
+
+   return 1
+}
+
+
+test::execute::preflight_windows_wine_loader()
+{
+   log_entry "test::execute::preflight_windows_wine_loader" "$@"
+
+   local executable="$1"
+   local emulator="$2"
+
+   local emulator_cmd
+   local emulator_name
+   local arch
+   local executable_name
+
+   r_basename "${executable}"
+   executable_name="${RVAL}"
+
+   emulator_cmd="${emulator%% *}"
+   r_basename "${emulator_cmd}"
+   emulator_name="${RVAL}"
+
+   case "${emulator_name}" in
+      wine|wine32|wine64) ;;
+      *) return 0 ;;
+   esac
+
+   if ! test::execute::r_windows_executable_arch "${executable}"
+   then
+      log_verbose "Could not determine PE32/PE32+ architecture for \"${executable_name}\", skipping Wine preflight"
+      return 0
+   fi
+   arch="${RVAL}"
+
+   case "${arch}" in
+      '64')
+         if [ "${emulator_name}" = 'wine32' ]
+         then
+            fail "Cannot run 64-bit Windows test \"${executable_name}\": configured emulator is wine32.
+Use wine64 for PE32+ executables (for example: MULLE_EMULATOR__WINDOWS=wine64)."
+         fi
+
+         if ! command -v wine64 > /dev/null 2>&1
+         then
+            fail "Cannot run 64-bit Windows test \"${executable_name}\": wine64 is not installed.
+Install it with: sudo apt install wine64"
+         fi
+      ;;
+
+      '32')
+         if ! command -v wine32 > /dev/null 2>&1
+         then
+            if ! command -v wine > /dev/null 2>&1
+            then
+               fail "Cannot run 32-bit Windows test \"${executable_name}\": wine32 is not installed.
+Install it with: sudo apt install wine32"
+            fi
+         fi
+      ;;
+   esac
+}
+
+
 test::execute::r_construct_winepath()
 {
    log_entry "test::execute::r_construct_winepath" "$@"
@@ -480,6 +616,12 @@ MULLE_ATINIT_FAILURE=0"
             runner="${RVAL}"
          fi
       fi
+
+      case "${platform}" in
+         'mingw'|'msys'|'windows')
+            test::execute::preflight_windows_wine_loader "${a_out_ext}" "${emulator}"
+         ;;
+      esac
    fi
 
    local escaped

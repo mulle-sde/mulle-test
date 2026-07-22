@@ -78,7 +78,7 @@ Options:
    --reuse-exe        : if executable already exists, reuse it, don't rebuild
    --serial           : run test one after the other
    --timeout <s>      : run tests within in timeout to break endless loops
-   --golden-stdout    : use test output to create <name>.stdin (dangerous!)
+   --golden-stdout    : use test output to create <name>.stdout (dangerous!)
    -l                 : be lenient, keep going if tests fail
 
 EOF
@@ -1425,4 +1425,3 @@ test::run::main()
       fi
    done
 }
-
