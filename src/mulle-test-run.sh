@@ -872,6 +872,7 @@ test::run::_run_in_directory()
    (
       # this is OK since we are in a subshell here
       exekutor cd "${directory}" || exit 0
+      MULLE_USER_PWD="${PWD}"
       test::run::_run "$@"
    )
 }
@@ -885,6 +886,7 @@ test::run::_run_in_directory_parallel()
 
    (
       exekutor cd "${directory}" || exit 0
+      MULLE_USER_PWD="${PWD}"
       test::run::_run "$@"
       test::run::handle_return_value $? "${directory}" "$@"
    )

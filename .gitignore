@@ -39,3 +39,4 @@ build-*/
 .mulle/etc/make/
 dox.unreleased
 research/
+.roam/

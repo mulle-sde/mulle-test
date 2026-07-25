@@ -1167,18 +1167,23 @@ test::execute::run()
    #
    local executable
    local rc
+   local tmp_file_stdout
+   local tmp_file_stderr
+
+   tmp_file_stdout="${output}.$$.tmp"
+   tmp_file_stderr="${errput}.$$.tmp"
 
    executable="${a_out}"
    if [ ! -z "${executable}" ]
    then
-      test::execute::a_out "${executable}" "${args}" "${stdin}" "${output}.tmp" "${errput}.tmp"
+      test::execute::a_out "${executable}" "${args}" "${stdin}" "${tmp_file_stdout}" "${tmp_file_stderr}"
       rc=$?
    else
       r_concat "${name}" "${ext}" "."
       r_filepath_concat "${root}" "${RVAL}"
       executable="${RVAL}"
 
-      test::execute::other "${executable}" "${args}" "${stdin}" "${output}.tmp" "${errput}.tmp"
+      test::execute::other "${executable}" "${args}" "${stdin}" "${tmp_file_stdout}" "${tmp_file_stderr}"
       rc=$?
    fi
 
@@ -1186,8 +1191,8 @@ test::execute::run()
 
    [ -z "${CRLFCAT}" ] && _internal_fail "CRLFCAT must be defined"
 
-   test::logging::redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${output}.tmp"
-   remove_file_if_present "${output}.tmp"
+   test::logging::redirect_eval_exekutor "${output}" "${CRLFCAT}" "<" "${tmp_file_stdout}"
+   remove_file_if_present "${tmp_file_stdout}"
 
    # if we know the new test is now correct and the stdout file is wrong
    # we can save time by copying this
@@ -1207,8 +1212,8 @@ test::execute::run()
       log_setting "-----------------------"
    fi
 
-   test::logging::redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${errput}.tmp"
-   remove_file_if_present "${errput}.tmp"
+   test::logging::redirect_eval_exekutor "${errput}" "${CRLFCAT}" "<" "${tmp_file_stderr}"
+   remove_file_if_present "${tmp_file_stderr}"
 
    if [ "${OPTION_GOLDEN_STDERR}" = 'YES' ]
    then
