@@ -56,12 +56,14 @@ test::link_parser::parse_linker_flags()
 
    # Parse the flags and convert to abstract format while maintaining order
    local flag
+   local libdir
+   local rpath
    for flag in ${all_flags}
    do
       case "${flag}" in
          # Library directory - convert to abstract -L format
          -L*)
-            local libdir="${flag#-L}"
+            libdir="${flag#-L}"
             libdir="${libdir#\'}"
             libdir="${libdir%\'}"
             r_concat "${abstract_flags}" "-L'${libdir}'"
@@ -93,7 +95,7 @@ test::link_parser::parse_linker_flags()
 
          # Rpath flag - convert to abstract format
          -Wl,-rpath,*|-Wl,-rpath=*)
-            local rpath="${flag#-Wl,-rpath,}"
+            rpath="${flag#-Wl,-rpath,}"
             rpath="${rpath#-Wl,-rpath=}"
             rpath="${rpath#\'}"
             rpath="${rpath%\'}"
@@ -107,7 +109,11 @@ test::link_parser::parse_linker_flags()
          ;;
 
          -Wl,--export-dynamic|--export-dynamic)
-            # Skip - not needed for test executables on Linux
+            # Preserve as an abstract flag; mulle-platform re-emits it in the
+            # correct per-linker spelling (-export_dynamic on Mach-O,
+            # --export-dynamic on ELF, nothing on Windows).
+            r_concat "${abstract_flags}" "--export-dynamic"
+            abstract_flags="${RVAL}"
          ;;
 
          -Wl,-dead_strip|-Wl,--gc-sections)

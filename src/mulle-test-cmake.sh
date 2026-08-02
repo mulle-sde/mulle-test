@@ -386,6 +386,30 @@ test::cmake::eval_mulle_make()
    test::cmake::r_add_cmakeflag "${cmd}" "CMAKE_SHARED_LINKER_FLAGS" "${cmake_shared_linker_flags}"
    cmd="${RVAL}"
 
+   #
+   # Pass the *unqualified* dependency/addiction dirs as MULLE_SDK_PATH and the
+   # configuration separately as MULLE_SDK_SUBDIR. Environment.cmake appends the
+   # subdir itself, so MULLE_SDK_PATH must NOT already contain the configuration
+   # (see mulle-craft craft::path::r_get_mulle_sdk_path: "The MULLE_SDK_PATH
+   # does not contain the configuration (!)").
+   #
+   # Without these, Environment.cmake falls back to `mulle-sde dependency-dir`,
+   # which returns the style-*qualified* dir (e.g. .../dependency/Debug). It then
+   # appends MULLE_SDK_SUBDIR again, yielding .../dependency/Debug/Debug and
+   # failing to find any dependency headers/libraries.
+   #
+   local mulle_sdk_path
+
+   r_colon_concat "${DEPENDENCY_DIR}" "${ADDICTION_DIR}"
+   mulle_sdk_path="${RVAL}"
+   if [ ! -z "${mulle_sdk_path}" ]
+   then
+      test::cmake::r_add_cmakeflag "${cmd}" "MULLE_SDK_PATH" "${mulle_sdk_path}"
+      cmd="${RVAL}"
+      test::cmake::r_add_cmakeflag "${cmd}" "MULLE_SDK_SUBDIR" "${build_type}"
+      cmd="${RVAL}"
+   fi
+
    log_setting "LINK_COMMAND=${LINK_COMMAND}"
 
    local cmake_libraries

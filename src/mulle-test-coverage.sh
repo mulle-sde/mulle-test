@@ -355,7 +355,6 @@ test::coverage::main()
             fail "gcovr not found in PATH (needed for llvm-cov mode)"
          fi
 
-         local gcovroptions
          if gcovroptions="`grep -E -v '^#' .gcovr-options 2> /dev/null`"
          then
             log_verbose "Using options ${C_RESET_BOLD}${gcovroptions}${C_VERBOSE} found in ${C_RESET_BOLD}.gcovr-options"

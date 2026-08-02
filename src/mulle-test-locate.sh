@@ -98,7 +98,7 @@ test::locate::r_test_dir()
       return 0
    fi
 
-   local name
+   local dir_name
 
    r_basename "${testdir}"
    dir_name="${RVAL}"

@@ -137,6 +137,7 @@ test::init::main()
    local OPTION_DIRECTORY="test"
    local OPTION_STANDALONE='NO'
    local OPTION_EXECUTABLE='NO'
+   local OPTION_PROJECT_NAME=''
    local APPEND_TEST_TO_NAME='YES'
 
    while [ $# -ne 0 ]
@@ -157,7 +158,7 @@ test::init::main()
             [ $# -eq 1 ] && test::init::usage "missing argument to \"$1\""
             shift
 
-            PROJECT_NAME="$1"
+            OPTION_PROJECT_NAME="$1"
             APPEND_TEST_TO_NAME='NO'
          ;;
 
@@ -231,16 +232,18 @@ test::init::main()
 
    if [ ! -z "${PROJECT_ROOT_DIR}" ]
    then
-      if [ -z "${PROJECT_NAME}" ]
-      then
-         local envfile
+      local envfile
 
-         envfile="`rexekutor mulle-env ${MULLE_TECHNICAL_FLAGS} \
-                         environment scope file --if-exists project`"
-         if [ ! -z "${envfile}" ]
-         then
-            . "${envfile}" || exit 1
-         fi
+      envfile="`rexekutor mulle-env ${MULLE_TECHNICAL_FLAGS} \
+                      environment scope file --if-exists project`"
+      if [ ! -z "${envfile}" ]
+      then
+         . "${envfile}" || exit 1
+      fi
+
+      if [ ! -z "${OPTION_PROJECT_NAME}" ]
+      then
+         PROJECT_NAME="${OPTION_PROJECT_NAME}"
       fi
    else
       [ ! -d "${parentdir}/.mulle/share/sde" ] && \
@@ -283,6 +286,14 @@ test::init::main()
       PROJECT_NAME="${PROJECT_NAME}-test"
    fi
 
+   # The mulle-sde test project fetches the project under test. Its repository
+   # is owned by the mulle-sde organization, regardless of the local checkout.
+   local test_github_user="${GITHUB_USER}"
+   if [ "${TEST_PROJECT_NAME}" = 'mulle-sde' ]
+   then
+      test_github_user='mulle-sde'
+   fi
+
    #
    # also set project language and dialect from main project
    # use inherit, since we don't want to copy all the tools and optionaltools
@@ -297,7 +308,7 @@ test::init::main()
                          -s \
                   init --no-motd \
                        --style 'mulle/inherit' \
-                       --github-user "'${GITHUB_USER}'" \
+                       --github-user "'${test_github_user}'" \
                        --project-name "'${PROJECT_NAME}'" \
                        --test-project-name "'${TEST_PROJECT_NAME}'" \
                        --project-language "'${PROJECT_LANGUAGE}'" \

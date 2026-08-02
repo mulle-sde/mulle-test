@@ -31,6 +31,7 @@ _mulle_test_complete() {
     )
 
     local i
+    local sanitizers clean_commands clean_options coverage_tools craft_options env_options fetch_options init_options linkorder_options run_options test_dir_options
     for ((i = 1; i < cword; ++i)); do
         if [[ "${words[i]}" == -* ]]; then
             continue
@@ -44,7 +45,7 @@ _mulle_test_complete() {
                         return 0
                     fi
                     if [[ "$prev" == "--add-sanitizer" || "$prev" == "--add-memory-checker" || "$prev" == "--sanitizer" ]]; then
-                        local sanitizers=("address" "thread" "undefined" "valgrind" "valgrind-no-leaks" "coverage" "objc-coverage" "gdb" "testallocator" "zombie" "gmalloc" "glibc")
+                        sanitizers=("address" "thread" "undefined" "valgrind" "valgrind-no-leaks" "coverage" "objc-coverage" "gdb" "testallocator" "zombie" "gmalloc" "glibc")
                         COMPREPLY=($(compgen -W "${sanitizers[*]}" -- "$cur"))
                         return 0
                     fi
@@ -56,8 +57,8 @@ _mulle_test_complete() {
                 return 0
                 ;;
             clean)
-                local clean_commands=("all" "tidy" "gravetidy")
-                local clean_options=("-h" "--help" "--no-var" "--no-graveyard" "-g")
+                clean_commands=("all" "tidy" "gravetidy")
+                clean_options=("-h" "--help" "--no-var" "--no-graveyard" "-g")
                 case "$prev" in
                     --no-var|--no-graveyard|-g)
                         COMPREPLY=()
@@ -82,7 +83,7 @@ _mulle_test_complete() {
                 esac
                 ;;
             coverage)
-                local coverage_tools=("gcovr" "gcov")
+                coverage_tools=("gcovr" "gcov")
                 case "$prev" in
                     -h|--help)
                         COMPREPLY=()
@@ -99,7 +100,7 @@ _mulle_test_complete() {
                 esac
                 ;;
             craft)
-                local craft_options=("-h" "--help" "--build-args" "--run-args" "--coverage" "--debug" "--postprocess" "--no-postprocess" "--release" "--standalone")
+                craft_options=("-h" "--help" "--build-args" "--run-args" "--coverage" "--debug" "--postprocess" "--no-postprocess" "--release" "--standalone")
                 case "$prev" in
                     -h|--help|--coverage|--debug|--postprocess|--no-postprocess|--release|--standalone)
                         COMPREPLY=()
@@ -120,17 +121,17 @@ _mulle_test_complete() {
                 esac
                 ;;
             env)
-                local env_options=("-h" "--help")
+                env_options=("-h" "--help")
                 COMPREPLY=($(compgen -W "${env_options[*]}" -- "$cur"))
                 return 0
                 ;;
             fetch)
-                local fetch_options=("-h" "--help")
+                fetch_options=("-h" "--help")
                 COMPREPLY=($(compgen -W "${fetch_options[*]}" -- "$cur"))
                 return 0
                 ;;
             init)
-                local init_options=("-h" "--help" "--project-name" "--project-language" "--project-dialect" "--project-extensions" "--project-type" "--executable" "--github-name" "--shared" "--standalone")
+                init_options=("-h" "--help" "--project-name" "--project-language" "--project-dialect" "--project-extensions" "--project-type" "--executable" "--github-name" "--shared" "--standalone")
                 case "$prev" in
                     -h|--help|--executable|--shared|--standalone)
                         COMPREPLY=()
@@ -156,7 +157,7 @@ _mulle_test_complete() {
                 return 0
                 ;;
             linkorder)
-                local linkorder_options=("-h" "--help" "--startup" "--no-startup" "--cached" "--uncached")
+                linkorder_options=("-h" "--help" "--startup" "--no-startup" "--cached" "--uncached")
                 case "$prev" in
                     -h|--help|--startup|--no-startup|--cached|--uncached)
                         COMPREPLY=()
@@ -178,7 +179,7 @@ _mulle_test_complete() {
                 return 0
                 ;;
             run|crun)
-                local run_options=("-h" "--help" "-l" "--lenient" "-j" "--jobs" "-V" "--assembler" "--ir" "--no-run-test" "--no-run-script" "--disable-coredumps" "--project-language" "--project-dialect" "--project-extensions" "--path-prefix" "--parallel" "--extensions" "--release" "--debug" "--build-args" "--run-args" "--reuse-exe" "--golden-stdout" "--keep-exe" "--print-exe")
+                run_options=("-h" "--help" "-l" "--lenient" "-j" "--jobs" "-V" "--assembler" "--ir" "--no-run-test" "--no-run-script" "--disable-coredumps" "--project-language" "--project-dialect" "--project-extensions" "--path-prefix" "--parallel" "--extensions" "--release" "--debug" "--build-args" "--run-args" "--reuse-exe" "--golden-stdout" "--keep-exe" "--print-exe")
                 case "$prev" in
                     -h|--help|-l|--lenient|-V|--assembler|--ir|--no-run-test|--no-run-script|--disable-coredumps|--parallel|--release|--debug|--reuse-exe|--golden-stdout|--keep-exe|--print-exe)
                         COMPREPLY=()
@@ -204,7 +205,7 @@ _mulle_test_complete() {
                 return 0
                 ;;
             test-dir)
-                local test_dir_options=("-h" "--help")
+                test_dir_options=("-h" "--help")
                 case "$prev" in
                     -h|--help)
                         COMPREPLY=()

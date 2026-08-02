@@ -411,6 +411,21 @@ test::compiler::r_c_commandline()
                   cmdline="${cmdline} --export-symbol _mulle_atexit"
                ;;
             esac
+            #
+            # libmulle-testallocator is a separate dylib that binds the
+            # stacktrace symbols back from the executable via dynamic_lookup
+            # when MULLE_TESTALLOCATOR trace is enabled. mulle-stacktrace is
+            # always statically linked (hidden visibility) so, unless we keep
+            # these in the exe's dynamic symbol table, they resolve to NULL in
+            # the dylib and crash on init. Export them whenever testallocator
+            # is linked in.
+            #
+            case "${linkcommand},${LDFLAGS}" in
+               *mulle-testallocator*)
+                  cmdline="${cmdline} --export-symbol _mulle_stacktrace"
+                  cmdline="${cmdline} --export-symbol _mulle_stacktrace_init_default"
+               ;;
+            esac
          ;;
 
          objc)
@@ -418,7 +433,16 @@ test::compiler::r_c_commandline()
                mulle-objc)
                   cmdline="${cmdline} --export-symbol _mulle_atinit"
                   cmdline="${cmdline} --export-symbol _mulle_atexit"
-                  cmdline="${cmdline} --export-symbol ___register_mulle_objc_universe"
+                  # NB: pass the C source name (two leading underscores). The
+                  #     compiler driver adds the Mach-O leading underscore, so
+                  #     this becomes ___register_mulle_objc_universe, matching
+                  #     the symbol defined in libMulleObjC-startup. Passing
+                  #     three underscores here over-mangles it to four and the
+                  #     force-loaded startup symbol is not matched.
+                  cmdline="${cmdline} --export-symbol __register_mulle_objc_universe"
+                  # see the C case above: testallocator dylib needs these
+                  cmdline="${cmdline} --export-symbol _mulle_stacktrace"
+                  cmdline="${cmdline} --export-symbol _mulle_stacktrace_init_default"
                ;;
             esac
          ;;
@@ -428,6 +452,18 @@ test::compiler::r_c_commandline()
    case "${TEST_PLATFORM}" in
       windows)
          linkcommand="${linkcommand} -Wl,--export-all-symbols"
+      ;;
+
+      *)
+         #
+         # Put the test executable's own symbols into the dynamic symbol table
+         # so tests that call dlsym( RTLD_DEFAULT, "some_symbol") can find them.
+         # On ELF (Linux) executables export by default via --export-dynamic;
+         # on Mach-O (Darwin) this is a no-op by default, so the symbols stay
+         # private and dlsym returns NULL unless -export_dynamic is passed.
+         # mulle-platform re-emits this in the correct per-linker spelling.
+         #
+         cmdline="${cmdline} --export-dynamic"
       ;;
    esac
 
