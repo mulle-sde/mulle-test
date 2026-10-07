@@ -280,7 +280,8 @@ For a test named `example.c`, files are searched in this order:
 
 - **`.no-sanitizers`**: Disables all sanitizers for this test
 - **`.no-<sanitizer>`**: Disables specific sanitizer (e.g., `.no-valgrind`)
-- **`no-mulle-test`**: Skip this directory entirely
+- **`.no-mulle-test`** (legacy: `no-mulle-test`): Skip this directory entirely
+- **`.no-mulle-test.<platform>`**: Skip this directory on `<platform>` only
 - **`CMakeLists.txt.ignore`**: Ignore CMake build in favor of other method
 - **`runner`**: Custom executable to run instead of compiled test
 

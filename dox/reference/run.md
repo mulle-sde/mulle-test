@@ -114,6 +114,10 @@ Tests can include auxiliary files for configuration:
 - **`<name>.environment`**: Environment variables
 - **`<name>.errors`**: Expected error patterns
 - **`<name>.ccdiag`**: Expected compiler diagnostics
+- **`<name>.CFLAGS`**: CFLAGS to compile the test with, clobbers the defaults
+- **`<name>.<c>.CFLAGS`**: CFLAGS for configuration `<c>` (e.g. Debug)
+- **`<name>.OTHER_CFLAGS`**: Extra CFLAGS to compile the test with, augmented
+  onto the defaults instead of replacing them
 
 ## Examples
 

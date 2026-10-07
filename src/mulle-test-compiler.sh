@@ -50,6 +50,30 @@ test::compiler::r_env_sanitizer_flags()
          RVAL="MULLE_OBJC_PEDANTIC_EXIT=YES"
          return 0
       ;;
+
+      #
+      # Make sanitizer diagnostics fatal. By default UBSan only prints a
+      # diagnostic to stderr and the test still exits 0, so a sanitizer run
+      # would silently pass. These are applied to the test process itself
+      # (not inherited), because the harness runs the test through
+      # mulle-env/mulle-test which does not reliably forward the caller's
+      # environment. The values can be overridden by setting the respective
+      # MULLE_TEST_*_OPTIONS variable in the project environment.
+      #
+      *:undefined:*)
+         RVAL="UBSAN_OPTIONS='${MULLE_TEST_UBSAN_OPTIONS:-halt_on_error=1:print_stacktrace=1}'"
+         return 0
+      ;;
+
+      *:address:*)
+         RVAL="ASAN_OPTIONS='${MULLE_TEST_ASAN_OPTIONS:-halt_on_error=1:abort_on_error=1}'"
+         return 0
+      ;;
+
+      *:thread:*)
+         RVAL="TSAN_OPTIONS='${MULLE_TEST_TSAN_OPTIONS:-halt_on_error=1}'"
+         return 0
+      ;;
    esac
    
    return 1
@@ -572,41 +596,27 @@ test::compiler::run_gcc()
 
    shift 4
 
-   # Detect cross-compilation and set compiler
+   # Detect cross-compilation and set compiler. mulle-platform owns the
+   # knowledge of how to cross-compile for a target platform.
    local old_CC
    local old_CXX
 
    if [ "${TEST_PLATFORM}" != "${MULLE_UNAME}" ]
    then
-      # Cross-compiling - set up compiler
-      local platform_upper
+      local cross_compiler_env
 
-      r_uppercase "${TEST_PLATFORM}"
-      platform_upper="${RVAL}"
+      cross_compiler_env="`mulle-platform compiler env --platform "${TEST_PLATFORM}" \
+                                                       --dialect "${PROJECT_DIALECT:-c}" \
+                                                       --objc-dialect "${MULLE_OBJC_DIALECT:-mulle-objc}" \
+                                                       2>/dev/null | grep -E '^(CC|CXX)='`" || true
 
-      local cross_compiler_root
-
-      r_shell_indirect_expand "MULLE_CRAFT_CROSS_COMPILER_ROOT__${platform_upper}"
-      cross_compiler_root="${RVAL}"
-
-      local triplet
-
-      r_shell_indirect_expand "MULLE_SDE_PLATFORM_TRIPLET__${platform_upper}"
-      triplet="${RVAL}"
-      triplet="${cross_compiler_triplet:-x86_64-w64-mingw32}"
-
-      if [ ! -z "${cross_compiler_root}" ]
+      if [ ! -z "${cross_compiler_env}" ]
       then
-         old_CC="${CC}"
-         old_CXX="${CXX}"
+         old_CC="${CC:-}"
+         old_CXX="${CXX:-}"
 
-         # hax hax hax
-         case "${TEST_PLATFORM}" in
-            windows)
-               export CC="${cross_compiler_root}/bin/${triplet}-clang"
-               export CXX="${cross_compiler_root}/bin/${triplet}-clang++"
-            ;;
-         esac
+         eval "${cross_compiler_env}"
+         export CC CXX
       fi
    fi
 

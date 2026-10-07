@@ -55,8 +55,9 @@ Usage:
    <name>.environment : Environment variables sourced for test (export FOO=YES)
    <name>.cat         : command to use instead of the default cat
    <name>.diff        : command to use instead of the default diff
-   <name>.CFLAGS      : CFLAGS to compile the test with
+   <name>.CFLAGS      : CFLAGS to compile the test with, clobbers defaults
    <name>.<c>.CFLAGS  : CFLAGS for configuration <c> (e.g. Debug)
+   <name>.OTHER_CFLAGS: CFLAGS to compile the test with, augments defaults
    <name>.skip        : Skip this test unconditionally (empty file)
    <name>.skip.<p>    : Skip this test on platform <p> (e.g. foo.skip.windows)
    <name>.skip.<p>.<a>: Skip this test on platform <p> and arch <a>
@@ -65,8 +66,9 @@ Usage:
    to "default". You can add ".${TEST_PLATFORM}.${MULLE_ARCH}" to specify your
    current platform only (or just either one) e.g. "default.cat.linux.x86_64".
 
-   A "no-mulle-test.<platform>" file in a test directory skips the whole
-   directory on that platform (extends the existing "no-mulle-test" mechanism).
+   A ".no-mulle-test" file in a test directory skips the whole directory.
+   ".no-mulle-test.<platform>" (or ".<platform>" appended to the legacy name
+   "no-mulle-test") skips the directory on that platform only.
 
 Options:
    --assembler        : produce assembler code on the side (C|ObjC/gcc|clang)
@@ -994,17 +996,22 @@ test::run::_scan_directory()
    local root="$1"; shift
    local extensions="$1"; shift
 
-   if [ -e no-mulle-test ]
-   then
-      log_verbose "${PWD#${MULLE_USER_PWD}/} skipped because file \"no-mulle-test\" is present"
-      return
-   fi
+   local sentinel
 
-   if [ -e "no-mulle-test.${TEST_PLATFORM}" ]
-   then
-      log_info "${C_MAGENTA}${C_BOLD}${PWD#${MULLE_USER_PWD}/}${C_INFO} skipped on platform ${TEST_PLATFORM}"
-      return
-   fi
+   for sentinel in .no-mulle-test no-mulle-test
+   do
+      if [ -e "${sentinel}" ]
+      then
+         log_verbose "${PWD#${MULLE_USER_PWD}/} skipped because file \"${sentinel}\" is present"
+         return
+      fi
+
+      if [ -e "${sentinel}.${TEST_PLATFORM}" ]
+      then
+         log_info "${C_MAGENTA}${C_BOLD}${PWD#${MULLE_USER_PWD}/}${C_INFO} skipped on platform ${TEST_PLATFORM} (${sentinel}.${TEST_PLATFORM})"
+         return
+      fi
+   done
 
    if [ -x run ] || [ -x run-test ]
    then
@@ -1286,6 +1293,7 @@ test::run::main()
    if ! test::options::r_parse "$@"
    then
       test::run::usage
+      exit 1
    fi
 
    # Shift away parsed options

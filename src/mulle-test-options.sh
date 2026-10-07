@@ -33,6 +33,7 @@ MULLE_TEST_OPTIONS_SH='included'
 
 
 # Parse common flags for both craft and run commands
+# First argument is the help function to call
 # Returns shift count in RVAL
 # Caller must initialize OPTION_ variables before calling
 #
@@ -67,10 +68,9 @@ MULLE_TEST_OPTIONS_SH='included'
 test::options::r_parse()
 {
    log_entry "test::options::r_parse" "$@"
-   local shifts=0
-   local rc
 
-   rc=0
+   local shifts=0
+
    while [ $# -ne 0 ]
    do
       case "$1" in
@@ -289,9 +289,8 @@ test::options::r_parse()
          ;;
 
          -h*|--help|help)
-            # dont consume
-            rc=2
-            break
+            shifts=$(( ${shifts} + $# ))
+            return 2
          ;;
 
          -*)
@@ -308,6 +307,8 @@ test::options::r_parse()
 
    log_debug "parsed ${shifts} arguments, $# remain"
    RVAL=${shifts}
+
+   return 0
 }
 
 :
