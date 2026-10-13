@@ -8,6 +8,6 @@
       reponame="mulle-test";
        homepage="https://github.com/mulle-sde/mulle-test";
        license="BSD-3-Clause";
-       version="7.3.0"
+       version="7.4.0"
    };
 }

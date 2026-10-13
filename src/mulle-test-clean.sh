@@ -94,6 +94,18 @@ test::clean::main()
       exekutor rmdir_safer "$dir"
    done < <(find * -type d -name 'kitchen' ! -path "${KITCHEN_DIR:-kitchen}")
 
+   # Test cases may contain nested mulle-sde projects of their own (sample
+   # "mylib" projects), each with a .mulle/var tool environment. Removing the
+   # kitchen above does not touch those, so a stale tool symlink (e.g. a ninja
+   # pointing into a location this machine can not execute) would survive the
+   # clean and break the next run. Clear every nested project's var as well.
+   log_verbose "Cleaning var of nested projects"
+
+   while read -r dir
+   do
+      ( cd "${dir%/.mulle}" && exekutor mulle-env clean )
+   done < <(find * -type d -name '.mulle')
+
    log_verbose "Cleaning test executables"
 
    local file
