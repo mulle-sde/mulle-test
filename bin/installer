@@ -144,6 +144,26 @@ r_installer_install_prefix()
 }
 
 
+#
+# The FreeBSD test helpers live in libexec (so freebsd-common.sh is found
+# relative to $0), user-facing commands get a launcher in bin.
+#
+installer_make_freebsd_launcher()
+{
+   name="$1"
+   dest="$2"
+
+   cat > "${dest}" <<EOF
+#!/bin/sh
+selfdir="\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd -P)"
+prefix="\$(CDPATH= cd -- "\${selfdir}/.." && pwd -P)"
+libexecdirname="\${MULLE_BASHFUNCTIONS_LIBEXEC_DIRNAME:-${libexecdirname}}"
+exec "\${prefix}/\${libexecdirname}/mulle-test/freebsd/${name}" "\$@"
+EOF
+   chmod "${mode}" "${dest}" || installer_fail "could not chmod ${dest}"
+}
+
+
 main()
 {
    prefix=${1:-"/usr/local"}
@@ -180,9 +200,26 @@ main()
       install ${VERBOSE} -m "${mode}" "${i}" "${libexec}" || exit 1
    done
 
+   freebsd="${libexec}/freebsd"
+   mkdir -p "${freebsd}" || installer_fail "could not create ${freebsd}"
+
+   for i in freebsd/*.sh freebsd/freebsd-run
+   do
+      install ${VERBOSE} -m "${mode}" "${i}" "${freebsd}" || exit 1
+   done
+
+   for i in freebsd-run freebsd-devroot.sh freebsd-vm.sh
+   do
+      installer_make_freebsd_launcher "${i}" "${bin}/${i}" || exit 1
+      printf "install: ${C_MAGENTA}${C_BOLD}%s${C_RESET}\n" "${bin}/${i}" >&2
+   done
+
    EXTENSION_DIR="${share}/extensions"
    mkdir -p "${EXTENSION_DIR}" || exit 1
    cp -Rp ${VERBOSE} "src/mulle-sde" "${EXTENSION_DIR}/" || exit 1
+
+   install ${VERBOSE} -m 644 "freebsd/FREEBSD-TEST-IN-VM.md" \
+      "${EXTENSION_DIR}/mulle-sde/c-test-runtime/share/sde/howto/freebsd-test-in-vm.md" || exit 1
 }
 
 main "$@"

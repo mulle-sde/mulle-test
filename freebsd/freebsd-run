@@ -1,0 +1,228 @@
+#!/usr/bin/env bash
+#
+# freebsd-run - run a FreeBSD cross-compiled executable on a FreeBSD VM.
+#
+# This is meant to be used as mulle-test's emulator:
+#
+#   export MULLE_EMULATOR__FREEBSD="${PWD}/freebsd/freebsd-run"
+#
+# mulle-test prepends the emulator to the test executable, so this script
+# receives the host path of a FreeBSD ELF executable and must execute it on
+# the VM. It rsyncs the executable and its shared libraries (from the
+# platform's dependency lib/bin directories) to the VM and runs it there,
+# proxying stdin/stdout/stderr and the exit code.
+#
+# Environment (required):
+#   TEST_PLATFORM        e.g. "freebsd"
+#   TEST_SDK             SDK name (passed to mulle-craft searchpath)
+#   TEST_CONFIGURATION   e.g. "Debug"
+#
+# Environment (optional):
+#   FREEBSD_VM_HOST        ssh alias/host        (default: freebsd)
+#   FREEBSD_VM_USER        ssh user             (default: vm)
+#   FREEBSD_VM_SSH_KEY     private key          (default: ~/.ssh/id_rsa_vm)
+#   FREEBSD_VM_REMOTE_DIR  remote staging dir   (default: /tmp/mulle-test)
+#
+set -euo pipefail
+
+if [ $# -lt 1 ]
+then
+   echo "usage: $(basename "$0") <freebsd-executable> [args...]" >&2
+   exit 2
+fi
+
+exe="$1"
+shift
+
+exe_dir="$(CDPATH= cd -- "$(dirname -- "${exe}")" && pwd -P)"
+exe_name="$(basename -- "${exe}")"
+
+vm_host="${FREEBSD_VM_HOST:-freebsd}"
+vm_user="${FREEBSD_VM_USER:-vm}"
+vm_key="${FREEBSD_VM_SSH_KEY:-${HOME}/.ssh/id_rsa_vm}"
+
+# Tests run in parallel, so each invocation needs its own staging directory
+# and its own ssh control socket (a shared ControlMaster exceeds the sshd
+# MaxSessions limit).
+run_id="$$"
+remote_dir="${FREEBSD_VM_REMOTE_DIR:-/tmp/mulle-test}-${run_id}"
+
+ssh_opts="-i ${vm_key} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o LogLevel=ERROR"
+target="${vm_user}@${vm_host}"
+
+control_dir="${TMPDIR:-/tmp}/mulle-freebsd-run-${UID}"
+mkdir -p "${control_dir}"
+control_path="${control_dir}/cm-%r@%h:%p-${run_id}"
+ssh_opts="${ssh_opts} -o ControlMaster=auto -o ControlPath=${control_path} -o ControlPersist=30"
+
+# The tests run in parallel, but the VM (and sshd MaxSessions) prefers one
+# remote session at a time. Serialize remote access per VM without forcing
+# the whole test run to be serial.
+if command -v flock > /dev/null 2>&1
+then
+   exec 9> "${control_dir}/vm.lock"
+   flock 9
+fi
+
+cleanup()
+{
+   ssh ${ssh_opts} -O exit "${target}" > /dev/null 2>&1 || true
+   ssh ${ssh_opts} "${target}" \
+      "chmod -R u+w '${remote_dir}' 2>/dev/null; rm -rf '${remote_dir}'" \
+      > /dev/null 2>&1 || true
+   rm -f "${control_path}" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+#
+# Collect the host directories that contain the shared libraries and helper
+# executables for this platform. Derived from mulle-craft, which is what the
+# test harness itself uses. Falls back to the executable's rpath.
+#
+lib_dirs=""
+bin_dirs=""
+
+if command -v mulle-craft > /dev/null 2>&1 && [ -n "${TEST_PLATFORM:-}" ]
+then
+   platform="${TEST_PLATFORM}"
+   if [ "${platform}" = "${MULLE_UNAME:-}" ]
+   then
+      platform=""
+   fi
+
+   searchpath()
+   {
+      local kind="$1"
+
+      # shellcheck disable=SC2086
+      mulle-craft searchpath \
+         --sdk "${TEST_SDK}" \
+         --platform "${platform}" \
+         --configuration "${TEST_CONFIGURATION}" \
+         --no-addiction --if-exists "${kind}" 2>/dev/null || true
+      # shellcheck disable=SC2086
+      mulle-craft searchpath \
+         --sdk "${TEST_SDK}" \
+         --platform "${platform}" \
+         --configuration "${TEST_CONFIGURATION}" \
+         --only-addiction --if-exists "${kind}" 2>/dev/null || true
+   }
+
+   lib_dirs="$(searchpath library | sort -u | paste -sd: -)"
+   bin_dirs="$(searchpath binary | sort -u | paste -sd: -)"
+fi
+
+# fallback: the harness links tests with -rpath pointing at the platform lib dir
+if [ -z "${lib_dirs}" ] && command -v llvm-readelf > /dev/null 2>&1
+then
+   lib_dirs="$(llvm-readelf -d "${exe}" 2>/dev/null \
+      | awk '/\(RPATH\)|\(RUNPATH\)/ { print }' \
+      | grep -oE '\[[^]]+\]' \
+      | tr -d '[]' | paste -sd: - || true)"
+fi
+
+lib_dirs="${lib_dirs:-}"
+bin_dirs="${bin_dirs:-}"
+
+#
+# Sync contents of the given host directories into a remote directory.
+# Uses rsync when the VM has it, otherwise a tar pipe (FreeBSD base has tar
+# but no rsync).
+#
+remote_has_rsync="NO"
+if ssh ${ssh_opts} "${target}" 'command -v rsync > /dev/null 2>&1' < /dev/null
+then
+   remote_has_rsync="YES"
+fi
+
+sync_dirs()
+{
+   local dest="$1"
+   shift
+
+   local dirs="$*"
+
+   [ -n "${dirs}" ] || return 0
+
+   ssh ${ssh_opts} "${target}" "mkdir -p '${dest}'" < /dev/null
+
+   if [ "${remote_has_rsync}" = 'YES' ]
+   then
+      # shellcheck disable=SC2086
+      rsync -a -q --delete --copy-links -e "ssh ${ssh_opts}" \
+         $(printf '%s\n' ${dirs} | sed 's#/*$#/#') \
+         "${target}:${dest}/" < /dev/null
+      return 0
+   fi
+
+   # tar pipe fallback; simpler delete semantics by recreating the directory
+   # (staging dirs may be read-only, so make them writable before removing)
+   ssh ${ssh_opts} "${target}" \
+      "chmod -R u+w '${dest}' 2>/dev/null; rm -rf '${dest}'; mkdir -p '${dest}'" < /dev/null
+
+   local tar_args=""
+   local dir
+   for dir in ${dirs}
+   do
+      tar_args="${tar_args} -C ${dir} ."
+   done
+
+   # shellcheck disable=SC2086
+   tar -cf - ${tar_args} | \
+      ssh ${ssh_opts} "${target}" "tar -xpf - -C '${dest}' && chmod -R u+rwX '${dest}'"
+}
+
+sync_dirs "${remote_dir}/lib" "$(printf '%s\n' "${lib_dirs}" | tr ':' ' ')"
+sync_dirs "${remote_dir}/bin" "$(printf '%s\n' "${bin_dirs}" | tr ':' ' ')"
+
+# Sync the test's working directory as well, so checked-in fixtures
+# (*.bundle, demo dirs, data files) are present on the VM. The harness runs
+# the test from this directory, so mirror the name and the cwd.
+sync_dirs "${remote_dir}/work" "${exe_dir}"
+
+remote_work="${remote_dir}/work"
+remote_exe="${remote_work}/${exe_name}"
+ssh ${ssh_opts} "${target}" "mkdir -p '${remote_work}'" < /dev/null
+scp -q -p ${ssh_opts} "${exe}" "${target}:${remote_exe}" < /dev/null 2>/dev/null || \
+   ( ssh ${ssh_opts} "${target}" "cat > '${remote_exe}.part'" < "${exe}" && \
+     ssh ${ssh_opts} "${target}" "mv '${remote_exe}.part' '${remote_exe}'" < /dev/null )
+
+#
+# Forward the test-relevant environment. Wine passes its environment on
+# implicitly; ssh does not, so whitelist what mulle-test sets.
+#
+forward=""
+for name in $(compgen -e)
+do
+   case "${name}" in
+      MULLE_TESTALLOCATOR*|MULLE_ATINIT*|MULLE_OBJC*|MULLE_ATEXIT*)
+         ;;
+      MALLOC_PERTURB_|MALLOC_CHECK_|MALLOC_PROTECT_BEFORE|MALLOC_FILL_SPACE|MALLOC_STRICT_SIZE)
+         ;;
+      LLVM_PROFILE_FILE|NSZombieEnabled)
+         ;;
+      *)
+         continue
+         ;;
+   esac
+
+   printf -v quoted '%q' "${!name}"
+   forward="${forward} ${name}=${quoted}"
+done
+
+remote_ld_path="${remote_dir}/lib:${remote_dir}/bin"
+
+remote_args=""
+if [ $# -gt 0 ]
+then
+   remote_args="$(printf '%q ' "$@")"
+fi
+
+set +e
+# shellcheck disable=SC2086
+ssh ${ssh_opts} "${target}" \
+   "cd '${remote_work}' && LD_LIBRARY_PATH='${remote_ld_path}'${forward} './${exe_name}' ${remote_args}"
+rc=$?
+set -e
+
+exit ${rc}

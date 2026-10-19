@@ -309,13 +309,24 @@ test::execute::r_construct_winepath()
    local winedir
    local dlldir
 
+   #
+   # winepath triggers wineboot on a fresh WINEPREFIX. Silence it and keep it
+   # from launching the Gecko/Mono installers, which pop up a window and spew
+   # a lot of err: messages. Honor a user-supplied setting if present.
+   #
+   local winedebug
+   local winelldoverrides
+
+   winedebug="${WINEDEBUG:--all}"
+   winelldoverrides="${WINEDLLOVERRIDES:-mscoree,mshtml=}"
+
    RVAL=""
 
    if winepathexe="`command -v winepath`"
    then
       .foreachpath dlldir in ${dllpath}
       .do
-          winedir="$(winepath -w "${dlldir}")"
+          winedir="$(WINEDEBUG="${winedebug}" WINEDLLOVERRIDES="${winelldoverrides}" winepath -w "${dlldir}")"
           r_concat "${winepath}" "${winedir}" ';'
           winepath="${RVAL}"
       .done

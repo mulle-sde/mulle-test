@@ -129,11 +129,13 @@ test::environment::setup_execution_platform()
 
    case "${platform}" in
       'windows')
-         CRLFCAT="dos2unix"
+         # -q: dos2unix 7.5.x reports an empty file as "binary symbol
+         # 0xFFFFFFFF" and skips it, which is just noise for empty output
+         CRLFCAT="dos2unix -q"
       ;;
 
       'mingw'|'msys')
-         CRLFCAT="dos2unix"
+         CRLFCAT="dos2unix -q"
       ;;
 
       "")
@@ -145,9 +147,9 @@ test::environment::setup_execution_platform()
       ;;
    esac
 
-   if ! exe="$(command -v "${CRLFCAT}")"
+   if ! exe="$(command -v "${CRLFCAT%% *}")"
    then
-      fail "Please install ${C_RESET_BOLD}${CRLFCAT}${C_ERROR} for tests"
+      fail "Please install ${C_RESET_BOLD}${CRLFCAT%% *}${C_ERROR} for tests"
    fi
 
    log_setting "CRLFCAT             : ${CRLFCAT}"
